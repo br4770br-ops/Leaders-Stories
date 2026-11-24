@@ -1,0 +1,412 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Private user account profile stored at users/{uid}",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "username": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 254
+        },
+        "avatarUrl": {
+          "type": "string",
+          "maxLength": 512
+        },
+        "preferredLanguage": {
+          "type": "string",
+          "enum": ["hinglish", "hindi", "english"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "username", "email", "preferredLanguage", "createdAt", "updatedAt"]
+    },
+    "UserPreferences": {
+      "title": "UserPreferences",
+      "description": "User language and reader preferences stored at users/{uid}/preferences/settings",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "language": {
+          "type": "string",
+          "enum": ["hinglish", "hindi", "english"]
+        },
+        "autoScroll": {
+          "type": "boolean"
+        },
+        "soundEffects": {
+          "type": "boolean"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "language", "updatedAt"]
+    },
+    "FavoriteStory": {
+      "title": "FavoriteStory",
+      "description": "User's saved favourite story entry stored at users/{uid}/favorites/{storyId}",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "storyId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 140
+        },
+        "coverImage": {
+          "type": "string",
+          "maxLength": 512
+        },
+        "genre": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "storyId", "title", "createdAt"]
+    },
+    "StoryProgress": {
+      "title": "StoryProgress",
+      "description": "User progress, current scene, choices, and completion state for a story",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "storyId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "currentScene": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "sceneIndex": {
+          "type": "integer"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["active", "completed"]
+        },
+        "endingReached": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "choicesMade": {
+          "type": "array"
+        },
+        "savedCharacterIds": {
+          "type": "array"
+        },
+        "startedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "storyId", "currentScene", "sceneIndex", "status", "startedAt", "updatedAt"]
+    },
+    "Conversation": {
+      "title": "Conversation",
+      "description": "Conversation thread metadata for an interactive story",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "conversationId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "storyId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "storyTitle": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 140
+        },
+        "coverImage": {
+          "type": "string",
+          "maxLength": 512
+        },
+        "lastMessage": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "lastSpeaker": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "messageCount": {
+          "type": "integer"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "conversationId", "storyId", "storyTitle", "lastMessage", "messageCount", "createdAt", "updatedAt"]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "Single interactive turn message in a story conversation",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "conversationId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "role": {
+          "type": "string",
+          "enum": ["user", "story"]
+        },
+        "userText": {
+          "type": "string",
+          "maxLength": 4000
+        },
+        "sceneSummary": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "beats": {
+          "type": "array"
+        },
+        "metersSnapshot": {
+          "type": "array"
+        },
+        "sequence": {
+          "type": "integer"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "conversationId", "role", "sequence", "createdAt"]
+    },
+    "RelationshipState": {
+      "title": "RelationshipState",
+      "description": "Per-story character relationship meter values",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "storyId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "meters": {
+          "type": "array"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "storyId", "meters", "updatedAt"]
+    },
+    "StoryMemory": {
+      "title": "StoryMemory",
+      "description": "Salient narrative memory record persisted for story continuity",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "storyId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 600
+        },
+        "importance": {
+          "type": "integer"
+        },
+        "charactersInvolved": {
+          "type": "array"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "storyId", "summary", "importance", "createdAt"]
+    },
+    "ManagedStory": {
+      "title": "ManagedStory",
+      "description": "Admin-managed or published story document stored in Firestore",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 140
+        },
+        "tagline": {
+          "type": "string",
+          "maxLength": 300
+        },
+        "about": {
+          "type": "string",
+          "maxLength": 3000
+        },
+        "primaryCategory": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "tags": {
+          "type": "array"
+        },
+        "coverImage": {
+          "type": "string",
+          "maxLength": 1024
+        },
+        "published": {
+          "type": "boolean"
+        },
+        "createdBy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "title", "tagline", "about", "primaryCategory", "tags", "coverImage", "published", "createdBy", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "User profile document isolated strictly to the owning Firebase UID."
+    },
+    "/users/{uid}/preferences/{prefId}": {
+      "schema": { "$ref": "#/entities/UserPreferences" },
+      "description": "User language and reader preferences."
+    },
+    "/users/{uid}/favorites/{storyId}": {
+      "schema": { "$ref": "#/entities/FavoriteStory" },
+      "description": "User saved favourite stories."
+    },
+    "/users/{uid}/storyProgress/{storyId}": {
+      "schema": { "$ref": "#/entities/StoryProgress" },
+      "description": "User branching progress, scene state, and choices per story."
+    },
+    "/users/{uid}/conversations/{conversationId}": {
+      "schema": { "$ref": "#/entities/Conversation" },
+      "description": "Active and past interactive story conversation threads."
+    },
+    "/users/{uid}/conversations/{conversationId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/ChatMessage" },
+      "description": "Ordered message turns within a story conversation."
+    },
+    "/users/{uid}/relationships/{storyId}": {
+      "schema": { "$ref": "#/entities/RelationshipState" },
+      "description": "Persisted character relationship meters for a story."
+    },
+    "/users/{uid}/memories/{memoryId}": {
+      "schema": { "$ref": "#/entities/StoryMemory" },
+      "description": "Important story events and choices remembered by AI characters."
+    },
+    "/stories/{storyId}": {
+      "schema": { "$ref": "#/entities/ManagedStory" },
+      "description": "Admin-managed dynamic stories; published stories are readable by users, writes restricted to verified admins."
+    }
+  }
+}

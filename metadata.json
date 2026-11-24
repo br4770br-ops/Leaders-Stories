@@ -1,0 +1,6 @@
+{
+  "name": "LEADERS STORIES",
+  "description": "Cinematic multi-character interactive AI storytelling platform with branching narratives, intelligent story memory, and dark editorial interface.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

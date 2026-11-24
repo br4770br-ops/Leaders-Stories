@@ -1,0 +1,1753 @@
+import type { StoryCategory, StoryDefinition } from '../types/story';
+
+export const STORY_CATEGORIES: StoryCategory[] = [
+  'For You',
+  'New',
+  'By Fans',
+  'Top 50',
+  'Fantasy',
+  'Crime',
+  'Anime',
+  'Horror',
+  'Thriller',
+  'Drama',
+  'Romance',
+  'College',
+  'School',
+  'Mafia',
+  'Adventure',
+  'Historical',
+  'Mythology',
+  'Supernatural',
+];
+
+export const STORIES_CATALOG: StoryDefinition[] = [
+  {
+    id: 'she_hates_me',
+    title: 'She Hates Me',
+    tagline: 'College ki sabse mushkil love story shuru karein?',
+    about:
+      "At St. Xavier's Heritage College, brilliant scholarship student you and sharp-tongued topper Isha Sharma cannot stand each other. When a mandatory semester project pairs you together—and her overprotective childhood friend Vivaan steps in—every hallway glance turns into sparks, ego clashes, and unspoken feelings.",
+    primaryCategory: 'Romance',
+    categories: ['For You', 'Top 50', 'Romance', 'College', 'School', 'Drama'],
+    tags: ['Roleplay', 'Romance', 'Enemies to Lovers'],
+    visualStyle: 'Realistic Campus DSLR',
+    rating: 4.8,
+    chatCountLabel: '412.1K',
+    chatCountNumeric: 412100,
+    rank: 1,
+    isFeatured: true,
+    isTrending: true,
+    coverImage: '/src/assets/images/cover_she_hates_me_1795460761296.jpg',
+    bannerImage: '/src/assets/images/banner_featured_campus_1795460772450.jpg',
+    mediaGallery: [
+      {
+        id: 'shm_1',
+        url: '/src/assets/images/cover_she_hates_me_1795460761296.jpg',
+        caption: "Morning clash outside Xavier's Gate",
+      },
+      {
+        id: 'shm_2',
+        url: '/src/assets/images/scene_campus_corridor_1795460773005.jpg',
+        caption: 'Dropped notebooks in the Heritage Wing corridor',
+      },
+      {
+        id: 'shm_3',
+        url: '/src/assets/images/banner_featured_campus_1795460772450.jpg',
+        caption: 'Twilight confrontation by the central fountain',
+      },
+      {
+        id: 'shm_4',
+        url: '/src/assets/images/portrait_isha_heroine_1795460773662.jpg',
+        caption: 'Isha Sharma — Debate Society Captain',
+      },
+      {
+        id: 'shm_5',
+        url: '/src/assets/images/portrait_vivaan_rival_1795460852271.jpg',
+        caption: 'Vivaan Kapoor — Protective Best Friend',
+      },
+    ],
+    setting: "St. Xavier's Heritage College main locker corridor, morning bell ringing",
+    characters: [
+      {
+        id: 'isha',
+        name: 'Isha Sharma',
+        age: '20',
+        role: 'Academic Rival & Debate Captain',
+        personality: 'Fiercely proud, quick-witted, secretly stressed by family expectations, refuses to lose an argument.',
+        speakingStyle: 'Sharp teasing Hinglish/English comebacks that soften only when caught off guard.',
+        relationshipToUser: 'Sworn campus rival forced to partner with you',
+        portrait: '/src/assets/images/portrait_isha_heroine_1795460773662.jpg',
+        accentColor: '#E5233D',
+      },
+      {
+        id: 'vivaan',
+        name: 'Vivaan Kapoor',
+        age: '21',
+        role: "Isha's Childhood Best Friend",
+        personality: 'Possessive, athletic, territorial, quick to flare up if anyone gets too close to Isha.',
+        speakingStyle: 'Blunt, protective, intimidating tone.',
+        relationshipToUser: 'Hostile rival watching your every move around Isha',
+        portrait: '/src/assets/images/portrait_vivaan_rival_1795460852271.jpg',
+        accentColor: '#F59E0B',
+      },
+    ],
+    relationshipMeters: [
+      { id: 'love', label: 'Love', emoji: '❤️', initialValue: 8, min: 0, max: 100, tone: 'love' },
+      { id: 'hate', label: 'Hate', emoji: '💔', initialValue: 82, min: 0, max: 100, tone: 'hate' },
+      { id: 'trust', label: 'Trust', emoji: '🤝', initialValue: 20, min: 0, max: 100, tone: 'trust' },
+    ],
+    openingScene: "Xavier's Locker Corridor — Project Partner Announcement",
+    openingBeats: {
+      hinglish: [
+        {
+          type: 'narration',
+          text: 'Subah ki bell bajne hi wali thi jab tumhare aur Isha ke haath se books takra kar corridor mein bikhar gayin. Vivaan paas khada gusse se aankhein sikod kar tumhe ghoor raha hai.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Isha Sharma',
+          text: 'Seriously?! Poora corridor khali pada tha aur tumhe mujhse hi takrana tha? Professor Rao ne kya soch kar tumhe mera project partner bana diya!',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Vivaan Kapoor',
+          text: 'Isha, rehne de. Yeh jaan-boojh kar drama kar raha hai. Chal yahan se, warna iska attitude aaj main theek kar dunga.',
+        },
+      ],
+      hindi: [
+        {
+          type: 'narration',
+          text: 'सुबह की घंटी बजने ही वाली थी कि तुम्हारे और ईशा के हाथों से किताबें टकराकर गलियारे में बिखर गईं। पास खड़ा विवान गुस्से से तुम्हें घूर रहा है।',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Isha Sharma',
+          text: 'सिरियसली?! पूरा गलियारा खाली पड़ा था और तुम्हें मुझसे ही टकराना था? प्रोफेसर राव ने क्या सोचकर तुम्हें मेरा प्रोजेक्ट पार्टनर बना दिया!',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Vivaan Kapoor',
+          text: 'ईशा, रहने दे। यह जानबूझकर तमाशा कर रहा है। चल यहाँ से, वरना इसका रवैया आज मैं सुधार दूँगा।',
+        },
+      ],
+      english: [
+        {
+          type: 'narration',
+          text: 'Moments before the morning bell, your textbooks scatter across the stone corridor after colliding with Isha. Behind her, Vivaan steps closer with a hard stare.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Isha Sharma',
+          text: 'Seriously? The entire hallway is empty and you still manage to crash into me? What on earth made Professor Rao pair us together!',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Vivaan Kapoor',
+          text: "Leave it, Isha. He's just trying to get under your skin. Walk away before I lose my patience with him.",
+        },
+      ],
+    },
+    initialChoices: {
+      hinglish: [
+        'Jhuk kar Isha ki diary uthao aur calmly sorry bolo',
+        'Vivaan ko ignore karke Isha se seedha project ki timing puchho',
+        'Halke smile ke saath Isha ko chhedo: "Miss Topper bhi nervous hoti hain?"',
+      ],
+      hindi: [
+        'झुककर ईशा की डायरी उठाओ और शांत होकर माफी माँगो',
+        'विवान को नज़रअंदाज़ करके ईशा से सीधे प्रोजेक्ट का समय पूछो',
+        'हल्की मुस्कान के साथ ईशा को चिढ़ाओ: "मिस टॉपर भी घबराती हैं क्या?"',
+      ],
+      english: [
+        'Kneel to hand back her dropped notebook calmly',
+        'Ignore Vivaan and ask Isha when she wants to start the project',
+        'Tease with a half-smile: "Didn’t know the Debate Captain gets rattled."',
+      ],
+    },
+    possibleEndings: [
+      'Secret Rooftop Confession',
+      'National Debate Victory Together',
+      'Broken Truce & Bitter Rivalry',
+    ],
+  },
+  {
+    id: 'time_traveller_mahabharat',
+    title: 'Time Traveller in Mahabharat',
+    tagline: 'Ek yug-chakra jo itihaas aur niyati dono badal sakta hai.',
+    about:
+      'While researching an astronomical artifact in Kurukshetra, a golden temporal wheel drags you three millennia into the past—right onto the borders of Hastinapur days before the great war. Caught between royal intrigue, Princess Devika’s sharp intuition, and Yudhishthira and Arjuna’s suspicion, every modern secret you reveal ripples across destiny.',
+    primaryCategory: 'Mythology',
+    categories: ['For You', 'Top 50', 'Mythology', 'Fantasy', 'Historical', 'Adventure'],
+    tags: ['Roleplay', 'Mythology', 'Time Travel'],
+    visualStyle: 'Mythological Cinematic Realism',
+    rating: 4.9,
+    chatCountLabel: '179.4K',
+    chatCountNumeric: 179400,
+    rank: 6,
+    isTrending: true,
+    coverImage: '/src/assets/images/cover_mahabharat_traveler_1795460761928.jpg',
+    mediaGallery: [
+      {
+        id: 'mah_1',
+        url: '/src/assets/images/cover_mahabharat_traveler_1795460761928.jpg',
+        caption: 'Arrival beside the Celestial Kaal-Chakra outside Hastinapur',
+      },
+      {
+        id: 'mah_2',
+        url: '/src/assets/images/banner_featured_campus_1795460772450.jpg',
+        caption: 'Twilight echoes across realms',
+      },
+    ],
+    setting: 'Outskirts of ancient Hastinapur at dusk, glowing temporal wheel cooling in the dust',
+    characters: [
+      {
+        id: 'rajkumari_devika',
+        name: 'Rajkumari Devika',
+        age: '21',
+        role: 'Royal Chronicler & Strategist',
+        personality: 'Astute, courageous, deeply devoted to dharma yet curious about your impossible sky-iron watch and clothes.',
+        speakingStyle: 'Graceful, poetic yet razor-sharp Sanskrit-inflected speech.',
+        relationshipToUser: 'First witness to your arrival from the future',
+        portrait: '/src/assets/images/cover_mahabharat_traveler_1795460761928.jpg',
+      },
+      {
+        id: 'senapati_arjun',
+        name: 'Maharathi Arjun',
+        age: '26',
+        role: 'Master Archer of the Pandavas',
+        personality: 'Disciplined, vigilant, slow to trust strangers near royal camps, respects truth and valor.',
+        speakingStyle: 'Composed, commanding warrior cadence.',
+        relationshipToUser: 'Suspicious protector questioning your intentions',
+        portrait: '/src/assets/images/cover_mahabharat_traveler_1795460761928.jpg',
+      },
+    ],
+    relationshipMeters: [
+      { id: 'trust', label: 'Royal Trust', emoji: '🛡️', initialValue: 22, min: 0, max: 100, tone: 'trust' },
+      { id: 'love', label: 'Devika Bond', emoji: '✨', initialValue: 18, min: 0, max: 100, tone: 'love' },
+      { id: 'dharma', label: 'Destiny Alignment', emoji: '☸️', initialValue: 50, min: 0, max: 100, tone: 'respect' },
+    ],
+    openingScene: 'Hastinapur Ridge — The Golden Kaal-Chakra',
+    openingBeats: {
+      hinglish: [
+        {
+          type: 'narration',
+          text: 'Kaal-Chakra ki sunheri roshni dhire-dhire bujh rahi hai. Tumhare modern hoodie aur digital watch par Hastinapur ki dhool jami hai, aur saamne Rajkumari Devika aur Arjun rath se utar rahe hain.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Rajkumari Devika',
+          text: 'Thahariye, Bhrata Arjun! Yeh koi mayavi asura nahi lagte... inki aankhon mein bhavishya ka koi gehra raaz chhupa hai.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Maharathi Arjun',
+          text: 'Parichay do agantuk! Tum aakash ke kis chakra se gire ho, aur tumhare paas yeh chamakta hua yantra kya hai?',
+        },
+      ],
+      hindi: [
+        {
+          type: 'narration',
+          text: 'काल-चक्र का सुनहरा प्रकाश धीरे-धीरे शांत हो रहा है। तुम्हारे आधुनिक वस्त्रों पर हस्तिनापुर की धूल जमी है, और सामने राजकुमारी देविका तथा अर्जुन रथ से उतर रहे हैं।',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Rajkumari Devika',
+          text: 'ठहरिए भ्राता अर्जुन! यह कोई मायावी शत्रु नहीं लगते... इनकी आँखों में समय का कोई अनकहा रहस्य छिपा है।',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Maharathi Arjun',
+          text: 'अपना परिचय दो आगंतुक! तुम किस लोक से आए हो, और तुम्हारी कलाई पर यह विचित्र यंत्र क्या है?',
+        },
+      ],
+      english: [
+        {
+          type: 'narration',
+          text: 'The golden vortex fades into warm twilight dust. In your dark hoodie and wristwatch, you kneel before Princess Devika and Arjun as war-chariots halt along the ridge.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Rajkumari Devika',
+          text: 'Hold your bow, Arjun. He carries no weapon of deception—look at the sorrow and wonder in his eyes.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Maharathi Arjun',
+          text: 'Speak plainly, stranger. From which realm did that spinning sun bring you, and what is that glowing device on your wrist?',
+        },
+      ],
+    },
+    initialChoices: {
+      hinglish: [
+        'Sach batao ki tum 3000 saal aage ke Kaliyug se aaye ho',
+        'Apni smartwatch chhupakar khud ko ek door desh ka jyotishi batao',
+        'Devika se madad maangte hue aane wale yudh ki chetavani do',
+      ],
+      hindi: [
+        'सत्य बताओ कि तुम तीन हज़ार वर्ष आगे के भविष्य से आए हो',
+        'अपनी घड़ी छिपाकर स्वयं को दूर देश का ज्योतिषी बताओ',
+        'देविका से सहायता माँगते हुए आने वाले महायुद्ध की चेतावनी दो',
+      ],
+      english: [
+        'Tell the truth that you fell from three thousand years in the future',
+        'Hide your smartwatch and claim to be a wandering astronomer',
+        'Appeal to Devika and warn them of the storm gathering over Kurukshetra',
+      ],
+    },
+    possibleEndings: [
+      'Guardian of the Timeline',
+      'Changed Fate of Hastinapur',
+      'Devika’s Eternal Promise Across Eras',
+    ],
+  },
+  {
+    id: 'mafia_queen',
+    title: 'Mafia Queen',
+    tagline: 'Ek majboor deal, ek khatarnaak rani, aur ek forbidden pyaar.',
+    about:
+      'After your family business is framed in a high-stakes syndicate debt, Tara Malhotra—known across Mumbai and Milan as the untouchable Mafia Queen—buys your debt overnight. Forced into a six-month contract inside her glass fortress, you discover her icy armor hides a brutal succession war led by her ruthless lieutenant Kabir.',
+    primaryCategory: 'Mafia',
+    categories: ['For You', 'Top 50', 'Mafia', 'Drama', 'Crime', 'Romance', 'Thriller'],
+    tags: ['Roleplay', 'Mafia', 'Dark Romance'],
+    visualStyle: 'Dark Neo-Noir DSLR',
+    rating: 4.9,
+    chatCountLabel: '190.2K',
+    chatCountNumeric: 190200,
+    rank: 5,
+    isTrending: true,
+    coverImage: '/src/assets/images/cover_mafia_queen_1795460848370.jpg',
+    mediaGallery: [
+      {
+        id: 'mq_1',
+        url: '/src/assets/images/cover_mafia_queen_1795460848370.jpg',
+        caption: 'Midnight penthouse negotiation with Tara Malhotra',
+      },
+    ],
+    setting: 'Rain-streaked 42nd-floor penthouse overlooking Mumbai skyline at midnight',
+    characters: [
+      {
+        id: 'tara_malhotra',
+        name: 'Tara Malhotra',
+        age: '26',
+        role: 'Head of the Crimson Syndicate',
+        personality: 'Ice-cold, calculating, mesmerizingly composed, never shows mercy publicly—yet fiercely protective of those who earn her loyalty.',
+        speakingStyle: 'Low, unhurried velvet authority.',
+        relationshipToUser: 'Your ruthless new patron and reluctant protector',
+        portrait: '/src/assets/images/cover_mafia_queen_1795460848370.jpg',
+      },
+      {
+        id: 'kabir_consigliere',
+        name: 'Kabir Rana',
+        age: '31',
+        role: 'Syndicate Enforcer',
+        personality: 'Cynical, razor-sharp, fiercely suspicious of outsiders entering Tara’s inner circle.',
+        speakingStyle: 'Terse, intimidating, clipped warnings.',
+        relationshipToUser: 'Watches you like a threat waiting to slip',
+        portrait: '/src/assets/images/cover_mafia_queen_1795460848370.jpg',
+      },
+    ],
+    relationshipMeters: [
+      { id: 'attraction', label: 'Attraction', emoji: '🥀', initialValue: 18, min: 0, max: 100, tone: 'love' },
+      { id: 'loyalty', label: 'Loyalty', emoji: '♟️', initialValue: 30, min: 0, max: 100, tone: 'trust' },
+      { id: 'danger', label: 'Syndicate Threat', emoji: '🔫', initialValue: 65, min: 0, max: 100, tone: 'fear' },
+    ],
+    openingScene: 'Penthouse Suite — Signing the Six-Month Debt Contract',
+    openingBeats: {
+      hinglish: [
+        {
+          type: 'narration',
+          text: 'Bahar baarish kaanch par beh rahi hai. Tara velvet chair par baithi ek laal gulab ki pankhudi ungliyon mein ghuma rahi hain, jabki Kabir table par black contract file rakh deta hai.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Tara Malhotra',
+          text: 'Tumhare parivaar ka saara karz ab mera hai. Sign karo, aur agle cheh mahine tumhari har saans meri marzi se chalegi.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Kabir Rana',
+          text: 'Queen, yeh aam insaan hai—hamari duniya ka bojh nahi utha payega. Ek galti aur dono doobenge.',
+        },
+      ],
+      hindi: [
+        {
+          type: 'narration',
+          text: 'बाहर काँच पर तेज़ बारिश बरस रही है। तारा मखमली कुर्सी पर बैठी लाल गुलाब की पंखुड़ी घुमा रही हैं, जबकि कबीर मेज़ पर काला अनुबंध रख देता है।',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Tara Malhotra',
+          text: 'तुम्हारे परिवार का सारा कर्ज़ अब मेरा है। हस्ताक्षर करो, और अगले छह महीने तुम्हारी हर चाल मेरी मर्ज़ी से चलेगी।',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Kabir Rana',
+          text: 'क्वीन, यह आम इंसान है—हमारी दुनिया का बोझ नहीं संभाल पाएगा। एक भूल और सब ख़त्म।',
+        },
+      ],
+      english: [
+        {
+          type: 'narration',
+          text: 'Rain streaks the floor-to-ceiling penthouse glass. Tara swirls a crimson petal between slender fingers while Kabir drops the black dossier onto the table.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Tara Malhotra',
+          text: 'I bought your family’s debt an hour ago. Sign the page, and for the next six months you answer only to me.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Kabir Rana',
+          text: 'He’s a civilian, Boss. One wrong move inside our walls and rival families will use him against you.',
+        },
+      ],
+    },
+    initialChoices: {
+      hinglish: [
+        'Tara ki aankhon mein dekh kar seedha puchho: "Asli keemat kya hai?"',
+        'Kabir ki taraf dekho aur kaho: "Mera imtihaan lena ho to abhi lo"',
+        'Chupchaap pen uthao aur contract par sign kar do',
+      ],
+      hindi: [
+        'तारा की आँखों में देखकर सीधे पूछो: "इस सौदे की असली कीमत क्या है?"',
+        'कबीर की ओर देखकर कहो: "मेरी परीक्षा अभी लेनी हो तो ले लो"',
+        'चुपचाप कलम उठाओ और अनुबंध पर हस्ताक्षर कर दो',
+      ],
+      english: [
+        'Look Tara in the eye and ask what she truly wants from you',
+        'Challenge Kabir: "Test my nerve right now if you doubt me."',
+        'Pick up the pen and sign the contract without flinching',
+      ],
+    },
+    possibleEndings: [
+      'Crowned Beside the Mafia Queen',
+      'Blood Betrayal in Milan',
+      'Clean Escape at Midnight',
+    ],
+  },
+  {
+    id: 'still_yours',
+    title: 'Still Yours',
+    tagline: 'Do saal baad ek baarish bhari raat aur adhoori baatein.',
+    about:
+      'Two years after a painful unspoken breakup, you bump into Ananya at a friend’s packed Mumbai flat—and a sudden monsoon blackout traps you both in the narrow hallway while her cousin Roshni watches from the living room. Every silent look asks whether two years was enough to stop loving.',
+    primaryCategory: 'Drama',
+    categories: ['For You', 'Top 50', 'Drama', 'Romance'],
+    tags: ['Roleplay', 'Drama', 'Second Chance'],
+    visualStyle: 'Intimate 35mm Film Realism',
+    rating: 4.7,
+    chatCountLabel: '50.2K',
+    chatCountNumeric: 50200,
+    rank: 9,
+    coverImage: '/src/assets/images/cover_still_yours_1795460763922.jpg',
+    mediaGallery: [
+      {
+        id: 'sy_1',
+        url: '/src/assets/images/cover_still_yours_1795460763922.jpg',
+        caption: 'Rainy night hallway reunion after two years',
+      },
+    ],
+    setting: 'Dimly lit Mumbai apartment hallway during a monsoon downpour',
+    characters: [
+      {
+        id: 'ananya',
+        name: 'Ananya Verma',
+        age: '24',
+        role: 'Your Former Partner',
+        personality: 'Warm, deeply emotional, hides hurt behind polite composure, still wears the silver ring you once gifted.',
+        speakingStyle: 'Soft, trembling honesty mixed with quiet guardedness.',
+        relationshipToUser: 'Ex-partner you never truly got closure with',
+        portrait: '/src/assets/images/cover_still_yours_1795460763922.jpg',
+      },
+      {
+        id: 'roshni',
+        name: 'Roshni Mehta',
+        age: '25',
+        role: "Ananya's Protective Flatmate",
+        personality: 'Observant, protective, remembers how broken Ananya was after you left.',
+        speakingStyle: 'Direct and gently skeptical.',
+        relationshipToUser: 'Wary friend guarding Ananya from fresh heartbreak',
+        portrait: '/src/assets/images/cover_still_yours_1795460763922.jpg',
+      },
+    ],
+    relationshipMeters: [
+      { id: 'love', label: 'Lingering Love', emoji: '❤️', initialValue: 48, min: 0, max: 100, tone: 'love' },
+      { id: 'trust', label: 'Rebuilt Trust', emoji: '🤝', initialValue: 24, min: 0, max: 100, tone: 'trust' },
+      { id: 'hurt', label: 'Unspoken Hurt', emoji: '🌧️', initialValue: 64, min: 0, max: 100, tone: 'hate' },
+    ],
+    openingScene: 'Monsoon Hallway — First Words After Two Years',
+    openingBeats: {
+      hinglish: [
+        {
+          type: 'narration',
+          text: 'Baahar Mumbai ki tez baarish aur corridor ki dheemi yellow light. Ananya mud kar tumhe dekhti hai—uski aankhein ek pal ko bheeg jaati hain. Andar se Roshni ki awaaz aati hai.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Ananya Verma',
+          text: 'Tum... yahan? Mujhe laga tha tumne iss shehar aur hum dono se hamesha ke liye doori bana li thi.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Roshni Mehta',
+          text: 'Anu, sab theek hai na? Darwaze par itni der se kaun—oh. Tum yahan kya kar rahe ho?',
+        },
+      ],
+      hindi: [
+        {
+          type: 'narration',
+          text: 'बाहर मुंबई की तेज़ बारिश और गलियारे की धीमी पीली रोशनी। अनन्या मुड़कर तुम्हें देखती है—उसकी आँखें एक पल को भर आती हैं। अंदर से रोशनी बाहर आती है।',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Ananya Verma',
+          text: 'तुम... यहाँ? मुझे लगा था तुमने इस शहर और हम दोनों से हमेशा के लिए दूरी बना ली थी।',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Roshni Mehta',
+          text: 'अनू, सब ठीक है ना? दरवाज़े पर इतनी देर से कौन—अरे, तुम यहाँ क्या कर रहे हो?',
+        },
+      ],
+      english: [
+        {
+          type: 'narration',
+          text: 'Rain hammers the balcony glass down the hall. Ananya turns under the warm sconce light, her breath catching when she recognizes you just as Roshni steps to the doorway.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Ananya Verma',
+          text: 'You... here? I thought you left this city—and everything between us—behind for good.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Roshni Mehta',
+          text: 'Ananya, who’s at the door—wait. What are you doing here after two years?',
+        },
+      ],
+    },
+    initialChoices: {
+      hinglish: [
+        'Ananya ki ungli mein apni purani ring ki taraf ishara karo',
+        'Roshni se kaho ki bas 5 minute akela baat karne do',
+        'Dheere se kaho: "Main kabhi gaya hi nahi tha, Anu."',
+      ],
+      hindi: [
+        'अनन्या की उँगली में अपनी पुरानी अंगूठी की तरफ इशारा करो',
+        'रोशनी से कहो कि बस पाँच मिनट अकेले बात करने दे',
+        'धीरे से कहो: "मैं कभी दूर गया ही नहीं था, अनू।"',
+      ],
+      english: [
+        'Notice the silver ring still on her finger',
+        'Ask Roshni politely for five minutes alone with Ananya',
+        'Say softly: "I never really stopped thinking about you."',
+      ],
+    },
+    possibleEndings: [
+      'A Brand New Beginning in the Rain',
+      'Peaceful Closure & Goodbye',
+    ],
+  },
+  {
+    id: 'kaash_tum_meri_hoti',
+    title: 'Kaash Tum Meri Hoti',
+    tagline: 'Dosti, khamosh chahat, aur ek dil todne wala love triangle.',
+    about:
+      'Since freshman year, you, Mehak, and Aarav have been inseparable. Every autumn evening you swallow the confession on your lips because Mehak treats you as her closest confidant—while smooth-talking Aarav finally decides to ask her out this weekend.',
+    primaryCategory: 'Romance',
+    categories: ['For You', 'Top 50', 'Romance', 'College', 'Drama'],
+    tags: ['Roleplay', 'Romance', 'Love Triangle'],
+    visualStyle: 'Golden Hour Campus DSLR',
+    rating: 4.8,
+    chatCountLabel: '26.6K',
+    chatCountNumeric: 26600,
+    rank: 10,
+    coverImage: '/src/assets/images/cover_kaash_tum_meri_hoti_1795460764613.jpg',
+    mediaGallery: [
+      {
+        id: 'ktmh_1',
+        url: '/src/assets/images/cover_kaash_tum_meri_hoti_1795460764613.jpg',
+        caption: 'Autumn walk across the university courtyard',
+      },
+    ],
+    setting: 'Golden-hour autumn walkway across university campus',
+    characters: [
+      {
+        id: 'mehak',
+        name: 'Mehak Gill',
+        age: '20',
+        role: 'Your Best Friend & Secret Crush',
+        personality: 'Radiant, warm-hearted, secretly notices how you care for her more than anyone else.',
+        speakingStyle: 'Playful, affectionate, emotionally expressive.',
+        relationshipToUser: 'Best friend caught between two hearts',
+        portrait: '/src/assets/images/cover_kaash_tum_meri_hoti_1795460764613.jpg',
+      },
+      {
+        id: 'aarav',
+        name: 'Aarav Khanna',
+        age: '21',
+        role: 'Mutual Friend & Rival in Love',
+        personality: 'Charming, confident, suspects you love Mehak too and subtly pushes to claim her first.',
+        speakingStyle: 'Easygoing on the surface with quiet competitive edge.',
+        relationshipToUser: 'Friend turning into a romantic rival',
+        portrait: '/src/assets/images/cover_kaash_tum_meri_hoti_1795460764613.jpg',
+      },
+    ],
+    relationshipMeters: [
+      { id: 'love', label: 'Mehak Love', emoji: '💗', initialValue: 42, min: 0, max: 100, tone: 'love' },
+      { id: 'friendship', label: 'Trio Bond', emoji: '🫂', initialValue: 78, min: 0, max: 100, tone: 'friendship' },
+      { id: 'jealousy', label: 'Jealousy', emoji: '🔥', initialValue: 35, min: 0, max: 100, tone: 'jealousy' },
+    ],
+    openingScene: 'Autumn Quad — Before the Weekend Fest',
+    openingBeats: {
+      hinglish: [
+        {
+          type: 'narration',
+          text: 'Dhoop aur sookhe patton ke beech tum teeno campus quad se guzar rahe ho. Aarav Mehak ke kandhe ke kareeb aakar muskurata hai aur tumhari taraf ek challenge bhari nazar daalta hai.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Aarav Khanna',
+          text: 'Mehak, iss Friday prom night par tum mere saath chal rahi ho na? Maine socha ab puchh hi loon.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Mehak Gill',
+          text: 'Umm... main soch kar batati hoon Aarav! Waise tum dono itne chup kyun ho? Tumhare hisaab se mujhe kya karna chahiye?',
+        },
+      ],
+      hindi: [
+        {
+          type: 'narration',
+          text: 'सुनहरी धूप और झड़ते पत्तों के बीच तुम तीनों कॉलेज के आँगन से गुज़र रहे हो। आरव महक के पास आकर मुस्कुराता है और तुम्हारी ओर चुनौती भरी नज़र डालता है।',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Aarav Khanna',
+          text: 'महक, इस शुक्रवार की रात पार्टी में तुम मेरे साथ चल रही हो ना? सोचा अब पूछ ही लूँ।',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Mehak Gill',
+          text: 'अरे... मैं सोचकर बताती हूँ आरव! वैसे तुम इतने चुप क्यों हो? तुम्हें क्या लगता है, मुझे क्या करना चाहिए?',
+        },
+      ],
+      english: [
+        {
+          type: 'narration',
+          text: 'Golden autumn light filters through the campus trees as the three of you walk side by side. Aarav glances sideways at you with a knowing smirk before leaning toward Mehak.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Aarav Khanna',
+          text: 'So Mehak—Friday’s autumn gala. Go with me?',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Mehak Gill',
+          text: 'Whoa, putting me on the spot! Wait—why are you so quiet all of a sudden? What do you think I should say?',
+        },
+      ],
+    },
+    initialChoices: {
+      hinglish: [
+        'Dil ki baat bol do: "Mehak, mujhe tumse akela kuch zaroori kehna hai"',
+        'Jhooti muskaan ke saath bolo: "Aarav accha choice hai, chali jao"',
+        'Mazaak mein baat taalo aur Mehak ko coffee ke liye rok lo',
+      ],
+      hindi: [
+        'दिल की बात बोल दो: "महक, मुझे तुमसे अकेले कुछ ज़रूरी कहना है"',
+        'झूठी मुस्कान के साथ कहो: "आरव अच्छा विकल्प है, चली जाओ"',
+        'बात टालकर महक को कॉफ़ी के लिए रोक लो',
+      ],
+      english: [
+        'Speak up at last: "Mehak, wait—can I talk to you alone first?"',
+        'Force a smile: "Go with him, you two will have fun."',
+        'Deflect playfully and ask Mehak to grab coffee with you instead',
+      ],
+    },
+    possibleEndings: [
+      'Chosen Heart Under Autumn Lights',
+      'Silent Sacrifice for Friendship',
+    ],
+  },
+  {
+    id: 'my_college_crush',
+    title: 'My College Crush',
+    tagline: 'Har roz campus ke mod par ek muskaan jo din bana deti hai.',
+    about:
+      'Sana Kapoor is the sunshine of the Business Management block—effortlessly graceful, fiercely ambitious, and somehow always dropping hints when you walk behind her down Cherry Blossom Lane. Today, your cheeky wingman Kabir bets you can finally start a real conversation before finals week.',
+    primaryCategory: 'College',
+    categories: ['For You', 'Top 50', 'College', 'Romance', 'School'],
+    tags: ['Roleplay', 'College', 'Crush'],
+    visualStyle: 'Warm Campus Film Photography',
+    rating: 4.7,
+    chatCountLabel: '37.9K',
+    chatCountNumeric: 37900,
+    rank: 12,
+    coverImage: '/src/assets/images/cover_college_crush_1795460764992.jpg',
+    mediaGallery: [
+      {
+        id: 'mcc_1',
+        url: '/src/assets/images/cover_college_crush_1795460764992.jpg',
+        caption: 'Cherry Blossom Walkway glance',
+      },
+    ],
+    setting: 'Blossom-lined cobblestone campus pathway after afternoon lecture',
+    characters: [
+      {
+        id: 'sana_kapoor',
+        name: 'Sana Kapoor',
+        age: '19',
+        role: 'Business Management Sophomore',
+        personality: 'Cheerful, witty, observant, secretly likes that you always walk quietly behind her.',
+        speakingStyle: 'Light, teasing, genuinely warm.',
+        relationshipToUser: 'Your secret campus crush who already noticed you',
+        portrait: '/src/assets/images/cover_college_crush_1795460764992.jpg',
+      },
+      {
+        id: 'rohan_wingman',
+        name: 'Rohan Desai',
+        age: '20',
+        role: 'Your Best Friend & Wingman',
+        personality: 'Loud, supportive, always pushing you out of your shell.',
+        speakingStyle: 'Energetic bro banter.',
+        relationshipToUser: 'Your best friend cheering from across the path',
+        portrait: '/src/assets/images/cover_college_crush_1795460764992.jpg',
+      },
+    ],
+    relationshipMeters: [
+      { id: 'love', label: 'Crush Meter', emoji: '🌸', initialValue: 35, min: 0, max: 100, tone: 'love' },
+      { id: 'friendship', label: 'Vibe', emoji: '☕', initialValue: 55, min: 0, max: 100, tone: 'friendship' },
+    ],
+    openingScene: 'Blossom Walkway — She Looked Back',
+    openingBeats: {
+      hinglish: [
+        {
+          type: 'narration',
+          text: 'Gulabi phoolon ke neeche Sana apni Management book sambhalte hue achanak peeche mud kar tumhe dekhti hai aur halki si muskurati hai. Peeche se Rohan seeti bajakar ishara karta hai.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Sana Kapoor',
+          text: 'Tum roz isi waqt is raaste se jaate ho ya sirf meri pace match kar rahe ho? Haath mein coffee laaye ho ya sirf shy smile?',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Rohan Desai',
+          text: 'Bhai aaj mat rukna, ja bol de warna main khud aakar tera intro karwa dunga!',
+        },
+      ],
+      hindi: [
+        {
+          type: 'narration',
+          text: 'गुलाबी फूलों के नीचे सना अपनी किताब संभालते हुए अचानक पीछे मुड़कर तुम्हें देखती है और हल्का-सा मुस्कुराती है। दूर खड़ा रोहन इशारा करके तुम्हें आगे बढ़ने को कहता है।',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Sana Kapoor',
+          text: 'तुम रोज़ इसी समय इस रास्ते से जाते हो या सिर्फ मेरी चाल से कदम मिला रहे हो?',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Rohan Desai',
+          text: 'भाई आज रुकना मत, जाकर बात कर ले वरना मैं खुद आकर तेरी जान-पहचान करवा दूँगा!',
+        },
+      ],
+      english: [
+        {
+          type: 'narration',
+          text: 'Beneath drifting pink petals, Sana hugs her management textbook and glances back over her shoulder with an amused smile. Further back, Rohan mouths for you to go talk to her.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Sana Kapoor',
+          text: 'Do you always walk this exact path at four, or are you actually trying to catch up with me?',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Rohan Desai',
+          text: 'Dude, go! Don’t freeze up now!',
+        },
+      ],
+    },
+    initialChoices: {
+      hinglish: [
+        'Haste hue bolo: "Shayad dono... waise notes share karengi?"',
+        'Rohan ko aankh dikhao aur Sana ko canteen chai invite do',
+      ],
+      hindi: [
+        'हँसते हुए कहो: "शायद दोनों... वैसे क्या तुम नोट्स साझा करोगी?"',
+        'रोहन को चुप रहने का इशारा करके सना को कैंटीन में चाय के लिए पूछो',
+      ],
+      english: [
+        'Laugh it off: "Maybe a little of both. Need help with those books?"',
+        'Wave Rohan off and invite Sana to grab iced coffee',
+      ],
+    },
+    possibleEndings: [
+      'First Date at the Sunset Canteen',
+      'Sweetest Campus Confession',
+    ],
+  },
+  {
+    id: 'shes_obsessed_with_me',
+    title: "She's Obsessed With Me",
+    tagline: 'Uska pyaar nahi... uski zidd khatarnaak ho rahi hai.',
+    about:
+      'At first, Niharika seemed like the sweetest classmate in your psychology seminar. Then your desk notes started matching your exact diary thoughts, strangers who flirted with you suddenly transferred out, and tonight in the quiet library aisle, she steps behind your shoulder whispering that you belong only to her.',
+    primaryCategory: 'Thriller',
+    categories: ['For You', 'Top 50', 'Thriller', 'Drama', 'College'],
+    tags: ['Roleplay', 'Thriller', 'Obsession'],
+    visualStyle: 'Psychological Thriller Realism',
+    rating: 4.8,
+    chatCountLabel: '89.8K',
+    chatCountNumeric: 89800,
+    rank: 7,
+    isTrending: true,
+    coverImage: '/src/assets/images/cover_obsessed_with_me_1795460766128.jpg',
+    mediaGallery: [
+      {
+        id: 'sowm_1',
+        url: '/src/assets/images/cover_obsessed_with_me_1795460766128.jpg',
+        caption: 'Cornered in the Psychology Stacks',
+      },
+    ],
+    setting: 'Quiet upper floor wooden aisle of the university archive library',
+    characters: [
+      {
+        id: 'niharika',
+        name: 'Niharika Sen',
+        age: '21',
+        role: 'Obsessed Honours Classmate',
+        personality: 'Eerily calm, brilliant, hyper-fixated on protecting and possessing you, unnervingly gentle voice even while threatening rivals.',
+        speakingStyle: 'Sweet, whispered, razor-intense certainty.',
+        relationshipToUser: 'Secretly tracking your every move out of twisted devotion',
+        portrait: '/src/assets/images/cover_obsessed_with_me_1795460766128.jpg',
+      },
+      {
+        id: 'inspector_meera',
+        name: 'Librarian / Counselor Maya',
+        age: '29',
+        role: 'Campus Floor Supervisor',
+        personality: 'Sharp-eared, notices when students look cornered.',
+        speakingStyle: 'Calm, observant.',
+        relationshipToUser: 'Potential lifeline if you can signal her without triggering Niharika',
+        portrait: '/src/assets/images/cover_obsessed_with_me_1795460766128.jpg',
+      },
+    ],
+    relationshipMeters: [
+      { id: 'obsession', label: 'Obsession', emoji: '🩸', initialValue: 86, min: 0, max: 100, tone: 'jealousy' },
+      { id: 'trust', label: 'Illusion of Trust', emoji: '🗝️', initialValue: 30, min: 0, max: 100, tone: 'trust' },
+      { id: 'danger', label: 'Danger', emoji: '⚠️', initialValue: 72, min: 0, max: 100, tone: 'fear' },
+    ],
+    openingScene: 'Archive Stack 4 — Too Close to Breathe',
+    openingBeats: {
+      hinglish: [
+        {
+          type: 'narration',
+          text: 'Library ke sabse sunsaan kone mein tum kitaab nikaalne hi wale the ki peeche se Niharika ne tumhare kandhe par ungliyan rakh di. Uski saansein tumhari gardan ke paas hain.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Niharika Sen',
+          text: 'Aaj tum canteen mein uss ladki se itna hans kar kyun baat kar rahe the? Maine tumhare liye subah se do coffee rakhi thi... par tumne mujhe dekha tak nahi.',
+        },
+        {
+          type: 'narration',
+          text: 'Door corridor se Maya ma’am ke kadmon ki aahat aati hai.',
+        },
+      ],
+      hindi: [
+        {
+          type: 'narration',
+          text: 'पुस्तकालय के सबसे सुनसान कोने में तुम किताब निकालने ही वाले थे कि पीछे से निहारिका ने तुम्हारे कंधे पर हाथ रख दिया। उसकी आवाज़ बेहद शांत पर डरावनी है।',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Niharika Sen',
+          text: 'आज तुम कैंटीन में उस लड़की से इतना हँसकर क्यों बात कर रहे थे? मैंने सुबह से तुम्हारे लिए कॉफ़ी रखी थी... पर तुमने मेरी ओर देखा तक नहीं।',
+        },
+        {
+          type: 'narration',
+          text: 'दूर गलियारे से लाइब्रेरी की सुपरवाइज़र माया के कदमों की आहट सुनाई देती है।',
+        },
+      ],
+      english: [
+        {
+          type: 'narration',
+          text: 'In the quietest aisle of the archive stacks, fingers brush your shoulder. Niharika leans dangerously close, smiling with unblinking calm.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Niharika Sen',
+          text: 'Why were you laughing with that girl in the courtyard today? I waited outside your class for forty minutes... and you didn’t even look for me.',
+        },
+        {
+          type: 'narration',
+          text: 'Footsteps echo softly at the far end of the corridor as Supervisor Maya patrols.',
+        },
+      ],
+    },
+    initialChoices: {
+      hinglish: [
+        'Shant rehkar Niharika ko behlao taaki peeche hat sakein',
+        'Seedha boundaries clear karo aur bheed ki taraf badho',
+        'Zor se book girakar Maya ma’am ka dhyaan kheench lo',
+      ],
+      hindi: [
+        'शांत रहकर निहारिका को बातों में उलझाओ ताकि पीछे हट सको',
+        'सीधे अपनी सीमा स्पष्ट करो और भीड़ की ओर बढ़ो',
+        'ज़ोर से किताब गिराकर माया मैम का ध्यान आकर्षित करो',
+      ],
+      english: [
+        'Stay calm and placate her while backing slowly toward the light',
+        'Set a firm boundary and step out of the aisle',
+        'Drop a heavy hardcover to draw Supervisor Maya’s attention',
+      ],
+    },
+    possibleEndings: [
+      'Clean Escape & Police Protection',
+      'Trapped in Her Velvet Cage',
+      'Turning the Tables on Niharika',
+    ],
+  },
+  {
+    id: 'roommate_is_my_boss',
+    title: 'My Roommate Is My Boss',
+    tagline: 'Office mein strict boss, ghar mein ek hi sofa aur fridge.',
+    about:
+      'When your Mumbai broker double-booked a gorgeous high-rise flat, you expected a chill bachelor roommate—not Natasha Oberoi, the terrifyingly perfectionist Creative Director who grilled your presentation five hours ago. Now you share Wi-Fi, rent, and midnight deadlines.',
+    primaryCategory: 'Drama',
+    categories: ['For You', 'Top 50', 'Drama', 'Romance'],
+    tags: ['Roleplay', 'Romance', 'Office RomCom'],
+    visualStyle: 'Modern High-Rise Cinema Still',
+    rating: 4.7,
+    chatCountLabel: '12.4K',
+    chatCountNumeric: 12400,
+    rank: 8,
+    coverImage: '/src/assets/images/cover_roommate_boss_1795460767429.jpg',
+    mediaGallery: [
+      {
+        id: 'rmb_1',
+        url: '/src/assets/images/cover_roommate_boss_1795460767429.jpg',
+        caption: 'Midnight living room rules negotiation',
+      },
+    ],
+    setting: 'High-rise glass apartment living room at 11:30 PM',
+    characters: [
+      {
+        id: 'natasha_oberoi',
+        name: 'Natasha Oberoi',
+        age: '27',
+        role: 'Your Creative Director & New Roommate',
+        personality: 'Workaholic perfectionist, deadpan witty, fiercely professional at work yet secretly chaotic with takeout noodles at home.',
+        speakingStyle: 'Crisp corporate precision slowly melting into warm banter.',
+        relationshipToUser: 'Your intimidating boss stuck sharing your apartment',
+        portrait: '/src/assets/images/cover_roommate_boss_1795460767429.jpg',
+      },
+      {
+        id: 'broker_sanjay',
+        name: 'Broker Sanjay (on speakerphone)',
+        age: '38',
+        role: 'Apologetic Housing Agent',
+        personality: 'Fast-talking, refusing to refund the deposit.',
+        speakingStyle: 'Chaotic sales hustle.',
+        relationshipToUser: 'The reason you two are stuck together for 3 months',
+        portrait: '/src/assets/images/cover_roommate_boss_1795460767429.jpg',
+      },
+    ],
+    relationshipMeters: [
+      { id: 'love', label: 'Chemistry', emoji: '💘', initialValue: 22, min: 0, max: 100, tone: 'love' },
+      { id: 'respect', label: 'Work Respect', emoji: '💼', initialValue: 45, min: 0, max: 100, tone: 'respect' },
+    ],
+    openingScene: 'Skyline Living Room — The House Rules',
+    openingBeats: {
+      hinglish: [
+        {
+          type: 'narration',
+          text: 'Table par tumhara takeout box aur Natasha ka laptop rakha hai. Woh ek eyebrow uthakar tumhe ghoorti hain jab phone speaker par broker Sanjay bhaag raha hai.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Natasha Oberoi',
+          text: 'Clear kar doon—kal subah 9 baje office mein tumhari report meri desk par chahiye. Aur ghar mein: mera coffee mug haath mat lagana, aur kisi ko mat batana ki hum flat share karte hain.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Broker Sanjay',
+          text: 'Madam please! Teen mahine adjust kar lijiye, deposit refund agle quarter ke bina impossible hai!',
+        },
+      ],
+      hindi: [
+        {
+          type: 'narration',
+          text: 'मेज़ पर तुम्हारे खाने का डिब्बा और नताशा का लैपटॉप खुला है। वह एक भौंह उठाकर तुम्हें देखती हैं जबकि फोन के स्पीकर पर ब्रोकर संजय बहाने बना रहा है।',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Natasha Oberoi',
+          text: 'साफ़ बता दूँ—कल सुबह नौ बजे ऑफिस में रिपोर्ट मेरी मेज़ पर चाहिए। और घर में: मेरे कॉफ़ी मग को हाथ मत लगाना, और ऑफिस में किसी को भनक न लगे।',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Broker Sanjay',
+          text: 'मैडम प्लीज़! तीन महीने संभाल लीजिए, अभी जमा राशि वापस करना नामुमकिन है!',
+        },
+      ],
+      english: [
+        {
+          type: 'narration',
+          text: 'Your takeout box sits inches from Natasha’s glowing spreadsheet while Broker Sanjay frantically pleads on speakerphone.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Natasha Oberoi',
+          text: 'Let’s establish boundaries immediately. At 9 AM sharp, you are my junior analyst. In this flat: don’t touch my espresso roast, and nobody at the agency finds out.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Broker Sanjay',
+          text: 'Ma’am please, three months minimum—there is literally zero refund clause!',
+        },
+      ],
+    },
+    initialChoices: {
+      hinglish: [
+        'Muskurakar bolo: "Deal, Boss. Par wifi password aur extra noodles mera."',
+        'Natasha ko tea offer karo aur kal ki presentation par tip maango',
+      ],
+      hindi: [
+        'मुस्कुराकर कहो: "मंज़ूर, बॉस। पर वाई-फ़ाई और अतिरिक्त नूडल्स मेरे।"',
+        'नताशा को चाय पूछो और कल की प्रेज़ेंटेशन के लिए सलाह माँगो',
+      ],
+      english: [
+        'Grin: "Deal, Boss. In exchange, I take the balcony spot and noodles."',
+        'Offer her half your takeout and ask about tomorrow’s client pitch',
+      ],
+    },
+    possibleEndings: [
+      'Secret Office Romance Revealed',
+      'Co-Founders & Partners',
+    ],
+  },
+  {
+    id: 'maa_aur_shaitaan',
+    title: 'Maa Aur Shaitaan',
+    tagline: 'Pyaar, dar, aur ek chhipa hua sach jo pahadon mein jag raha hai.',
+    about:
+      'After moving with your mother Kavita to a remote Himalayan valley following your father’s disappearance, strange black footprints appear outside your door every midnight. An ancient village elder warns that the mountain spirit has claimed one of your bloodline—and only a mother’s fierce love and your courage stand between it and your survival.',
+    primaryCategory: 'Horror',
+    categories: ['For You', 'New', 'Horror', 'Supernatural', 'Thriller'],
+    tags: ['Roleplay', 'Horror', 'Supernatural'],
+    visualStyle: 'Atmospheric Mountain Horror',
+    rating: 4.8,
+    chatCountLabel: '18.5K',
+    chatCountNumeric: 18500,
+    isNew: true,
+    coverImage: '/src/assets/images/cover_maa_aur_shaitaan_1795460849481.jpg',
+    mediaGallery: [
+      {
+        id: 'mas_1',
+        url: '/src/assets/images/cover_maa_aur_shaitaan_1795460849481.jpg',
+        caption: 'Shadow rising above the pine ridge',
+      },
+    ],
+    setting: 'Fog-choked Himalayan forest trail near your ancestral cottage at dusk',
+    characters: [
+      {
+        id: 'maa_kavita',
+        name: 'Maa (Kavita)',
+        age: '44',
+        role: 'Your Protective Mother',
+        personality: 'Terrified yet unbreakable; hides a dark secret about why your family fled the valley years ago.',
+        speakingStyle: 'Urgent, trembling warmth mixed with fierce maternal resolve.',
+        relationshipToUser: 'Shielding you from an ancient pact',
+        portrait: '/src/assets/images/cover_maa_aur_shaitaan_1795460849481.jpg',
+      },
+      {
+        id: 'pujari_bhairav',
+        name: 'Baba Bhairav',
+        age: '68',
+        role: 'Village Shrine Keeper',
+        personality: 'Cryptic, solemn, knows the ritual that binds the mountain demon.',
+        speakingStyle: 'Gravely hushed warnings.',
+        relationshipToUser: 'Knows your father’s true fate',
+        portrait: '/src/assets/images/cover_maa_aur_shaitaan_1795460849481.jpg',
+      },
+    ],
+    relationshipMeters: [
+      { id: 'courage', label: 'Courage', emoji: '🕯️', initialValue: 55, min: 0, max: 100, tone: 'trust' },
+      { id: 'fear', label: 'Dread', emoji: '👁️', initialValue: 62, min: 0, max: 100, tone: 'fear' },
+      { id: 'truth', label: 'Hidden Truth', emoji: '📜', initialValue: 15, min: 0, max: 100, tone: 'respect' },
+    ],
+    openingScene: 'Misty Pine Trail — Eyes in the Fog',
+    openingBeats: {
+      hinglish: [
+        {
+          type: 'narration',
+          text: 'Thandi dhund mein pedon ke upar ek vishal kaala saya uthta dikhai deta hai—uski do surkh aankhein seedha tum par tiki hain. Maa tumhe kas kar apne seene se laga leti hain.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Maa (Kavita)',
+          text: 'Peeche mat dekhna beta! Bas ghar ke andar chalo, aaj amavasya hai—woh apna waada poora karne aaya hai!',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Baba Bhairav',
+          text: 'Kavita, bhagne se shrap nahi mitega! Ladke ko sach batana hi hoga ki iske pita ne uss raat kya sauda kiya tha!',
+        },
+      ],
+      hindi: [
+        {
+          type: 'narration',
+          text: 'बर्फीली धुंध में देवदार के पेड़ों के ऊपर एक विशाल काला साया उठता दिखता है—उसकी दो दहकती आँखें सीधे तुम पर टिकी हैं। माँ तुम्हें कसकर थाम लेती हैं।',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Maa (Kavita)',
+          text: 'पीछे मत देखना बेटा! बस घर के भीतर चलो, आज अमावस्या है—वह अपना वचन पूरा करने आया है!',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Baba Bhairav',
+          text: 'कविता, भागने से शाप नहीं मिटेगा! इसे सच बताना होगा कि इसके पिता ने उस रात कौन-सा सौदा किया था!',
+        },
+      ],
+      english: [
+        {
+          type: 'narration',
+          text: 'Through freezing mountain fog, a towering shadow rises above the ridge with two glowing amber eyes. Your mother grips your shoulders tightly.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Maa (Kavita)',
+          text: "Don't look back! Keep walking to the threshold—tonight is the new moon, it’s come to collect!",
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Baba Bhairav',
+          text: 'Running won’t break the blood pact, Kavita! Tell your son what his father promised that night!',
+        },
+      ],
+    },
+    initialChoices: {
+      hinglish: [
+        'Maa se seedha puchho: "Papa ne uss raat kya sauda kiya tha?"',
+        'Baba Bhairav se raksha-mantra aur chhuri maang kar aage badho',
+      ],
+      hindi: [
+        'माँ से सीधे पूछो: "पापा ने उस रात कौन-सा सौदा किया था?"',
+        'बाबा भैरव से रक्षा-कवच माँगकर सच जानने आगे बढ़ो',
+      ],
+      english: [
+        'Demand the truth from your mother: "What did Dad promise it?"',
+        'Ask Baba Bhairav for the protective talisman before entering the fog',
+      ],
+    },
+    possibleEndings: [
+      'Breaking the Mountain Pact',
+      'Sacrifice at the Shrine',
+    ],
+  },
+  {
+    id: 'wo_laut_aayi',
+    title: 'Wo Laut Aayi',
+    tagline: 'Jo is haveli se gaya, wo kabhi akela bahar nahi nikla.',
+    about:
+      'Hired to photograph an abandoned colonial estate in Kolkata before demolition, you step onto the cracked marble foyer after sunset—only to hear anklets chiming on the upper landing. Standing on the staircase in a crimson Banarasi saree is Damayanti, who vanished from this house sixty years ago... and she thinks you returned for her.',
+    primaryCategory: 'Horror',
+    categories: ['For You', 'New', 'Horror', 'Supernatural', 'Thriller'],
+    tags: ['Roleplay', 'Horror', 'Gothic Ghost'],
+    visualStyle: 'Gothic Mansion Horror',
+    rating: 4.8,
+    chatCountLabel: '15.8K',
+    chatCountNumeric: 15800,
+    isNew: true,
+    coverImage: '/src/assets/images/cover_wo_laut_aayi_1795460849473.jpg',
+    mediaGallery: [
+      {
+        id: 'wla_1',
+        url: '/src/assets/images/cover_wo_laut_aayi_1795460849473.jpg',
+        caption: 'The phantom in crimson silk on the grand staircase',
+      },
+    ],
+    setting: 'Decaying marble staircase of Roy Chowdhury Mansion at midnight',
+    characters: [
+      {
+        id: 'damayanti',
+        name: 'Damayanti',
+        age: 'Timeless',
+        role: 'The Waiting Bride Spirit',
+        personality: 'Hauntingly poised, tragic, dangerously possessive if lied to, softens if shown genuine empathy.',
+        speakingStyle: 'Echoing, lyrical, chillingly intimate whispers.',
+        relationshipToUser: 'Believes you are the reincarnation of her lost betrothed',
+        portrait: '/src/assets/images/cover_wo_laut_aayi_1795460849473.jpg',
+      },
+      {
+        id: 'chaukidar_harish',
+        name: 'Harish (Night Watchman)',
+        age: '59',
+        role: 'Estate Caretaker',
+        personality: 'Panicked, superstitious, locked outside the iron gate.',
+        speakingStyle: 'Frantic whispers over your crackling walkie-talkie.',
+        relationshipToUser: 'Trying to guide you out before 3 AM',
+        portrait: '/src/assets/images/cover_wo_laut_aayi_1795460849473.jpg',
+      },
+    ],
+    relationshipMeters: [
+      { id: 'fear', label: 'Dread', emoji: '👻', initialValue: 68, min: 0, max: 100, tone: 'fear' },
+      { id: 'mercy', label: 'Spirit Mercy', emoji: '🕯️', initialValue: 30, min: 0, max: 100, tone: 'love' },
+    ],
+    openingScene: 'Grand Staircase — Moonlight & Anklets',
+    openingBeats: {
+      hinglish: [
+        {
+          type: 'narration',
+          text: 'Tumhara camera flash band pad jaata hai. Chaandni ki kiran seedhiyon par girti hai jahan laal saree mein ek aurat bina palak jhapkaye tumhe dekh rahi hai—pairon ke paas kachra nahi, sirf thanda kohra hai.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Damayanti',
+          text: 'Saath saal beet gaye... tumne kaha tha baarish rukte hi lautoge. Itni der kyun laga di?',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Harish',
+          text: '*Walkie-talkie par* Sahab! Gate bahar se jaam ho gaya hai! Unse aankh mat milana, seedha kitchen ke peeche wale darwaze ki taraf bhaago!',
+        },
+      ],
+      hindi: [
+        {
+          type: 'narration',
+          text: 'तुम्हारे कैमरे की रोशनी अचानक बुझ जाती है। चाँदनी की किरण सीढ़ियों पर गिरती है जहाँ लाल साड़ी में एक स्त्री बिना पलक झपकाए तुम्हें देख रही है।',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Damayanti',
+          text: 'साठ वर्ष बीत गए... तुमने कहा था बरसात रुकते ही लौटोगे। इतनी देर क्यों कर दी?',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Harish',
+          text: '*वॉकी-टॉकी पर* साहब! बाहर का फाटक जम गया है! उनसे नज़र मत मिलाना, पीछे के दरवाज़े की ओर निकलो!',
+        },
+      ],
+      english: [
+        {
+          type: 'narration',
+          text: 'Your camera dies mid-shutter. Pale moonlight cuts across the broken marble stairs where a woman in a weathered crimson saree watches you without blinking.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Damayanti',
+          text: 'Sixty monsoons have passed... You promised you would return before midnight. Why did you keep me waiting?',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Harish',
+          text: '*Over crackling radio* Sir, the iron gates just slammed shut on their own! Don’t answer her—head for the cellar door!',
+        },
+      ],
+    },
+    initialChoices: {
+      hinglish: [
+        'Bhaagne ke bajaye pyaar se puchho: "Tumhare saath uss raat kya hua tha?"',
+        'Walkie-talkie band karke kitchen exit ki taraf chupke se badho',
+      ],
+      hindi: [
+        'भागने के बजाय शांत स्वर में पूछो: "तुम्हारे साथ उस रात क्या हुआ था?"',
+        'वॉकी-टॉकी बंद करके चुपके से पिछले दरवाज़े की ओर बढ़ो',
+      ],
+      english: [
+        'Stand still and ask gently: "Tell me what happened to you here."',
+        'Mute the radio and back slowly toward the servants’ corridor',
+      ],
+    },
+    possibleEndings: [
+      'Freeing Damayanti’s Soul at Dawn',
+      'Trapped Forever in the Mansion Portrait',
+    ],
+  },
+  {
+    id: 'badodiya_ki_haveli',
+    title: 'Badodiya Ki Haveli',
+    tagline: 'Red window ke peeche kaun dekh raha hai?',
+    about:
+      'For three generations, nobody in Rajasthan dared cross the threshold of Badodiya Ki Haveli after sunset. Armed with one brass lantern, your skeptical vlogger friend Meera and terrified cousin Dev dare you to spend one night inside to uncover the secret of the red-lit upper jharokha.',
+    primaryCategory: 'Horror',
+    categories: ['For You', 'New', 'By Fans', 'Horror', 'Adventure', 'Supernatural'],
+    tags: ['Roleplay', 'Horror', 'Haunted Haveli'],
+    visualStyle: 'Supernatural Haveli Mystery',
+    rating: 4.8,
+    chatCountLabel: '24.7K',
+    chatCountNumeric: 24700,
+    isNew: true,
+    isByFans: true,
+    coverImage: '/src/assets/images/cover_badodiya_haveli_1795460771623.jpg',
+    mediaGallery: [
+      {
+        id: 'bkh_1',
+        url: '/src/assets/images/cover_badodiya_haveli_1795460771623.jpg',
+        caption: 'Lantern light beneath the red-lit jharokha',
+      },
+    ],
+    setting: 'Courtyard archway of Badodiya Ki Haveli under a full moon',
+    characters: [
+      {
+        id: 'meera_vlogger',
+        name: 'Meera Rathore',
+        age: '22',
+        role: 'Fearless Mystery Podcaster',
+        personality: 'Curious, bold until real paranormal clues shake her, loyal in danger.',
+        speakingStyle: 'Fast-paced observant Hinglish.',
+        relationshipToUser: 'Co-explorer holding the camera',
+        portrait: '/src/assets/images/cover_badodiya_haveli_1795460771623.jpg',
+      },
+      {
+        id: 'dev_cousin',
+        name: 'Devendra (Dev)',
+        age: '21',
+        role: 'Reluctant Companion',
+        personality: 'Nervous, superstitious, surprisingly brave when someone he cares for is threatened.',
+        speakingStyle: 'Jumpy, humorous panic.',
+        relationshipToUser: 'Your cousin clinging to your sleeve',
+        portrait: '/src/assets/images/cover_badodiya_haveli_1795460771623.jpg',
+      },
+    ],
+    relationshipMeters: [
+      { id: 'courage', label: 'Team Courage', emoji: '🏮', initialValue: 60, min: 0, max: 100, tone: 'trust' },
+      { id: 'fear', label: 'Haunting Level', emoji: '🌒', initialValue: 55, min: 0, max: 100, tone: 'fear' },
+    ],
+    openingScene: 'Haveli Main Gate — Shadows in the Red Window',
+    openingBeats: {
+      hinglish: [
+        {
+          type: 'narration',
+          text: 'Tumhare haath mein peetal ki lalten kaamp rahi hai. Upar wali laal khidki mein do kaali parchhaiyan haveli ke andar aane ka ishara karti hain, aur hawa mein ghungroo ki awaaz goonjti hai.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Devendra (Dev)',
+          text: 'Bhai dekh le... upar koi sach mein khada hai! Yahan bijli tak nahi hai to laal light kahan se jal rahi hai?!',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Meera Rathore',
+          text: 'Shh! Mic chalu hai... agar aaj humne iss haveli ka raaz khol diya to poora gaaon azaad ho jayega. Tu aage chal, main peeche hoon.',
+        },
+      ],
+      hindi: [
+        {
+          type: 'narration',
+          text: 'तुम्हारे हाथ में पीतल की लालटेन हिल रही है। ऊपर की लाल खिड़की में दो काली परछाइयाँ भीतर आने का संकेत करती हैं और हवा में घुँघरुओं की झंकार गूँज उठती है।',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Devendra (Dev)',
+          text: 'भाई देख... ऊपर सचमुच कोई खड़ा है! यहाँ बिजली तक नहीं है, फिर लाल रोशनी कहाँ से आ रही है?!',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Meera Rathore',
+          text: 'चुप रहो देव! अगर आज हमने इस हवेली का सच ढूँढ लिया तो पूरा गाँव इस डर से मुक्त हो जाएगा। तुम आगे चलो।',
+        },
+      ],
+      english: [
+        {
+          type: 'narration',
+          text: 'Your brass oil lantern flickers against the carved sandstone archway. High above, two silhouettes stir inside a crimson-lit balcony window.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Devendra (Dev)',
+          text: 'Look up! There’s no electricity in this ruin—what’s glowing red in that window?!',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Meera Rathore',
+          text: 'Keep the lantern steady. Whatever cursed Badodiya Haveli fifty years ago is waiting upstairs. Lead the way.',
+        },
+      ],
+    },
+    initialChoices: {
+      hinglish: [
+        'Lalten upar karke seedha darbar hall ke andar kadam rakho',
+        'Pehle baahar bane purane kuen ke paas ke inscriptions check karo',
+      ],
+      hindi: [
+        'लालटेन ऊपर करके सीधे दरबार हॉल के भीतर कदम रखो',
+        'पहले बाहर बने पुराने कुएँ के पास लिखे शिलालेख देखो',
+      ],
+      english: [
+        'Raise the brass lantern and step inside the main courtyard',
+        'Inspect the carved warning tablet beside the dry well first',
+      ],
+    },
+    possibleEndings: [
+      'Banishing the Curse of Badodiya',
+      'Dawn Rescue from the Hidden Vault',
+    ],
+  },
+  {
+    id: 'bhoot_ka_khajana',
+    title: 'Me Lene Gaya Bhoot Ka Khajana',
+    tagline: 'Laalach, dosti, aur shraapit mandir ka hara-raaz khajana.',
+    about:
+      'What starts as a reckless midnight dare with your greedy buddy Bunty and folklore nerd Priya turns deadly when an emerald-lit stone vault opens beneath the ruined Kali-Banyan manor—revealing a centuries-old chest guarded by an ancient spirit that makes you bargain with truth instead of gold.',
+    primaryCategory: 'Adventure',
+    categories: ['For You', 'New', 'By Fans', 'Horror', 'Adventure', 'Supernatural'],
+    tags: ['Roleplay', 'Horror Comedy', 'Treasure Hunt'],
+    visualStyle: 'Eerie Emerald Ruins Artwork',
+    rating: 4.6,
+    chatCountLabel: '13.4K',
+    chatCountNumeric: 13400,
+    isNew: true,
+    isByFans: true,
+    coverImage: '/src/assets/images/cover_bhoot_khajana_1795460852621.jpg',
+    mediaGallery: [
+      {
+        id: 'bkk_1',
+        url: '/src/assets/images/cover_bhoot_khajana_1795460852621.jpg',
+        caption: 'The cursed ironbound chest bathed in green flame',
+      },
+    ],
+    setting: 'Moss-covered cellar steps outside the haunted ruins at midnight',
+    characters: [
+      {
+        id: 'bunty',
+        name: 'Bunty Mishra',
+        age: '22',
+        role: 'Overconfident Treasure Hunter',
+        personality: 'Greed meets comedy panic; talks big until the ghost whispers.',
+        speakingStyle: 'Chaotic witty street Hinglish.',
+        relationshipToUser: 'The friend who dragged you here',
+        portrait: '/src/assets/images/cover_bhoot_khajana_1795460852621.jpg',
+      },
+      {
+        id: 'preta_guardian',
+        name: 'Vault Guardian (Kaal-Setu)',
+        age: 'Ancient',
+        role: 'Spirit Keeper of the Chest',
+        personality: 'Cunning, tests human greed with riddles and illusions.',
+        speakingStyle: 'Echoing resonant voice from the emerald mist.',
+        relationshipToUser: 'Judges whether you leave rich or stay trapped',
+        portrait: '/src/assets/images/cover_bhoot_khajana_1795460852621.jpg',
+      },
+    ],
+    relationshipMeters: [
+      { id: 'greed', label: 'Treasure Luck', emoji: '🪙', initialValue: 40, min: 0, max: 100, tone: 'respect' },
+      { id: 'fear', label: 'Spirit Wrath', emoji: '💚', initialValue: 45, min: 0, max: 100, tone: 'fear' },
+    ],
+    openingScene: 'Emerald Vault Steps — The Ironbound Chest',
+    openingBeats: {
+      hinglish: [
+        {
+          type: 'narration',
+          text: 'Pathar ki seedhiyon par hara-bhara bhootiya ujala phail raha hai. Beech mein ek purana lohe ka sandook rakha hai—jiska tala apne aap khulne lagta hai.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Bunty Mishra',
+          text: 'Oye bhai dekh! Sona chandi yahin hai! Bas taala todte hain aur kal se apan log crorepati—par yeh hawa itni thandi kyun ho gayi?',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Vault Guardian (Kaal-Setu)',
+          text: 'Ek sikka chhune se pehle batao... jo daulat tum lene aaye ho, uske badle kya tyag sakte ho?',
+        },
+      ],
+      hindi: [
+        {
+          type: 'narration',
+          text: 'पत्थर की सीढ़ियों पर रहस्यमयी हरा प्रकाश फैल रहा है। बीच में एक प्राचीन लोहे का संदूक रखा है जिसका ताला अपने आप खनकने लगता है।',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Bunty Mishra',
+          text: 'अरे भाई देख! असली खजाना यहीं है! बस इसे उठाते हैं—पर अचानक इतनी ठंड क्यों बढ़ गई?',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Vault Guardian (Kaal-Setu)',
+          text: 'एक भी सिक्का छूने से पहले बोलो... इस धन के बदले तुम क्या बलिदान देने आए हो?',
+        },
+      ],
+      english: [
+        {
+          type: 'narration',
+          text: 'Ghostly emerald lantern light spills across mossy stone steps, illuminating an ironbound chest whose padlock clicks open by itself.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Bunty Mishra',
+          text: 'Jackpot! We’re rich, bro—wait, why did the air just turn freezing cold?!',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Vault Guardian (Kaal-Setu)',
+          text: 'Touch one coin and your fate seals. What are you willing to surrender for what lies inside?',
+        },
+      ],
+    },
+    initialChoices: {
+      hinglish: [
+        'Bunty ka haath roko aur Guardian se dimaag se shart rakho',
+        'Sandook ke side mein likhe purane shlok ko dhyan se padho',
+      ],
+      hindi: [
+        'बंटी का हाथ रोको और प्रेत से चतुराई से बात करो',
+        'संदूक के किनारे खुदे प्राचीन श्लोक को ध्यान से पढ़ो',
+      ],
+      english: [
+        'Hold Bunty back and negotiate cleverly with the Vault Guardian',
+        'Read the warning inscription carved into the chest lid first',
+      ],
+    },
+    possibleEndings: [
+      'Escaped With One Cursed Relic',
+      'Outsmarted the Ghost & Saved Bunty',
+    ],
+  },
+  {
+    id: 'shadow_vow_tokyo',
+    title: 'Shadow Vow: Crimson Eclipse',
+    tagline: 'When the blood moon rises over Tokyo, only a twin vow holds back the abyss.',
+    about:
+      'In an alternate Tokyo shrouded by spirit rifts, you awaken as a reluctant Blade-Bearer bound to silver-haired spirit guardian Rei during a rare Crimson Eclipse. As rogue shadow clans close in across the neon skyline, every tactical choice balances Rei’s fragile trust against the dark power consuming your sword.',
+    primaryCategory: 'Anime',
+    categories: ['For You', 'New', 'Anime', 'Fantasy', 'Supernatural', 'Adventure'],
+    tags: ['Roleplay', 'Anime', 'Dark Fantasy'],
+    visualStyle: 'Cinematic Anime Cel-Art',
+    rating: 4.9,
+    chatCountLabel: '64.2K',
+    chatCountNumeric: 64200,
+    isNew: true,
+    isTrending: true,
+    coverImage: '/src/assets/images/cover_anime_shadow_vow_1795460771521.jpg',
+    mediaGallery: [
+      {
+        id: 'svt_1',
+        url: '/src/assets/images/cover_anime_shadow_vow_1795460771521.jpg',
+        caption: 'Rooftop stand beneath the Crimson Eclipse Moon',
+      },
+    ],
+    setting: 'Rain-soaked Shinjuku high-rise rooftop under a blazing red eclipse moon',
+    characters: [
+      {
+        id: 'rei_guardian',
+        name: 'Rei',
+        age: '19',
+        role: 'Silver-Haired Spirit Keeper',
+        personality: 'Stoic, fiercely dutiful, secretly fears losing another partner to the Eclipse curse.',
+        speakingStyle: 'Calm, sharp anime warrior cadence.',
+        relationshipToUser: 'Bound spirit partner guarding the ruby seal',
+        portrait: '/src/assets/images/cover_anime_shadow_vow_1795460771521.jpg',
+      },
+      {
+        id: 'kuro_blade',
+        name: 'Renji Kurosawa',
+        age: '21',
+        role: 'Rival Shadow Hunter',
+        personality: 'Sarcastic, lethal, testing if you are worthy of wielding the Eclipse Katana.',
+        speakingStyle: 'Cool, mocking confidence.',
+        relationshipToUser: 'Rival hunter watching from the spire',
+        portrait: '/src/assets/images/cover_anime_shadow_vow_1795460771521.jpg',
+      },
+    ],
+    relationshipMeters: [
+      { id: 'sync', label: 'Spirit Sync', emoji: '🔮', initialValue: 45, min: 0, max: 100, tone: 'trust' },
+      { id: 'bond', label: 'Rei Bond', emoji: '🌙', initialValue: 30, min: 0, max: 100, tone: 'love' },
+    ],
+    openingScene: 'Shinjuku Spire — Crimson Moon Awakening',
+    openingBeats: {
+      hinglish: [
+        {
+          type: 'narration',
+          text: 'Aasmaan mein laal grahan chamak raha hai. Baarish ki boondein tumhari talwar se takrakar bhaap ban rahi hain jab Rei haath mein chamakta ruby talisman lekar tumhare saamne aati hai.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Rei',
+          text: 'Darwaza khul chuka hai. Agar tumne abhi apni talwar par kaabu nahi paaya, to yeh shaher subah nahi dekh payega. Kya tum mere saath vow loge?',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Renji Kurosawa',
+          text: 'Hmph, naya partner? Dekhte hain eclipse ki pehli lehar mein kitni der tikta hai.',
+        },
+      ],
+      hindi: [
+        {
+          type: 'narration',
+          text: 'आसमान में लाल ग्रहण दहक रहा है। बारिश की बूँदें तुम्हारी तलवार से टकराकर भाप बन रही हैं जब रेई चमकता रत्न थामे तुम्हारे सामने खड़ी होती है।',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Rei',
+          text: 'सीमा टूट चुकी है। यदि तुमने अभी अपनी शक्ति पर नियंत्रण नहीं पाया, तो यह शहर सवेरा नहीं देख पाएगा। क्या तुम वचन दोगे?',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Renji Kurosawa',
+          text: 'हूँह, नया साथी? देखते हैं पहली ही लहर में कितनी देर टिकता है।',
+        },
+      ],
+      english: [
+        {
+          type: 'narration',
+          text: 'Rain hisses off your glowing blade beneath a colossal crimson moon. Rei raises a floating ruby sigil beside you as Renji drops onto the steel railing opposite.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Rei',
+          text: 'The barrier is fracturing. Link your vow with mine right now—or Tokyo falls before dawn.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Renji Kurosawa',
+          text: 'A rookie Blade-Bearer? Let’s see if you survive the first rift.',
+        },
+      ],
+    },
+    initialChoices: {
+      hinglish: [
+        'Rei ka haath thaam kar Crimson Seal ko activate karo',
+        'Renji ko challenge do aur akela pehle attack roko',
+      ],
+      hindi: [
+        'रेई का हाथ थामकर लाल मुद्रा को सक्रिय करो',
+        'रेंजी को चुनौती दो और पहला हमला स्वयं रोको',
+      ],
+      english: [
+        'Clasp Rei’s hand and synchronize the Crimson Seal',
+        'Draw your blade and dare Renji to watch how you handle the first rift',
+      ],
+    },
+    possibleEndings: [
+      'Twin Vow of the Crimson Dawn',
+      'Lone Blade Above the Ruins',
+    ],
+  },
+  {
+    id: 'inspector_vikram_red_file',
+    title: 'Inspector Vikram: The Red File',
+    tagline: 'Ek khoni shikanja, ek gayab witness, aur police department ka chhipa raaz.',
+    about:
+      'Transferred overnight to the Special Crime Cell as Junior Officer beside legendary Inspector Vikram Rathore, your very first midnight case links three high-profile disappearances to someone inside headquarters. Every interrogation clue, wiretap, and lie puts both your badges—and lives—on the line.',
+    primaryCategory: 'Crime',
+    categories: ['For You', 'New', 'Crime', 'Thriller', 'Drama'],
+    tags: ['Roleplay', 'Crime', 'Investigation'],
+    visualStyle: 'Gritty Indian Crime Noir',
+    rating: 4.8,
+    chatCountLabel: '31.9K',
+    chatCountNumeric: 31900,
+    isNew: true,
+    coverImage: '/src/assets/images/cover_crime_red_file_1795460853294.jpg',
+    mediaGallery: [
+      {
+        id: 'crf_1',
+        url: '/src/assets/images/cover_crime_red_file_1795460853294.jpg',
+        caption: 'Midnight glass evidence board at Special Cell',
+      },
+    ],
+    setting: 'Special Crime Cell briefing room during a midnight thunderstorm',
+    characters: [
+      {
+        id: 'vikram_rathore',
+        name: 'Inspector Vikram Rathore',
+        age: '36',
+        role: 'Senior Investigating Officer',
+        personality: 'Cynical, razor-sharp detective mind, trusts evidence over rank, fiercely protective of honest rookies.',
+        speakingStyle: 'Measured, gruff, piercing questions.',
+        relationshipToUser: 'Your hardened senior partner',
+        portrait: '/src/assets/images/cover_crime_red_file_1795460853294.jpg',
+      },
+      {
+        id: 'constable_shinde',
+        name: 'Sub-Inspector Shinde',
+        age: '32',
+        role: 'Records & Cyber Desk',
+        personality: 'Nervous, helpful, seems eager to keep certain CCTV timestamps hidden.',
+        speakingStyle: 'Quick, slightly defensive.',
+        relationshipToUser: 'Colleague who might be hiding a leak',
+        portrait: '/src/assets/images/cover_crime_red_file_1795460853294.jpg',
+      },
+    ],
+    relationshipMeters: [
+      { id: 'trust', label: 'Partner Trust', emoji: '🕵️', initialValue: 40, min: 0, max: 100, tone: 'trust' },
+      { id: 'case', label: 'Case Lead', emoji: '📁', initialValue: 20, min: 0, max: 100, tone: 'respect' },
+    ],
+    openingScene: 'Evidence Board — The Missing Timestamp',
+    openingBeats: {
+      hinglish: [
+        {
+          type: 'narration',
+          text: 'Kaanch ke board par laal dhaagon ke beech teen tasveerein judi hain. Vikram sir ek photo par ungli rakh kar mudte hain, jabki table par Shinde files chhupata nazar aata hai.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Inspector Vikram Rathore',
+          text: 'Welcome to Special Cell. Yeh red file kal subah tak band ho jayegi agar humne aaj raat sach nahi nikala. Pehla sawaal—tumhe is board par sabse badi galti kya dikhti hai?',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Sub-Inspector Shinde',
+          text: 'Sir, CCTV footage corrupt bata raha hai... shayad server glitch hai.',
+        },
+      ],
+      hindi: [
+        {
+          type: 'narration',
+          text: 'काँच के बोर्ड पर लाल धागों के बीच तीन तस्वीरें जुड़ी हैं। इंस्पेक्टर विक्रम एक तस्वीर पर उँगली रखकर मुड़ते हैं, जबकि कोने में शिंदे फाइलें समेटता दिखता है।',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Inspector Vikram Rathore',
+          text: 'स्पेशल सेल में स्वागत है। यह लाल फाइल कल सुबह तक दबा दी जाएगी अगर हमने आज रात सच नहीं निकाला। बताओ—तुम्हें इस बोर्ड पर सबसे बड़ी चूक क्या दिखती है?',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Sub-Inspector Shinde',
+          text: 'सर, सीसीटीवी फुटेज खराब दिखा रहा है... शायद सर्वर की गलती है।',
+        },
+      ],
+      english: [
+        {
+          type: 'narration',
+          text: 'Red yarn webs three grainy surveillance stills across the glass board. Vikram taps one Polaroid while Shinde nervously shuts a dossier across the room.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Inspector Vikram Rathore',
+          text: 'First night on the desk, rookie. Someone upstairs wants this Red File buried by dawn. Tell me what’s wrong with this timeline.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Sub-Inspector Shinde',
+          text: 'Sir, the dockyard CCTV log is corrupted again... probably just a server glitch.',
+        },
+      ],
+    },
+    initialChoices: {
+      hinglish: [
+        'Shinde ke desk ki file check karne ka ishara Vikram sir ko do',
+        'Board par teesre witness ki ghadi ke time ko point out karo',
+      ],
+      hindi: [
+        'शिंदे की मेज़ पर रखी फाइल की ओर विक्रम सर का ध्यान दिलाओ',
+        'बोर्ड पर तीसरे गवाह की घड़ी का समय दिखाओ',
+      ],
+      english: [
+        'Point out the inconsistency in Shinde’s "corrupted" log timestamp',
+        'Examine the third surveillance photo’s reflection closely',
+      ],
+    },
+    possibleEndings: [
+      'Unmasked the Insider & Cracked the Case',
+      'Burned Notice at Midnight',
+    ],
+  },
+];
