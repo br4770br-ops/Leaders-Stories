@@ -28,15 +28,16 @@ service cloud.firestore {
       return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
+    function isAdmin() {
+      return isVerifiedUser() && request.auth.token.email == 'prabhuaj8@gmail.com';
+    }
+
     function isOwner(uid) {
       return isVerifiedUser() && isValidId(uid) && request.auth.uid == uid;
     }
 
-    function isAdmin() {
-      return isVerifiedUser() && (
-        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
-        (request.auth.token.email == 'br4770br@gmail.com')
-      );
+    function isNotBlocked() {
+      return !exists(/databases/$(database)/documents/blockedUsers/$(request.auth.uid));
     }
 
     function isValidLang(lang) {
@@ -46,13 +47,86 @@ service cloud.firestore {
     // --- Validation Blueprints ---
     function isValidUserProfile(data, uid) {
       return data.keys().hasAll(['uid', 'username', 'email', 'preferredLanguage', 'createdAt', 'updatedAt'])
-        && data.keys().hasOnly(['uid', 'username', 'email', 'avatarUrl', 'preferredLanguage', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly([
+          'uid', 'username', 'email', 'avatarUrl', 'preferredLanguage',
+          'role', 'status', 'blockedReason', 'blockedAt', 'blockedBy',
+          'lastLoginAt', 'createdAt', 'updatedAt'
+        ])
         && data.uid is string && data.uid == uid
         && data.username is string && data.username.size() >= 1 && data.username.size() <= 64
         && data.email is string && data.email.size() >= 3 && data.email.size() <= 254
         && (!('avatarUrl' in data) || (data.avatarUrl is string && data.avatarUrl.size() <= 512))
         && isValidLang(data.preferredLanguage)
+        && (!('role' in data) || (data.role is string && data.role in ['user', 'admin']))
+        && (!('status' in data) || (data.status is string && data.status in ['active', 'blocked']))
+        && (!('blockedReason' in data) || (data.blockedReason is string && data.blockedReason.size() <= 500))
+        && (!('blockedAt' in data) || data.blockedAt is timestamp)
+        && (!('blockedBy' in data) || (data.blockedBy is string && data.blockedBy.size() <= 128))
+        && (!('lastLoginAt' in data) || data.lastLoginAt is timestamp)
         && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidBlockedUser(data, uid) {
+      return data.keys().hasAll(['uid', 'email', 'reason', 'blockedBy', 'blockedAt'])
+        && data.keys().hasOnly(['uid', 'email', 'reason', 'blockedBy', 'blockedAt'])
+        && data.uid is string && data.uid == uid
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 254
+        && data.reason is string && data.reason.size() <= 500
+        && data.blockedBy is string && data.blockedBy == request.auth.uid
+        && data.blockedAt is timestamp;
+    }
+
+    function isValidAppSettings(data) {
+      return data.keys().hasAll([
+        'appName', 'allowRegistrations', 'maintenanceMode',
+        'announcementEnabled', 'themeMode', 'accentColor', 'updatedAt'
+      ])
+        && data.keys().hasOnly([
+          'appName', 'appSubtitle', 'logoUrl', 'supportEmail', 'supportNote',
+          'allowRegistrations', 'registrationClosedMessage',
+          'maintenanceMode', 'maintenanceMessage',
+          'announcementEnabled', 'announcementTitle', 'announcementMessage', 'announcementType',
+          'themeMode', 'accentColor', 'enableVoiceInput', 'enableAiSuggestions',
+          'updatedBy', 'updatedAt'
+        ])
+        && data.appName is string && data.appName.size() >= 1 && data.appName.size() <= 80
+        && (!('appSubtitle' in data) || (data.appSubtitle is string && data.appSubtitle.size() <= 200))
+        && (!('logoUrl' in data) || (data.logoUrl is string && data.logoUrl.size() <= 512))
+        && (!('supportEmail' in data) || (data.supportEmail is string && data.supportEmail.size() <= 254))
+        && (!('supportNote' in data) || (data.supportNote is string && data.supportNote.size() <= 500))
+        && data.allowRegistrations is bool
+        && (!('registrationClosedMessage' in data) || (data.registrationClosedMessage is string && data.registrationClosedMessage.size() <= 300))
+        && data.maintenanceMode is bool
+        && (!('maintenanceMessage' in data) || (data.maintenanceMessage is string && data.maintenanceMessage.size() <= 500))
+        && data.announcementEnabled is bool
+        && (!('announcementTitle' in data) || (data.announcementTitle is string && data.announcementTitle.size() <= 120))
+        && (!('announcementMessage' in data) || (data.announcementMessage is string && data.announcementMessage.size() <= 500))
+        && (!('announcementType' in data) || (data.announcementType is string && data.announcementType in ['info', 'warning', 'success']))
+        && data.themeMode is string && data.themeMode in ['dark', 'light']
+        && data.accentColor is string && data.accentColor.size() >= 4 && data.accentColor.size() <= 16
+        && (!('enableVoiceInput' in data) || data.enableVoiceInput is bool)
+        && (!('enableAiSuggestions' in data) || data.enableAiSuggestions is bool)
+        && (!('updatedBy' in data) || (data.updatedBy is string && data.updatedBy.size() <= 128))
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidAppContent(data) {
+      return data.keys().hasAll(['welcomeHeading', 'welcomeSubheading', 'updatedAt'])
+        && data.keys().hasOnly([
+          'welcomeHeading', 'welcomeSubheading', 'heroBadgeText',
+          'homeFeaturedTitle', 'guestPromptTitle', 'guestPromptSubtitle',
+          'helpGuideText', 'footerNote', 'updatedBy', 'updatedAt'
+        ])
+        && data.welcomeHeading is string && data.welcomeHeading.size() >= 1 && data.welcomeHeading.size() <= 140
+        && data.welcomeSubheading is string && data.welcomeSubheading.size() <= 400
+        && (!('heroBadgeText' in data) || (data.heroBadgeText is string && data.heroBadgeText.size() <= 80))
+        && (!('homeFeaturedTitle' in data) || (data.homeFeaturedTitle is string && data.homeFeaturedTitle.size() <= 100))
+        && (!('guestPromptTitle' in data) || (data.guestPromptTitle is string && data.guestPromptTitle.size() <= 140))
+        && (!('guestPromptSubtitle' in data) || (data.guestPromptSubtitle is string && data.guestPromptSubtitle.size() <= 400))
+        && (!('helpGuideText' in data) || (data.helpGuideText is string && data.helpGuideText.size() <= 1500))
+        && (!('footerNote' in data) || (data.footerNote is string && data.footerNote.size() <= 300))
+        && (!('updatedBy' in data) || (data.updatedBy is string && data.updatedBy.size() <= 128))
         && data.updatedAt is timestamp;
     }
 
@@ -164,27 +238,46 @@ service cloud.firestore {
 
     // --- Collection Rules ---
     match /users/{uid} {
-      allow get: if isOwner(uid);
-      allow list: if false;
+      allow get: if isOwner(uid) || isAdmin();
+      allow list: if isAdmin();
       allow create: if isOwner(uid)
+        && isNotBlocked()
         && isValidUserProfile(incoming(), uid)
+        && (!('role' in incoming()) || incoming().role == 'user' || (isAdmin() && incoming().role == 'admin'))
+        && (!('status' in incoming()) || incoming().status == 'active')
         && incoming().createdAt == request.time
         && incoming().updatedAt == request.time;
-      allow update: if isOwner(uid)
-        && isValidUserProfile(incoming(), uid)
-        && incoming().uid == existing().uid
-        && incoming().createdAt == existing().createdAt
-        && incoming().updatedAt == request.time
-        && incoming().diff(existing()).affectedKeys().hasOnly(['username', 'avatarUrl', 'preferredLanguage', 'updatedAt']);
+      allow update: if isValidId(uid) && isValidUserProfile(incoming(), uid) && (
+        // Tier 1: Owning user edits safe profile/preference fields only (cannot edit role or status)
+        (
+          isOwner(uid)
+          && isNotBlocked()
+          && incoming().uid == existing().uid
+          && incoming().email == existing().email
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['username', 'avatarUrl', 'preferredLanguage', 'lastLoginAt', 'updatedAt'])
+        ) ||
+        // Tier 2: Main Admin manages block status for other users (cannot block self or escalate roles)
+        (
+          isAdmin()
+          && uid != request.auth.uid
+          && incoming().uid == existing().uid
+          && incoming().email == existing().email
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'blockedReason', 'blockedAt', 'blockedBy', 'updatedAt'])
+        )
+      );
       allow delete: if isOwner(uid);
 
       match /preferences/{prefId} {
         allow get: if isOwner(uid) && isValidId(prefId);
         allow list: if isOwner(uid) && resource.data.uid == request.auth.uid;
-        allow create: if isOwner(uid) && isValidId(prefId)
+        allow create: if isOwner(uid) && isNotBlocked() && isValidId(prefId)
           && isValidPreferences(incoming(), uid)
           && incoming().updatedAt == request.time;
-        allow update: if isOwner(uid) && isValidId(prefId)
+        allow update: if isOwner(uid) && isNotBlocked() && isValidId(prefId)
           && isValidPreferences(incoming(), uid)
           && incoming().uid == existing().uid
           && incoming().updatedAt == request.time
@@ -195,21 +288,21 @@ service cloud.firestore {
       match /favorites/{storyId} {
         allow get: if isOwner(uid) && isValidId(storyId);
         allow list: if isOwner(uid) && resource.data.uid == request.auth.uid;
-        allow create: if isOwner(uid) && isValidId(storyId)
+        allow create: if isOwner(uid) && isNotBlocked() && isValidId(storyId)
           && isValidFavorite(incoming(), uid, storyId)
           && incoming().createdAt == request.time;
         allow update: if false;
-        allow delete: if isOwner(uid) && isValidId(storyId);
+        allow delete: if isOwner(uid) && isNotBlocked() && isValidId(storyId);
       }
 
       match /storyProgress/{storyId} {
         allow get: if isOwner(uid) && isValidId(storyId);
         allow list: if isOwner(uid) && resource.data.uid == request.auth.uid;
-        allow create: if isOwner(uid) && isValidId(storyId)
+        allow create: if isOwner(uid) && isNotBlocked() && isValidId(storyId)
           && isValidStoryProgress(incoming(), uid, storyId)
           && incoming().startedAt == request.time
           && incoming().updatedAt == request.time;
-        allow update: if isOwner(uid) && isValidId(storyId)
+        allow update: if isOwner(uid) && isNotBlocked() && isValidId(storyId)
           && isValidStoryProgress(incoming(), uid, storyId)
           && incoming().uid == existing().uid
           && incoming().storyId == existing().storyId
@@ -220,17 +313,17 @@ service cloud.firestore {
             incoming().status == 'active'
           )
           && incoming().diff(existing()).affectedKeys().hasOnly(['currentScene', 'sceneIndex', 'status', 'endingReached', 'choicesMade', 'savedCharacterIds', 'updatedAt']);
-        allow delete: if isOwner(uid) && isValidId(storyId);
+        allow delete: if isOwner(uid) && isNotBlocked() && isValidId(storyId);
       }
 
       match /conversations/{conversationId} {
         allow get: if isOwner(uid) && isValidId(conversationId);
         allow list: if isOwner(uid) && resource.data.uid == request.auth.uid;
-        allow create: if isOwner(uid) && isValidId(conversationId)
+        allow create: if isOwner(uid) && isNotBlocked() && isValidId(conversationId)
           && isValidConversation(incoming(), uid, conversationId)
           && incoming().createdAt == request.time
           && incoming().updatedAt == request.time;
-        allow update: if isOwner(uid) && isValidId(conversationId)
+        allow update: if isOwner(uid) && isNotBlocked() && isValidId(conversationId)
           && isValidConversation(incoming(), uid, conversationId)
           && incoming().uid == existing().uid
           && incoming().conversationId == existing().conversationId
@@ -238,45 +331,66 @@ service cloud.firestore {
           && incoming().createdAt == existing().createdAt
           && incoming().updatedAt == request.time
           && incoming().diff(existing()).affectedKeys().hasOnly(['lastMessage', 'lastSpeaker', 'messageCount', 'updatedAt']);
-        allow delete: if isOwner(uid) && isValidId(conversationId);
+        allow delete: if isOwner(uid) && isNotBlocked() && isValidId(conversationId);
 
         match /messages/{messageId} {
           allow get: if isOwner(uid) && isValidId(conversationId) && isValidId(messageId)
             && exists(/databases/$(database)/documents/users/$(uid)/conversations/$(conversationId));
           allow list: if isOwner(uid) && resource.data.uid == request.auth.uid;
-          allow create: if isOwner(uid) && isValidId(conversationId) && isValidId(messageId)
+          allow create: if isOwner(uid) && isNotBlocked() && isValidId(conversationId) && isValidId(messageId)
             && isValidChatMessage(incoming(), uid, conversationId)
             && incoming().createdAt == request.time
             && existsAfter(/databases/$(database)/documents/users/$(uid)/conversations/$(conversationId));
           allow update: if false;
-          allow delete: if isOwner(uid) && isValidId(conversationId) && isValidId(messageId);
+          allow delete: if isOwner(uid) && isNotBlocked() && isValidId(conversationId) && isValidId(messageId);
         }
       }
 
       match /relationships/{storyId} {
         allow get: if isOwner(uid) && isValidId(storyId);
         allow list: if isOwner(uid) && resource.data.uid == request.auth.uid;
-        allow create: if isOwner(uid) && isValidId(storyId)
+        allow create: if isOwner(uid) && isNotBlocked() && isValidId(storyId)
           && isValidRelationship(incoming(), uid, storyId)
           && incoming().updatedAt == request.time;
-        allow update: if isOwner(uid) && isValidId(storyId)
+        allow update: if isOwner(uid) && isNotBlocked() && isValidId(storyId)
           && isValidRelationship(incoming(), uid, storyId)
           && incoming().uid == existing().uid
           && incoming().storyId == existing().storyId
           && incoming().updatedAt == request.time
           && incoming().diff(existing()).affectedKeys().hasOnly(['meters', 'updatedAt']);
-        allow delete: if isOwner(uid) && isValidId(storyId);
+        allow delete: if isOwner(uid) && isNotBlocked() && isValidId(storyId);
       }
 
       match /memories/{memoryId} {
         allow get: if isOwner(uid) && isValidId(memoryId);
         allow list: if isOwner(uid) && resource.data.uid == request.auth.uid;
-        allow create: if isOwner(uid) && isValidId(memoryId)
+        allow create: if isOwner(uid) && isNotBlocked() && isValidId(memoryId)
           && isValidMemory(incoming(), uid)
           && incoming().createdAt == request.time;
         allow update: if false;
-        allow delete: if isOwner(uid) && isValidId(memoryId);
+        allow delete: if isOwner(uid) && isNotBlocked() && isValidId(memoryId);
       }
+    }
+
+    match /blockedUsers/{uid} {
+      allow get: if isOwner(uid) || isAdmin();
+      allow list: if isAdmin();
+      allow create, update: if isAdmin()
+        && isValidId(uid)
+        && uid != request.auth.uid
+        && isValidBlockedUser(incoming(), uid)
+        && incoming().blockedAt == request.time;
+      allow delete: if isAdmin() && isValidId(uid);
+    }
+
+    match /appConfig/{docId} {
+      allow get: if isValidId(docId) && docId in ['settings', 'content'];
+      allow list: if isAdmin();
+      allow create, update: if isAdmin() && isValidId(docId) && (
+        (docId == 'settings' && isValidAppSettings(incoming()) && incoming().updatedAt == request.time) ||
+        (docId == 'content' && isValidAppContent(incoming()) && incoming().updatedAt == request.time)
+      );
+      allow delete: if isAdmin() && isValidId(docId) && docId in ['settings', 'content'];
     }
 
     match /stories/{storyId} {
@@ -294,12 +408,6 @@ service cloud.firestore {
         && incoming().createdAt == existing().createdAt
         && incoming().updatedAt == request.time;
       allow delete: if isAdmin() && isValidId(storyId);
-    }
-
-    match /admins/{adminUid} {
-      allow get: if isAdmin() && isValidId(adminUid);
-      allow list: if false;
-      allow create, update, delete: if false;
     }
   }
 }

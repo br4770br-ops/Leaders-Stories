@@ -16,18 +16,57 @@ const __dirname = path.dirname(__filename);
 const PORT = Number(process.env.PORT || 3000);
 const IS_PROD = process.env.NODE_ENV === 'production';
 
-// Read Firebase projectId from firebase-applet-config.json if present for ID token validation
+const MAIN_ADMIN_EMAIL = 'prabhuaj8@gmail.com';
+
+// Read Firebase projectId & firestoreDatabaseId from firebase-applet-config.json if present
 let firebaseProjectId = process.env.FIREBASE_PROJECT_ID || '';
+let firestoreDatabaseId = process.env.FIRESTORE_DATABASE_ID || '(default)';
 try {
   const fbConfigPath = path.resolve(__dirname, 'firebase-applet-config.json');
   if (fs.existsSync(fbConfigPath)) {
-    const parsed = JSON.parse(fs.readFileSync(fbConfigPath, 'utf-8')) as { projectId?: string };
+    const parsed = JSON.parse(fs.readFileSync(fbConfigPath, 'utf-8')) as {
+      projectId?: string;
+      firestoreDatabaseId?: string;
+    };
     if (parsed.projectId) {
       firebaseProjectId = parsed.projectId;
+    }
+    if (parsed.firestoreDatabaseId) {
+      firestoreDatabaseId = parsed.firestoreDatabaseId;
     }
   }
 } catch {
   // Ignore config read issues; will rely on env if needed
+}
+
+function getFirestoreRestBase(): string {
+  if (!firebaseProjectId) return '';
+  return `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(firebaseProjectId)}/databases/${encodeURIComponent(firestoreDatabaseId)}/documents`;
+}
+
+async function fetchFirestoreDocWithToken(
+  docPath: string,
+  bearerToken?: string
+): Promise<{ exists: boolean; fields?: Record<string, Record<string, unknown>> }> {
+  const base = getFirestoreRestBase();
+  if (!base) return { exists: false };
+  try {
+    const headers: Record<string, string> = {};
+    if (bearerToken) {
+      headers.Authorization = `Bearer ${bearerToken}`;
+    }
+    const resp = await fetch(`${base}/${docPath}`, { headers });
+    if (resp.status === 404) {
+      return { exists: false };
+    }
+    if (!resp.ok) {
+      return { exists: false };
+    }
+    const json = (await resp.json()) as { fields?: Record<string, Record<string, unknown>> };
+    return { exists: true, fields: json.fields };
+  } catch {
+    return { exists: false };
+  }
 }
 
 // --- Lightweight Firebase ID Token Verifier using Google public x509 certificates ---
@@ -125,6 +164,16 @@ async function verifyFirebaseIdToken(token: string): Promise<VerifiedFirebaseUse
 
 interface AuthenticatedRequest extends Request {
   firebaseUser?: VerifiedFirebaseUser;
+  firebaseToken?: string;
+}
+
+function isVerifiedMainAdmin(user?: VerifiedFirebaseUser): boolean {
+  return Boolean(
+    user &&
+      user.emailVerified &&
+      user.email &&
+      user.email.trim().toLowerCase() === MAIN_ADMIN_EMAIL
+  );
 }
 
 async function requireAuth(req: AuthenticatedRequest, res: Response, next: NextFunction) {
@@ -141,14 +190,74 @@ async function requireAuth(req: AuthenticatedRequest, res: Response, next: NextF
     }
     const verified = await verifyFirebaseIdToken(token);
     if (!verified.emailVerified) {
-      res.status(403).json({ error: 'Please verify your email address before playing stories.' });
+      res.status(403).json({ error: 'Please verify your email address before continuing.' });
       return;
     }
+
+    // Server-side block & maintenance enforcement (using caller's verified Firebase ID token)
+    const [blockedDoc, userDoc, settingsDoc] = await Promise.all([
+      fetchFirestoreDocWithToken(`blockedUsers/${encodeURIComponent(verified.uid)}`, token),
+      fetchFirestoreDocWithToken(`users/${encodeURIComponent(verified.uid)}`, token),
+      fetchFirestoreDocWithToken('appConfig/settings'),
+    ]);
+
+    const userStatus = userDoc.fields?.status?.stringValue;
+    if (blockedDoc.exists || userStatus === 'blocked') {
+      const reason =
+        (blockedDoc.fields?.reason?.stringValue as string | undefined) ||
+        (userDoc.fields?.blockedReason?.stringValue as string | undefined) ||
+        'Your account has been suspended by the administrator.';
+      res.status(403).json({
+        error: `Account blocked: ${reason}`,
+        code: 'ACCOUNT_BLOCKED',
+      });
+      return;
+    }
+
+    const maintenanceMode = Boolean(settingsDoc.fields?.maintenanceMode?.booleanValue);
+    if (maintenanceMode && !isVerifiedMainAdmin(verified)) {
+      const maintenanceMessage =
+        (settingsDoc.fields?.maintenanceMessage?.stringValue as string | undefined) ||
+        'LEADERS STORIES is temporarily undergoing maintenance. Please check back shortly.';
+      res.status(503).json({
+        error: maintenanceMessage,
+        code: 'MAINTENANCE_MODE',
+      });
+      return;
+    }
+
     req.firebaseUser = verified;
+    req.firebaseToken = token;
     next();
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Invalid session';
     res.status(401).json({ error: `Session verification failed: ${message}` });
+  }
+}
+
+async function requireAdmin(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      res.status(401).json({ error: 'Authentication required.' });
+      return;
+    }
+    const token = authHeader.slice(7).trim();
+    if (!token) {
+      res.status(401).json({ error: 'Missing session token.' });
+      return;
+    }
+    const verified = await verifyFirebaseIdToken(token);
+    if (!isVerifiedMainAdmin(verified)) {
+      res.status(403).json({ error: 'Unauthorized: Main Admin privileges required.' });
+      return;
+    }
+    req.firebaseUser = verified;
+    req.firebaseToken = token;
+    next();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Invalid session';
+    res.status(401).json({ error: `Admin session verification failed: ${message}` });
   }
 }
 
@@ -260,6 +369,39 @@ async function startServer() {
     res.json({
       ok: true,
       hasGeminiKey: Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'MY_GEMINI_API_KEY'),
+      firebaseProjectId: firebaseProjectId || null,
+    });
+  });
+
+  app.get('/api/admin/session', requireAdmin, (req: AuthenticatedRequest, res: Response) => {
+    res.json({
+      isAdmin: true,
+      uid: req.firebaseUser?.uid,
+      email: req.firebaseUser?.email,
+      emailVerified: req.firebaseUser?.emailVerified,
+      role: 'Main Admin',
+    });
+  });
+
+  app.post('/api/admin/validate-user-action', requireAdmin, (req: AuthenticatedRequest, res: Response) => {
+    const { targetUid, action } = (req.body || {}) as { targetUid?: string; action?: string };
+    if (!targetUid || typeof targetUid !== 'string' || !/^[a-zA-Z0-9_-]{1,128}$/.test(targetUid)) {
+      res.status(400).json({ error: 'Invalid target user ID.' });
+      return;
+    }
+    if (targetUid === req.firebaseUser?.uid) {
+      res.status(400).json({ error: 'Main Admin account cannot be blocked or demoted.' });
+      return;
+    }
+    if (action !== 'block' && action !== 'unblock') {
+      res.status(400).json({ error: 'Unsupported action.' });
+      return;
+    }
+    res.json({
+      allowed: true,
+      targetUid,
+      action,
+      verifiedBy: req.firebaseUser?.email,
     });
   });
 

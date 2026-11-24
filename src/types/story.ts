@@ -151,6 +151,12 @@ export interface UserProfileRecord {
   email: string;
   avatarUrl?: string;
   preferredLanguage: LanguageCode;
+  role?: 'user' | 'admin';
+  status?: 'active' | 'blocked';
+  blockedReason?: string;
+  blockedAt?: unknown;
+  blockedBy?: string;
+  lastLoginAt?: unknown;
   createdAt?: unknown;
   updatedAt?: unknown;
 }

@@ -2,7 +2,7 @@
   "entities": {
     "UserProfile": {
       "title": "UserProfile",
-      "description": "Private user account profile stored at users/{uid}",
+      "description": "User account profile stored at users/{uid}",
       "type": "object",
       "properties": {
         "uid": {
@@ -29,6 +29,30 @@
           "type": "string",
           "enum": ["hinglish", "hindi", "english"]
         },
+        "role": {
+          "type": "string",
+          "enum": ["user", "admin"]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["active", "blocked"]
+        },
+        "blockedReason": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "blockedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "blockedBy": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "lastLoginAt": {
+          "type": "string",
+          "format": "date-time"
+        },
         "createdAt": {
           "type": "string",
           "format": "date-time"
@@ -39,6 +63,83 @@
         }
       },
       "required": ["uid", "username", "email", "preferredLanguage", "createdAt", "updatedAt"]
+    },
+    "BlockedUser": {
+      "title": "BlockedUser",
+      "description": "Server and rules enforced blocklist record stored at blockedUsers/{uid}",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 254
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "blockedBy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "blockedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "email", "reason", "blockedBy", "blockedAt"]
+    },
+    "AppSettingsConfig": {
+      "title": "AppSettingsConfig",
+      "description": "Global application settings managed by Main Admin at appConfig/settings",
+      "type": "object",
+      "properties": {
+        "appName": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "appSubtitle": { "type": "string", "maxLength": 200 },
+        "logoUrl": { "type": "string", "maxLength": 512 },
+        "supportEmail": { "type": "string", "maxLength": 254 },
+        "supportNote": { "type": "string", "maxLength": 500 },
+        "allowRegistrations": { "type": "boolean" },
+        "registrationClosedMessage": { "type": "string", "maxLength": 300 },
+        "maintenanceMode": { "type": "boolean" },
+        "maintenanceMessage": { "type": "string", "maxLength": 500 },
+        "announcementEnabled": { "type": "boolean" },
+        "announcementTitle": { "type": "string", "maxLength": 120 },
+        "announcementMessage": { "type": "string", "maxLength": 500 },
+        "announcementType": { "type": "string", "enum": ["info", "warning", "success"] },
+        "themeMode": { "type": "string", "enum": ["dark", "light"] },
+        "accentColor": { "type": "string", "maxLength": 16 },
+        "enableVoiceInput": { "type": "boolean" },
+        "enableAiSuggestions": { "type": "boolean" },
+        "updatedBy": { "type": "string", "maxLength": 128 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["appName", "allowRegistrations", "maintenanceMode", "announcementEnabled", "themeMode", "accentColor", "updatedAt"]
+    },
+    "AppContentConfig": {
+      "title": "AppContentConfig",
+      "description": "Editable application text and welcome copy managed by Main Admin at appConfig/content",
+      "type": "object",
+      "properties": {
+        "welcomeHeading": { "type": "string", "minLength": 1, "maxLength": 140 },
+        "welcomeSubheading": { "type": "string", "maxLength": 400 },
+        "heroBadgeText": { "type": "string", "maxLength": 80 },
+        "homeFeaturedTitle": { "type": "string", "maxLength": 100 },
+        "guestPromptTitle": { "type": "string", "maxLength": 140 },
+        "guestPromptSubtitle": { "type": "string", "maxLength": 400 },
+        "helpGuideText": { "type": "string", "maxLength": 1500 },
+        "footerNote": { "type": "string", "maxLength": 300 },
+        "updatedBy": { "type": "string", "maxLength": 128 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["welcomeHeading", "welcomeSubheading", "updatedAt"]
     },
     "UserPreferences": {
       "title": "UserPreferences",
@@ -374,7 +475,19 @@
   "firestore": {
     "/users/{uid}": {
       "schema": { "$ref": "#/entities/UserProfile" },
-      "description": "User profile document isolated strictly to the owning Firebase UID."
+      "description": "User profile document isolated to owning Firebase UID and readable/manageable by verified Main Admin."
+    },
+    "/blockedUsers/{uid}": {
+      "schema": { "$ref": "#/entities/BlockedUser" },
+      "description": "Blocklist enforcement documents managed solely by verified Main Admin."
+    },
+    "/appConfig/settings": {
+      "schema": { "$ref": "#/entities/AppSettingsConfig" },
+      "description": "Publicly readable application settings, registration toggle, maintenance mode, and theme config managed by Main Admin."
+    },
+    "/appConfig/content": {
+      "schema": { "$ref": "#/entities/AppContentConfig" },
+      "description": "Publicly readable application copy, welcome notices, and help guide managed by Main Admin."
     },
     "/users/{uid}/preferences/{prefId}": {
       "schema": { "$ref": "#/entities/UserPreferences" },
@@ -406,7 +519,7 @@
     },
     "/stories/{storyId}": {
       "schema": { "$ref": "#/entities/ManagedStory" },
-      "description": "Admin-managed dynamic stories; published stories are readable by users, writes restricted to verified admins."
+      "description": "Admin-managed dynamic stories; published stories are readable by users, writes restricted to verified Main Admin."
     }
   }
 }

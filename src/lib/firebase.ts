@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { browserLocalPersistence, getAuth, setPersistence } from 'firebase/auth';
 import {
   doc,
   getDocFromServer,
@@ -21,6 +21,9 @@ try {
       localCache: persistentLocalCache({
         tabManager: persistentMultipleTabManager(),
       }),
+      // Automatically fall back to HTTP long polling when WebChannel streaming is blocked
+      // by mobile networks, proxies, or embedded iframe environments.
+      experimentalAutoDetectLongPolling: true,
     },
     firebaseConfig.firestoreDatabaseId
   );
@@ -30,14 +33,19 @@ try {
 
 export const db = firestoreInstance;
 export const auth = getAuth(app);
-export const ADMIN_BOOTSTRAP_EMAIL = 'br4770br@gmail.com';
+export const MAIN_ADMIN_EMAIL = 'prabhuaj8@gmail.com';
+
+// Explicitly persist Firebase Auth session across browser restarts & PWA launches
+void setPersistence(auth, browserLocalPersistence).catch(() => {
+  // Ignore persistence warning in restricted browser contexts
+});
 
 export async function testConnection(): Promise<void> {
   try {
     await getDocFromServer(doc(db, 'test', 'connection'));
   } catch (error) {
     if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.error('Please check your Firebase configuration.');
+      console.warn('Firestore initial check reported offline; falling back to cache/long-polling.');
     }
   }
 }

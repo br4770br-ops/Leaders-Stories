@@ -2,6 +2,7 @@ import {
   EmailAuthProvider,
   deleteUser,
   reauthenticateWithCredential,
+  updatePassword,
   type User,
 } from 'firebase/auth';
 import {
@@ -9,16 +10,28 @@ import {
   deleteDoc,
   doc,
   getDoc,
+  getDocFromCache,
   getDocs,
+  getDocsFromCache,
   query,
   serverTimestamp,
   setDoc,
   updateDoc,
   where,
   writeBatch,
+  type DocumentData,
   type DocumentReference,
+  type DocumentSnapshot,
+  type Query,
+  type QuerySnapshot,
 } from 'firebase/firestore';
-import { ADMIN_BOOTSTRAP_EMAIL, auth, db } from './firebase';
+import { MAIN_ADMIN_EMAIL, auth, db } from './firebase';
+import {
+  DEFAULT_APP_CONTENT,
+  DEFAULT_APP_SETTINGS,
+  type AppContentConfig,
+  type AppSettingsConfig,
+} from '../types/appConfig';
 import type {
   ChatTurnMessage,
   ConversationSummary,
@@ -86,12 +99,96 @@ export function handleFirestoreError(
 
 export interface RestoredCloudData {
   profile: UserProfileRecord;
+  isBlocked: boolean;
+  blockReason?: string;
+  offlineFallback?: boolean;
   language: LanguageCode;
   favorites: FavoriteRecord[];
   progressMap: Record<string, StoryProgressRecord>;
   conversations: ConversationSummary[];
   relationshipsMap: Record<string, RelationshipMeterValue[]>;
   memoriesMap: Record<string, StoryMemoryRecord[]>;
+}
+
+function isOfflineOrUnavailableError(err: unknown): boolean {
+  const code = (err as { code?: string })?.code || '';
+  const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
+  return (
+    code === 'unavailable' ||
+    msg.includes('client is offline') ||
+    msg.includes('failed to get document') ||
+    msg.includes('network')
+  );
+}
+
+async function getDocResilient(
+  ref: DocumentReference<DocumentData>
+): Promise<{ snap: DocumentSnapshot<DocumentData> | null; offline: boolean }> {
+  try {
+    const snap = await getDoc(ref);
+    return { snap, offline: false };
+  } catch (err) {
+    if (!isOfflineOrUnavailableError(err)) {
+      throw err;
+    }
+    // Brief retry in case Firestore WebChannel/long-polling handshake just completed
+    await new Promise((r) => setTimeout(r, 450));
+    try {
+      const retrySnap = await getDoc(ref);
+      return { snap: retrySnap, offline: false };
+    } catch (retryErr) {
+      if (!isOfflineOrUnavailableError(retryErr)) {
+        throw retryErr;
+      }
+      try {
+        const cached = await getDocFromCache(ref);
+        return { snap: cached, offline: true };
+      } catch {
+        return { snap: null, offline: true };
+      }
+    }
+  }
+}
+
+async function getDocsResilient(
+  q: Query<DocumentData>
+): Promise<{ snap: QuerySnapshot<DocumentData> | null; offline: boolean }> {
+  try {
+    const snap = await getDocs(q);
+    return { snap, offline: false };
+  } catch (err) {
+    if (!isOfflineOrUnavailableError(err)) {
+      throw err;
+    }
+    try {
+      const cached = await getDocsFromCache(q);
+      return { snap: cached, offline: true };
+    } catch {
+      return { snap: null, offline: true };
+    }
+  }
+}
+
+export function isMainAdminEmail(email?: string | null): boolean {
+  return Boolean(email && email.trim().toLowerCase() === MAIN_ADMIN_EMAIL);
+}
+
+/**
+ * Checks whether a user UID is currently blocked in Firestore.
+ */
+export async function checkUserBlockedStatus(
+  uid: string
+): Promise<{ blocked: boolean; reason?: string }> {
+  try {
+    const blockedSnap = await getDoc(doc(db, 'blockedUsers', uid));
+    if (blockedSnap.exists()) {
+      const data = blockedSnap.data() as { reason?: string };
+      return { blocked: true, reason: data.reason };
+    }
+    return { blocked: false };
+  } catch {
+    return { blocked: false };
+  }
 }
 
 /**
@@ -101,29 +198,58 @@ export interface RestoredCloudData {
 export async function ensureUserProfile(
   user: User,
   fallbackUsername?: string
-): Promise<UserProfileRecord> {
+): Promise<{ profile: UserProfileRecord; offline: boolean }> {
   const path = `users/${user.uid}`;
+  const derivedName = (
+    fallbackUsername ||
+    user.displayName ||
+    user.email?.split('@')[0] ||
+    'Storyteller'
+  )
+    .trim()
+    .slice(0, 64);
+  const role = isMainAdminEmail(user.email) ? ('admin' as const) : ('user' as const);
+
   try {
     const userRef = doc(db, 'users', user.uid);
-    const snap = await getDoc(userRef);
-    if (snap.exists()) {
-      return snap.data() as UserProfileRecord;
+    const { snap, offline } = await getDocResilient(userRef);
+
+    if (snap && snap.exists()) {
+      const existing = snap.data() as UserProfileRecord;
+      if (!offline && existing.status !== 'blocked') {
+        // Silently record last login timestamp without touching user data
+        void updateDoc(userRef, {
+          lastLoginAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        }).catch(() => {});
+      }
+      return { profile: existing, offline };
     }
 
-    const derivedName = (
-      fallbackUsername ||
-      user.displayName ||
-      user.email?.split('@')[0] ||
-      'Storyteller'
-    )
-      .trim()
-      .slice(0, 64);
+    if (offline) {
+      return {
+        profile: {
+          uid: user.uid,
+          username: derivedName,
+          email: user.email || '',
+          ...(user.photoURL ? { avatarUrl: user.photoURL.slice(0, 512) } : {}),
+          preferredLanguage: 'hinglish',
+          role,
+          status: 'active',
+        },
+        offline: true,
+      };
+    }
 
     const profilePayload = {
       uid: user.uid,
       username: derivedName,
       email: (user.email || '').slice(0, 254),
+      ...(user.photoURL ? { avatarUrl: user.photoURL.slice(0, 512) } : {}),
       preferredLanguage: 'hinglish' as LanguageCode,
+      role,
+      status: 'active' as const,
+      lastLoginAt: serverTimestamp(),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     };
@@ -140,24 +266,69 @@ export async function ensureUserProfile(
     await batch.commit();
 
     return {
-      uid: user.uid,
-      username: derivedName,
-      email: user.email || '',
-      preferredLanguage: 'hinglish',
+      profile: {
+        uid: user.uid,
+        username: derivedName,
+        email: user.email || '',
+        ...(user.photoURL ? { avatarUrl: user.photoURL.slice(0, 512) } : {}),
+        preferredLanguage: 'hinglish',
+        role,
+        status: 'active',
+      },
+      offline: false,
     };
   } catch (err) {
+    if (isOfflineOrUnavailableError(err)) {
+      return {
+        profile: {
+          uid: user.uid,
+          username: derivedName,
+          email: user.email || '',
+          ...(user.photoURL ? { avatarUrl: user.photoURL.slice(0, 512) } : {}),
+          preferredLanguage: 'hinglish',
+          role,
+          status: 'active',
+        },
+        offline: true,
+      };
+    }
     handleFirestoreError(err, OperationType.WRITE, path);
   }
 }
 
 export async function restoreAllUserCloudData(user: User): Promise<RestoredCloudData> {
   const uid = user.uid;
-  const profile = await ensureUserProfile(user);
+  const [{ profile, offline: profileOffline }, blockState] = await Promise.all([
+    ensureUserProfile(user),
+    checkUserBlockedStatus(uid),
+  ]);
+
+  let anyOffline = profileOffline;
+
+  const isBlocked = blockState.blocked || profile.status === 'blocked';
+  const blockReason = blockState.reason || profile.blockedReason;
+  if (isBlocked) {
+    return {
+      profile,
+      isBlocked: true,
+      blockReason,
+      offlineFallback: anyOffline,
+      language: profile.preferredLanguage || 'hinglish',
+      favorites: [],
+      progressMap: {},
+      conversations: [],
+      relationshipsMap: {},
+      memoriesMap: {},
+    };
+  }
 
   let language: LanguageCode = profile.preferredLanguage || 'hinglish';
   try {
-    const prefSnap = await getDoc(doc(db, 'users', uid, 'preferences', 'settings'));
-    if (prefSnap.exists()) {
+    const { snap: prefSnap, offline } = await getDocResilient(
+      doc(db, 'users', uid, 'preferences', 'settings')
+    );
+    anyOffline = anyOffline || offline;
+    if (prefSnap && prefSnap.exists()) {
       const prefData = prefSnap.data() as { language?: LanguageCode };
       if (prefData.language) {
         language = prefData.language;
@@ -169,71 +340,88 @@ export async function restoreAllUserCloudData(user: User): Promise<RestoredCloud
 
   let favorites: FavoriteRecord[] = [];
   try {
-    const favSnap = await getDocs(
+    const { snap: favSnap, offline } = await getDocsResilient(
       query(collection(db, 'users', uid, 'favorites'), where('uid', '==', uid))
     );
-    favorites = favSnap.docs.map((d) => d.data() as FavoriteRecord);
+    anyOffline = anyOffline || offline;
+    if (favSnap) {
+      favorites = favSnap.docs.map((d) => d.data() as FavoriteRecord);
+    }
   } catch (err) {
     handleFirestoreError(err, OperationType.LIST, `users/${uid}/favorites`);
   }
 
   const progressMap: Record<string, StoryProgressRecord> = {};
   try {
-    const progSnap = await getDocs(
+    const { snap: progSnap, offline } = await getDocsResilient(
       query(collection(db, 'users', uid, 'storyProgress'), where('uid', '==', uid))
     );
-    progSnap.docs.forEach((d) => {
-      const data = d.data() as StoryProgressRecord;
-      progressMap[data.storyId] = data;
-    });
+    anyOffline = anyOffline || offline;
+    if (progSnap) {
+      progSnap.docs.forEach((d) => {
+        const data = d.data() as StoryProgressRecord;
+        progressMap[data.storyId] = data;
+      });
+    }
   } catch (err) {
     handleFirestoreError(err, OperationType.LIST, `users/${uid}/storyProgress`);
   }
 
   let conversations: ConversationSummary[] = [];
   try {
-    const convSnap = await getDocs(
+    const { snap: convSnap, offline } = await getDocsResilient(
       query(collection(db, 'users', uid, 'conversations'), where('uid', '==', uid))
     );
-    conversations = convSnap.docs.map((d) => d.data() as ConversationSummary);
-    conversations.sort((a, b) => {
-      const ta = toMillis(a.updatedAt);
-      const tb = toMillis(b.updatedAt);
-      return tb - ta;
-    });
+    anyOffline = anyOffline || offline;
+    if (convSnap) {
+      conversations = convSnap.docs.map((d) => d.data() as ConversationSummary);
+      conversations.sort((a, b) => {
+        const ta = toMillis(a.updatedAt);
+        const tb = toMillis(b.updatedAt);
+        return tb - ta;
+      });
+    }
   } catch (err) {
     handleFirestoreError(err, OperationType.LIST, `users/${uid}/conversations`);
   }
 
   const relationshipsMap: Record<string, RelationshipMeterValue[]> = {};
   try {
-    const relSnap = await getDocs(
+    const { snap: relSnap, offline } = await getDocsResilient(
       query(collection(db, 'users', uid, 'relationships'), where('uid', '==', uid))
     );
-    relSnap.docs.forEach((d) => {
-      const data = d.data() as { storyId: string; meters: RelationshipMeterValue[] };
-      relationshipsMap[data.storyId] = data.meters || [];
-    });
+    anyOffline = anyOffline || offline;
+    if (relSnap) {
+      relSnap.docs.forEach((d) => {
+        const data = d.data() as { storyId: string; meters: RelationshipMeterValue[] };
+        relationshipsMap[data.storyId] = data.meters || [];
+      });
+    }
   } catch (err) {
     handleFirestoreError(err, OperationType.LIST, `users/${uid}/relationships`);
   }
 
   const memoriesMap: Record<string, StoryMemoryRecord[]> = {};
   try {
-    const memSnap = await getDocs(
+    const { snap: memSnap, offline } = await getDocsResilient(
       query(collection(db, 'users', uid, 'memories'), where('uid', '==', uid))
     );
-    memSnap.docs.forEach((d) => {
-      const data = { ...(d.data() as StoryMemoryRecord), id: d.id };
-      if (!memoriesMap[data.storyId]) memoriesMap[data.storyId] = [];
-      memoriesMap[data.storyId].push(data);
-    });
+    anyOffline = anyOffline || offline;
+    if (memSnap) {
+      memSnap.docs.forEach((d) => {
+        const data = { ...(d.data() as StoryMemoryRecord), id: d.id };
+        if (!memoriesMap[data.storyId]) memoriesMap[data.storyId] = [];
+        memoriesMap[data.storyId].push(data);
+      });
+    }
   } catch (err) {
     handleFirestoreError(err, OperationType.LIST, `users/${uid}/memories`);
   }
 
   return {
     profile,
+    isBlocked: false,
+    offlineFallback: anyOffline,
     language,
     favorites,
     progressMap,
@@ -245,10 +433,28 @@ export async function restoreAllUserCloudData(user: User): Promise<RestoredCloud
 
 export function toMillis(ts: unknown): number {
   if (!ts) return 0;
-  if (typeof ts === 'number') return ts;
-  if (typeof ts === 'object' && ts !== null && 'toMillis' in ts) {
-    const fn = (ts as { toMillis?: () => number }).toMillis;
-    if (typeof fn === 'function') return fn();
+  if (typeof ts === 'number') return Number.isFinite(ts) ? ts : 0;
+  if (ts instanceof Date) return Number.isNaN(ts.getTime()) ? 0 : ts.getTime();
+  if (typeof ts === 'string') {
+    const parsed = Date.parse(ts);
+    return Number.isNaN(parsed) ? 0 : parsed;
+  }
+  if (typeof ts === 'object' && ts !== null) {
+    const maybeTs = ts as {
+      toMillis?: () => number;
+      seconds?: number;
+      nanoseconds?: number;
+    };
+    if (typeof maybeTs.toMillis === 'function') {
+      try {
+        return maybeTs.toMillis();
+      } catch {
+        // fall through to seconds fallback
+      }
+    }
+    if (typeof maybeTs.seconds === 'number') {
+      return maybeTs.seconds * 1000 + Math.floor((maybeTs.nanoseconds || 0) / 1e6);
+    }
   }
   return 0;
 }
@@ -678,15 +884,210 @@ export async function fetchPublishedAdminStories(): Promise<StoryDefinition[]> {
   }
 }
 
+/**
+ * Verifies Main Admin access using backend ID-token verification endpoint.
+ */
 export async function isUserAdmin(user: User | null): Promise<boolean> {
-  if (!user || !user.emailVerified) return false;
-  if (user.email === ADMIN_BOOTSTRAP_EMAIL) return true;
+  if (!user || !user.emailVerified || !isMainAdminEmail(user.email)) {
+    return false;
+  }
   try {
-    const adminSnap = await getDoc(doc(db, 'admins', user.uid));
-    return adminSnap.exists();
+    const token = await user.getIdToken();
+    const resp = await fetch('/api/admin/session', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!resp.ok) return false;
+    const data = (await resp.json()) as { isAdmin?: boolean };
+    return Boolean(data.isAdmin);
   } catch {
     return false;
   }
+}
+
+export async function fetchAppConfig(): Promise<{
+  settings: AppSettingsConfig;
+  content: AppContentConfig;
+}> {
+  try {
+    const [settingsSnap, contentSnap] = await Promise.all([
+      getDoc(doc(db, 'appConfig', 'settings')),
+      getDoc(doc(db, 'appConfig', 'content')),
+    ]);
+
+    const settings: AppSettingsConfig = settingsSnap.exists()
+      ? { ...DEFAULT_APP_SETTINGS, ...(settingsSnap.data() as Partial<AppSettingsConfig>) }
+      : DEFAULT_APP_SETTINGS;
+
+    const content: AppContentConfig = contentSnap.exists()
+      ? { ...DEFAULT_APP_CONTENT, ...(contentSnap.data() as Partial<AppContentConfig>) }
+      : DEFAULT_APP_CONTENT;
+
+    return { settings, content };
+  } catch {
+    return {
+      settings: DEFAULT_APP_SETTINGS,
+      content: DEFAULT_APP_CONTENT,
+    };
+  }
+}
+
+export async function saveAppSettings(
+  adminUser: User,
+  settings: AppSettingsConfig
+): Promise<void> {
+  const path = 'appConfig/settings';
+  try {
+    const payload = {
+      appName: (settings.appName || DEFAULT_APP_SETTINGS.appName).trim().slice(0, 80),
+      appSubtitle: (settings.appSubtitle || '').trim().slice(0, 200),
+      logoUrl: (settings.logoUrl || '').trim().slice(0, 512),
+      supportEmail: (settings.supportEmail || '').trim().slice(0, 254),
+      supportNote: (settings.supportNote || '').trim().slice(0, 500),
+      allowRegistrations: Boolean(settings.allowRegistrations),
+      registrationClosedMessage: (settings.registrationClosedMessage || '').trim().slice(0, 300),
+      maintenanceMode: Boolean(settings.maintenanceMode),
+      maintenanceMessage: (settings.maintenanceMessage || '').trim().slice(0, 500),
+      announcementEnabled: Boolean(settings.announcementEnabled),
+      announcementTitle: (settings.announcementTitle || '').trim().slice(0, 120),
+      announcementMessage: (settings.announcementMessage || '').trim().slice(0, 500),
+      announcementType: ['info', 'warning', 'success'].includes(settings.announcementType)
+        ? settings.announcementType
+        : 'info',
+      themeMode: settings.themeMode === 'light' ? 'light' : 'dark',
+      accentColor: /^#[0-9a-fA-F]{6}$/.test(settings.accentColor)
+        ? settings.accentColor
+        : '#E5233D',
+      enableVoiceInput: Boolean(settings.enableVoiceInput),
+      enableAiSuggestions: Boolean(settings.enableAiSuggestions),
+      updatedBy: adminUser.uid,
+      updatedAt: serverTimestamp(),
+    };
+    await setDoc(doc(db, 'appConfig', 'settings'), payload);
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, path);
+  }
+}
+
+export async function saveAppContent(
+  adminUser: User,
+  content: AppContentConfig
+): Promise<void> {
+  const path = 'appConfig/content';
+  try {
+    const payload = {
+      welcomeHeading: (content.welcomeHeading || DEFAULT_APP_CONTENT.welcomeHeading)
+        .trim()
+        .slice(0, 140),
+      welcomeSubheading: (content.welcomeSubheading || '').trim().slice(0, 400),
+      heroBadgeText: (content.heroBadgeText || '').trim().slice(0, 80),
+      homeFeaturedTitle: (content.homeFeaturedTitle || '').trim().slice(0, 100),
+      guestPromptTitle: (content.guestPromptTitle || '').trim().slice(0, 140),
+      guestPromptSubtitle: (content.guestPromptSubtitle || '').trim().slice(0, 400),
+      helpGuideText: (content.helpGuideText || '').trim().slice(0, 1500),
+      footerNote: (content.footerNote || '').trim().slice(0, 300),
+      updatedBy: adminUser.uid,
+      updatedAt: serverTimestamp(),
+    };
+    await setDoc(doc(db, 'appConfig', 'content'), payload);
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, path);
+  }
+}
+
+export async function fetchAllUsersForAdmin(): Promise<UserProfileRecord[]> {
+  const path = 'users';
+  try {
+    const snap = await getDocs(collection(db, 'users'));
+    const list = snap.docs.map((d) => {
+      const data = d.data() as UserProfileRecord;
+      return {
+        ...data,
+        uid: data.uid || d.id,
+        role: isMainAdminEmail(data.email) ? ('admin' as const) : ('user' as const),
+        status: data.status === 'blocked' ? ('blocked' as const) : ('active' as const),
+      };
+    });
+    list.sort((a, b) => toMillis(b.createdAt) - toMillis(a.createdAt));
+    return list;
+  } catch (err) {
+    handleFirestoreError(err, OperationType.LIST, path);
+  }
+}
+
+export async function setUserBlockStatus(
+  adminUser: User,
+  targetUser: UserProfileRecord,
+  shouldBlock: boolean,
+  reason = 'Suspended by administrator'
+): Promise<void> {
+  if (targetUser.uid === adminUser.uid || isMainAdminEmail(targetUser.email)) {
+    throw new Error('The Main Admin account cannot be blocked.');
+  }
+  const token = await adminUser.getIdToken();
+  const verifyResp = await fetch('/api/admin/validate-user-action', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      targetUid: targetUser.uid,
+      action: shouldBlock ? 'block' : 'unblock',
+    }),
+  });
+  const verifyJson = (await verifyResp.json()) as { allowed?: boolean; error?: string };
+  if (!verifyResp.ok || !verifyJson.allowed) {
+    throw new Error(verifyJson.error || 'Server denied admin user action.');
+  }
+
+  const path = `users/${targetUser.uid}`;
+  try {
+    const batch = writeBatch(db);
+    const userRef = doc(db, 'users', targetUser.uid);
+    const blockedRef = doc(db, 'blockedUsers', targetUser.uid);
+    const cleanReason = reason.trim().slice(0, 500) || 'Suspended by administrator';
+
+    if (shouldBlock) {
+      batch.update(userRef, {
+        status: 'blocked',
+        blockedReason: cleanReason,
+        blockedAt: serverTimestamp(),
+        blockedBy: adminUser.uid,
+        updatedAt: serverTimestamp(),
+      });
+      batch.set(blockedRef, {
+        uid: targetUser.uid,
+        email: (targetUser.email || '').slice(0, 254),
+        reason: cleanReason,
+        blockedBy: adminUser.uid,
+        blockedAt: serverTimestamp(),
+      });
+    } else {
+      batch.update(userRef, {
+        status: 'active',
+        blockedReason: '',
+        updatedAt: serverTimestamp(),
+      });
+      batch.delete(blockedRef);
+    }
+
+    await batch.commit();
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, path);
+  }
+}
+
+export async function changeUserPassword(
+  user: User,
+  currentPassword: string,
+  newPassword: string
+): Promise<void> {
+  if (!user.email) {
+    throw new Error('No email address associated with this account.');
+  }
+  const credential = EmailAuthProvider.credential(user.email, currentPassword);
+  await reauthenticateWithCredential(user, credential);
+  await updatePassword(user, newPassword);
 }
 
 export async function saveAdminStory(user: User, storyInput: {

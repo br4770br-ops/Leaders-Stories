@@ -184,7 +184,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
     rating: 4.9,
     chatCountLabel: '179.4K',
     chatCountNumeric: 179400,
-    rank: 6,
+    rank: 4,
     isTrending: true,
     coverImage: '/src/assets/images/cover_mahabharat_traveler_1795460761928.jpg',
     mediaGallery: [
@@ -314,7 +314,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
     rating: 4.9,
     chatCountLabel: '190.2K',
     chatCountNumeric: 190200,
-    rank: 5,
+    rank: 2,
     isTrending: true,
     coverImage: '/src/assets/images/cover_mafia_queen_1795460848370.jpg',
     mediaGallery: [
@@ -439,7 +439,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
     rating: 4.7,
     chatCountLabel: '50.2K',
     chatCountNumeric: 50200,
-    rank: 9,
+    rank: 12,
     coverImage: '/src/assets/images/cover_still_yours_1795460763922.jpg',
     mediaGallery: [
       {
@@ -562,7 +562,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
     rating: 4.8,
     chatCountLabel: '26.6K',
     chatCountNumeric: 26600,
-    rank: 10,
+    rank: 15,
     coverImage: '/src/assets/images/cover_kaash_tum_meri_hoti_1795460764613.jpg',
     mediaGallery: [
       {
@@ -685,7 +685,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
     rating: 4.7,
     chatCountLabel: '37.9K',
     chatCountNumeric: 37900,
-    rank: 12,
+    rank: 13,
     coverImage: '/src/assets/images/cover_college_crush_1795460764992.jpg',
     mediaGallery: [
       {
@@ -804,7 +804,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
     rating: 4.8,
     chatCountLabel: '89.8K',
     chatCountNumeric: 89800,
-    rank: 7,
+    rank: 8,
     isTrending: true,
     coverImage: '/src/assets/images/cover_obsessed_with_me_1795460766128.jpg',
     mediaGallery: [
@@ -926,7 +926,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
     rating: 4.7,
     chatCountLabel: '12.4K',
     chatCountNumeric: 12400,
-    rank: 8,
+    rank: 20,
     coverImage: '/src/assets/images/cover_roommate_boss_1795460767429.jpg',
     mediaGallery: [
       {
@@ -1045,6 +1045,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
     rating: 4.8,
     chatCountLabel: '18.5K',
     chatCountNumeric: 18500,
+    rank: 17,
     isNew: true,
     coverImage: '/src/assets/images/cover_maa_aur_shaitaan_1795460849481.jpg',
     mediaGallery: [
@@ -1165,6 +1166,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
     rating: 4.8,
     chatCountLabel: '15.8K',
     chatCountNumeric: 15800,
+    rank: 18,
     isNew: true,
     coverImage: '/src/assets/images/cover_wo_laut_aayi_1795460849473.jpg',
     mediaGallery: [
@@ -1284,6 +1286,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
     rating: 4.8,
     chatCountLabel: '24.7K',
     chatCountNumeric: 24700,
+    rank: 16,
     isNew: true,
     isByFans: true,
     coverImage: '/src/assets/images/cover_badodiya_haveli_1795460771623.jpg',
@@ -1404,6 +1407,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
     rating: 4.6,
     chatCountLabel: '13.4K',
     chatCountNumeric: 13400,
+    rank: 19,
     isNew: true,
     isByFans: true,
     coverImage: '/src/assets/images/cover_bhoot_khajana_1795460852621.jpg',
@@ -1524,6 +1528,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
     rating: 4.9,
     chatCountLabel: '64.2K',
     chatCountNumeric: 64200,
+    rank: 10,
     isNew: true,
     isTrending: true,
     coverImage: '/src/assets/images/cover_anime_shadow_vow_1795460771521.jpg',
@@ -1644,6 +1649,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
     rating: 4.8,
     chatCountLabel: '31.9K',
     chatCountNumeric: 31900,
+    rank: 14,
     isNew: true,
     coverImage: '/src/assets/images/cover_crime_red_file_1795460853294.jpg',
     mediaGallery: [
@@ -1763,7 +1769,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
     rating: 4.9,
     chatCountLabel: '188.4K',
     chatCountNumeric: 188400,
-    rank: 6,
+    rank: 3,
     isNew: true,
     isTrending: true,
     coverImage: '/src/assets/images/cover_fake_husband_1795504259434.jpg',
@@ -1885,7 +1891,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
     rating: 4.9,
     chatCountLabel: '142.8K',
     chatCountNumeric: 142800,
-    rank: 7,
+    rank: 5,
     isNew: true,
     isTrending: true,
     coverImage: '/src/assets/images/cover_rank_zero_1795504259085.jpg',
@@ -2007,6 +2013,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
     rating: 4.8,
     chatCountLabel: '95.6K',
     chatCountNumeric: 95600,
+    rank: 7,
     isNew: true,
     isByFans: true,
     coverImage: '/src/assets/images/cover_last_bench_1795504260323.jpg',
@@ -2128,6 +2135,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
     rating: 4.8,
     chatCountLabel: '54.3K',
     chatCountNumeric: 54300,
+    rank: 11,
     isNew: true,
     coverImage: '/src/assets/images/cover_sultana_spy_1795504260398.jpg',
     mediaGallery: [
@@ -2248,6 +2256,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
     rating: 4.8,
     chatCountLabel: '77.2K',
     chatCountNumeric: 77200,
+    rank: 9,
     isNew: true,
     isTrending: true,
     coverImage: '/src/assets/images/cover_mumbai_drift_1795504260937.jpg',
@@ -2368,6 +2377,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
     rating: 4.9,
     chatCountLabel: '118.5K',
     chatCountNumeric: 118500,
+    rank: 6,
     isNew: true,
     isByFans: true,
     coverImage: '/src/assets/images/cover_room_404_1795504261141.jpg',

@@ -72,15 +72,15 @@ export const StoryCard: React.FC<StoryCardProps> = React.memo(({
         onClick={() => onSelect(story)}
         className="mt-2.5 text-left space-y-1 focus:outline-none"
       >
-        <h3 className="font-display text-[15px] font-semibold text-white leading-snug line-clamp-1 group-hover:text-[#F43F5E] transition-colors">
+        <h3 className="font-display text-[15px] font-semibold text-zinc-950 dark:text-white leading-snug line-clamp-1 group-hover:text-[var(--app-accent)] transition-colors">
           {story.title}
         </h3>
-        <div className="flex items-center gap-1.5 text-xs text-zinc-400 truncate">
+        <div className="flex items-center gap-1.5 text-xs text-zinc-600 dark:text-zinc-400 truncate">
           <span>Roleplay</span>
           <span aria-hidden="true">·</span>
           <span>{story.primaryCategory}</span>
           <span aria-hidden="true">·</span>
-          <span className="inline-flex items-center gap-0.5 text-amber-400 tabular-nums">
+          <span className="inline-flex items-center gap-0.5 text-amber-500 dark:text-amber-400 tabular-nums">
             <Star className="w-3 h-3 fill-amber-400" />
             {story.rating.toFixed(1)}
           </span>

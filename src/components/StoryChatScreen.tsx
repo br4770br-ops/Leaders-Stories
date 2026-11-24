@@ -63,6 +63,8 @@ interface StoryChatScreenProps {
   existingProgress?: StoryProgressRecord;
   existingMeters?: RelationshipMeterValue[];
   existingMemories?: StoryMemoryRecord[];
+  enableVoiceInput?: boolean;
+  enableAiSuggestions?: boolean;
   onBack: () => void;
   onOpenStoryInfo: (story: StoryDefinition) => void;
   onChangeLanguage: (lang: LanguageCode) => void;
@@ -178,6 +180,8 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
   existingProgress,
   existingMeters,
   existingMemories = [],
+  enableVoiceInput = true,
+  enableAiSuggestions = true,
   onBack,
   onOpenStoryInfo,
   onChangeLanguage,
@@ -831,7 +835,7 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
           )}
 
           {/* AI Suggested Replies Panel (Lightbulb) */}
-          {suggestionsOpen && (
+          {enableAiSuggestions && suggestionsOpen && (
             <div className="rounded-2xl bg-[#16171D] border border-white/10 p-3 space-y-2 shadow-2xl">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-zinc-300 flex items-center gap-1.5">
@@ -889,27 +893,29 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
                 placeholder={isListening ? 'Listening... speak now' : 'Type your message'}
                 className="flex-1 bg-transparent text-[15px] text-white placeholder:text-zinc-500 resize-none max-h-28 py-2 focus:outline-none"
               />
-              <button
-                type="button"
-                onClick={handleLightbulbClick}
-                aria-label="AI suggested replies"
-                title="AI suggested replies"
-                className={`min-w-[40px] min-h-[40px] rounded-full flex items-center justify-center transition ${
-                  suggestionsOpen
-                    ? 'bg-[#E5233D]/20 text-[#F43F5E]'
-                    : 'text-zinc-400 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                <Lightbulb className="w-5 h-5" />
-              </button>
+              {enableAiSuggestions && (
+                <button
+                  type="button"
+                  onClick={handleLightbulbClick}
+                  aria-label="AI suggested replies"
+                  title="AI suggested replies"
+                  className={`min-w-[40px] min-h-[40px] rounded-full flex items-center justify-center transition ${
+                    suggestionsOpen
+                      ? 'bg-[#E5233D]/20 text-[#F43F5E]'
+                      : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  <Lightbulb className="w-5 h-5" />
+                </button>
+              )}
             </div>
 
-            {input.trim().length > 0 ? (
+            {input.trim().length > 0 || !enableVoiceInput ? (
               <button
                 type="submit"
-                disabled={sending}
+                disabled={sending || input.trim().length === 0}
                 aria-label="Send message"
-                className="min-w-[48px] min-h-[48px] rounded-full bg-[#E5233D] hover:bg-[#cc1e35] disabled:opacity-50 flex items-center justify-center text-white shadow-lg shadow-[#E5233D]/30 transition shrink-0"
+                className="min-w-[48px] min-h-[48px] rounded-full bg-[#E5233D] hover:bg-[#cc1e35] disabled:opacity-40 flex items-center justify-center text-white shadow-lg shadow-[#E5233D]/30 transition shrink-0"
               >
                 <Send className="w-5 h-5" />
               </button>
