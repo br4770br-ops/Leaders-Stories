@@ -176,6 +176,80 @@ function isVerifiedMainAdmin(user?: VerifiedFirebaseUser): boolean {
   );
 }
 
+const USER_STATUS_TTL_MS = 20_000;
+const BLOCKED_STATUS_TTL_MS = 10_000;
+const SETTINGS_CACHE_TTL_MS = 15_000;
+
+interface CachedUserStatus {
+  blocked: boolean;
+  reason?: string;
+  expiresAt: number;
+}
+
+interface CachedAppSettings {
+  maintenanceMode: boolean;
+  maintenanceMessage: string;
+  expiresAt: number;
+}
+
+const userStatusCache = new Map<string, CachedUserStatus>();
+let appSettingsCache: CachedAppSettings | null = null;
+
+async function getUserBlockStatusCached(
+  uid: string,
+  bearerToken: string
+): Promise<{ blocked: boolean; reason?: string }> {
+  const now = Date.now();
+  const cached = userStatusCache.get(uid);
+  if (cached && now < cached.expiresAt) {
+    return { blocked: cached.blocked, reason: cached.reason };
+  }
+
+  const [blockedDoc, userDoc] = await Promise.all([
+    fetchFirestoreDocWithToken(`blockedUsers/${encodeURIComponent(uid)}`, bearerToken),
+    fetchFirestoreDocWithToken(`users/${encodeURIComponent(uid)}`, bearerToken),
+  ]);
+
+  const userStatus = userDoc.fields?.status?.stringValue;
+  const blocked = Boolean(blockedDoc.exists || userStatus === 'blocked');
+  const reason = blocked
+    ? (blockedDoc.fields?.reason?.stringValue as string | undefined) ||
+      (userDoc.fields?.blockedReason?.stringValue as string | undefined) ||
+      'Your account has been suspended by the administrator.'
+    : undefined;
+
+  if (userStatusCache.size > 5000) {
+    userStatusCache.clear();
+  }
+  userStatusCache.set(uid, {
+    blocked,
+    reason,
+    expiresAt: now + (blocked ? BLOCKED_STATUS_TTL_MS : USER_STATUS_TTL_MS),
+  });
+  return { blocked, reason };
+}
+
+async function getAppSettingsCached(): Promise<{ maintenanceMode: boolean; maintenanceMessage: string }> {
+  const now = Date.now();
+  if (appSettingsCache && now < appSettingsCache.expiresAt) {
+    return {
+      maintenanceMode: appSettingsCache.maintenanceMode,
+      maintenanceMessage: appSettingsCache.maintenanceMessage,
+    };
+  }
+  const settingsDoc = await fetchFirestoreDocWithToken('appConfig/settings');
+  const maintenanceMode = Boolean(settingsDoc.fields?.maintenanceMode?.booleanValue);
+  const maintenanceMessage =
+    (settingsDoc.fields?.maintenanceMessage?.stringValue as string | undefined) ||
+    'LEADERS STORIES is temporarily undergoing maintenance. Please check back shortly.';
+  appSettingsCache = {
+    maintenanceMode,
+    maintenanceMessage,
+    expiresAt: now + SETTINGS_CACHE_TTL_MS,
+  };
+  return { maintenanceMode, maintenanceMessage };
+}
+
 async function requireAuth(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const authHeader = req.headers.authorization;
@@ -194,33 +268,23 @@ async function requireAuth(req: AuthenticatedRequest, res: Response, next: NextF
       return;
     }
 
-    // Server-side block & maintenance enforcement (using caller's verified Firebase ID token)
-    const [blockedDoc, userDoc, settingsDoc] = await Promise.all([
-      fetchFirestoreDocWithToken(`blockedUsers/${encodeURIComponent(verified.uid)}`, token),
-      fetchFirestoreDocWithToken(`users/${encodeURIComponent(verified.uid)}`, token),
-      fetchFirestoreDocWithToken('appConfig/settings'),
+    // Server-side block & maintenance enforcement (TTL-cached for fast turns)
+    const [blockState, settingsState] = await Promise.all([
+      getUserBlockStatusCached(verified.uid, token),
+      getAppSettingsCached(),
     ]);
 
-    const userStatus = userDoc.fields?.status?.stringValue;
-    if (blockedDoc.exists || userStatus === 'blocked') {
-      const reason =
-        (blockedDoc.fields?.reason?.stringValue as string | undefined) ||
-        (userDoc.fields?.blockedReason?.stringValue as string | undefined) ||
-        'Your account has been suspended by the administrator.';
+    if (blockState.blocked) {
       res.status(403).json({
-        error: `Account blocked: ${reason}`,
+        error: `Account blocked: ${blockState.reason || 'Your account has been suspended by the administrator.'}`,
         code: 'ACCOUNT_BLOCKED',
       });
       return;
     }
 
-    const maintenanceMode = Boolean(settingsDoc.fields?.maintenanceMode?.booleanValue);
-    if (maintenanceMode && !isVerifiedMainAdmin(verified)) {
-      const maintenanceMessage =
-        (settingsDoc.fields?.maintenanceMessage?.stringValue as string | undefined) ||
-        'LEADERS STORIES is temporarily undergoing maintenance. Please check back shortly.';
+    if (settingsState.maintenanceMode && !isVerifiedMainAdmin(verified)) {
       res.status(503).json({
-        error: maintenanceMessage,
+        error: settingsState.maintenanceMessage,
         code: 'MAINTENANCE_MODE',
       });
       return;
@@ -261,19 +325,26 @@ async function requireAdmin(req: AuthenticatedRequest, res: Response, next: Next
   }
 }
 
+let cachedGeminiClient: GoogleGenAI | null = null;
+let cachedGeminiApiKey = '';
+
 function getGeminiClient(): GoogleGenAI {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey || apiKey === 'MY_GEMINI_API_KEY') {
     throw new Error('GEMINI_API_KEY is not configured on the server.');
   }
-  return new GoogleGenAI({
-    apiKey,
-    httpOptions: {
-      headers: {
-        'User-Agent': 'aistudio-build',
+  if (!cachedGeminiClient || cachedGeminiApiKey !== apiKey) {
+    cachedGeminiApiKey = apiKey;
+    cachedGeminiClient = new GoogleGenAI({
+      apiKey,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        },
       },
-    },
-  });
+    });
+  }
+  return cachedGeminiClient;
 }
 
 async function withGeminiRetry<T>(fn: () => Promise<T>, maxAttempts = 2): Promise<T> {
@@ -288,7 +359,7 @@ async function withGeminiRetry<T>(fn: () => Promise<T>, maxAttempts = 2): Promis
       if (!isTransient || attempt === maxAttempts) {
         throw err;
       }
-      await new Promise((r) => setTimeout(r, 600 * attempt));
+      await new Promise((r) => setTimeout(r, 450 * attempt));
     }
   }
   throw lastError;
@@ -303,23 +374,12 @@ const ALLOWED_LANGUAGES = new Set(['hinglish', 'hindi', 'english']);
 
 function getLanguageInstruction(lang: string): string {
   if (lang === 'hindi') {
-    return [
-      'LANGUAGE: Pure, natural conversational Hindi written in Devanagari script (हिंदी).',
-      'Use natural emotional Hindi expressions and idioms.',
-      'Avoid unnecessary English words or Hinglish Roman script unless a character naturally uses a proper noun.',
-    ].join(' ');
+    return 'LANGUAGE: Pure natural conversational Hindi in Devanagari script (हिंदी). Avoid unnecessary English words.';
   }
   if (lang === 'english') {
-    return [
-      'LANGUAGE: Natural, vivid cinematic English.',
-      'Keep dialogue sharp, expressive, emotionally grounded, and never robotic.',
-    ].join(' ');
+    return 'LANGUAGE: Vivid, sharp, emotionally grounded cinematic English dialogue & narration.';
   }
-  return [
-    'LANGUAGE: Natural conversational Hinglish (modern Indian Hindi written in Roman script with natural everyday English phrases where authentic).',
-    'Example tone: *Isha ka chehra ek dum se laal ho jata hai.* Isha: "WHAT?! Tumhari himmat kaise hui aisa sochne ki?"',
-    'Keep it natural, dramatic, and easy to read on mobile.',
-  ].join(' ');
+  return 'LANGUAGE: Natural Hinglish (modern Hindi in Roman script with natural everyday English phrases). Example: *Isha ka chehra laal ho jata hai.* Isha: "WHAT?! Tumhari himmat kaise hui?"';
 }
 
 interface StoryTurnBody {
@@ -361,6 +421,261 @@ interface StoryTurnBody {
   mode?: 'reply' | 'continue' | 'regenerate';
 }
 
+interface CleanStoryBeat {
+  type: 'narration' | 'dialogue';
+  speakerName?: string;
+  text: string;
+}
+
+function normalizeBeat(raw: unknown): CleanStoryBeat | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const b = raw as { type?: unknown; speakerName?: unknown; text?: unknown };
+  const text = sanitizeText(b.text, 800);
+  if (!text) return null;
+  const type = b.type === 'narration' ? 'narration' : 'dialogue';
+  const speakerName = b.speakerName ? sanitizeText(b.speakerName, 60) : undefined;
+  return {
+    type,
+    ...(type === 'dialogue' && speakerName ? { speakerName } : {}),
+    text,
+  };
+}
+
+function buildStoryPromptParts(body: StoryTurnBody) {
+  const story = body?.story;
+  const mode: 'reply' | 'continue' | 'regenerate' =
+    body?.mode === 'continue' || body?.mode === 'regenerate' ? body.mode : 'reply';
+  const userMessage = sanitizeText(body?.userMessage, 2000);
+  const language = ALLOWED_LANGUAGES.has(body?.language || '') ? (body.language as string) : 'hinglish';
+  const currentScene = sanitizeText(body?.currentScene, 300);
+  const sceneIndex = Number.isFinite(body?.sceneIndex) ? Number(body.sceneIndex) : 0;
+
+  const characters = Array.isArray(story?.characters) ? story.characters.slice(0, 6) : [];
+  const meters = Array.isArray(body.relationshipMeters) ? body.relationshipMeters.slice(0, 6) : [];
+  const memories = Array.isArray(body.memories) ? body.memories.slice(-5) : [];
+  const recentMessages = Array.isArray(body.recentMessages) ? body.recentMessages.slice(-7) : [];
+
+  const historyBlock = recentMessages
+    .map((m) => {
+      if (m.role === 'user') {
+        return `USER: ${sanitizeText(m.userText, 400)}`;
+      }
+      return (m.beats || [])
+        .map((b) =>
+          b.type === 'narration'
+            ? `*${sanitizeText(b.text, 280)}*`
+            : `${sanitizeText(b.speakerName, 40)}: "${sanitizeText(b.text, 280)}"`
+        )
+        .join('\n');
+    })
+    .join('\n---\n');
+
+  const characterBlock = characters
+    .map(
+      (c) =>
+        `- ${c.name}${c.age ? ` (${c.age})` : ''} [${c.role}]: ${sanitizeText(c.personality, 140)} Style: ${sanitizeText(c.speakingStyle, 100)}. Relation: ${sanitizeText(c.relationshipToUser, 100)}.`
+    )
+    .join('\n');
+
+  const meterBlock = meters.map((m) => `${m.id}:${m.value}/${m.max}`).join(', ');
+  const memoryBlock =
+    memories.length > 0
+      ? memories.map((mem) => `- ${sanitizeText(mem.summary, 160)}`).join('\n')
+      : 'None yet.';
+
+  const systemInstruction = [
+    `Interactive multi-character roleplay director for "${story?.title}" (${(story?.tags || []).slice(0, 4).join(', ')}).`,
+    `Setting: ${sanitizeText(story?.setting, 240)}. Premise: ${sanitizeText(story?.about, 480)}`,
+    `CAST:\n${characterBlock}`,
+    `RULES:\n1. Stay strictly in-character; never act like an AI assistant or repeat the opening.\n2. Write 2-3 crisp, gripping beats (mix 1-sentence 'narration' and punchy 'dialogue' with exact speakerName).\n3. Let characters react to the user AND each other naturally.\n4. Adjust meterChanges (-12..+12) only when earned.\n5. Set newMemory.shouldSave=true only for major reveals/promises.\n6. Return 2-3 storyChoices only at major turning points, else [].\n7. Set endingTriggered ONLY at a genuine climax from: ${(story?.possibleEndings || []).join(' | ') || 'True Ending'}.`,
+    getLanguageInstruction(language),
+  ].join('\n\n');
+
+  const actionPrompt =
+    mode === 'continue'
+      ? `ACTION: Auto-advance (Fast-Forward). User stayed silent—continue immediately from the last beat with fresh character dialogue, tension, or movement without speaking for the user.`
+      : mode === 'regenerate'
+        ? `${userMessage ? `USER: "${userMessage}"\n` : ''}ACTION: Regenerate a distinctly different reaction, dialogue twist, or dramatic angle for this moment.`
+        : `USER: "${userMessage}"`;
+
+  const prompt = [
+    `SCENE (Turn ${sceneIndex + 1}): ${currentScene} | METERS: ${meterBlock || 'None'}`,
+    `MEMORIES:\n${memoryBlock}`,
+    `RECENT:\n${historyBlock || '(Opening scene)'}`,
+    actionPrompt,
+  ].join('\n\n');
+
+  return {
+    mode,
+    userMessage,
+    currentScene,
+    systemInstruction,
+    prompt,
+  };
+}
+
+const STORY_TURN_RESPONSE_SCHEMA = {
+  type: Type.OBJECT,
+  properties: {
+    beats: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          type: { type: Type.STRING },
+          speakerName: { type: Type.STRING },
+          text: { type: Type.STRING },
+        },
+        required: ['type', 'text'],
+      },
+    },
+    meterChanges: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          id: { type: Type.STRING },
+          delta: { type: Type.INTEGER },
+          reason: { type: Type.STRING },
+        },
+        required: ['id', 'delta'],
+      },
+    },
+    newScene: { type: Type.STRING },
+    newMemory: {
+      type: Type.OBJECT,
+      properties: {
+        shouldSave: { type: Type.BOOLEAN },
+        summary: { type: Type.STRING },
+        importance: { type: Type.INTEGER },
+        charactersInvolved: {
+          type: Type.ARRAY,
+          items: { type: Type.STRING },
+        },
+      },
+      required: ['shouldSave'],
+    },
+    storyChoices: {
+      type: Type.ARRAY,
+      items: { type: Type.STRING },
+    },
+    endingTriggered: { type: Type.STRING },
+  },
+  propertyOrdering: [
+    'beats',
+    'meterChanges',
+    'newScene',
+    'newMemory',
+    'storyChoices',
+    'endingTriggered',
+  ],
+  required: ['beats', 'meterChanges', 'newScene', 'storyChoices', 'endingTriggered'],
+};
+
+function normalizeStoryTurnPayload(rawText: string, fallbackScene: string) {
+  const parsed = JSON.parse((rawText || '{}').trim()) as Record<string, unknown>;
+  const safeBeats = Array.isArray(parsed.beats)
+    ? parsed.beats.map(normalizeBeat).filter((b): b is CleanStoryBeat => Boolean(b))
+    : [];
+
+  return {
+    beats: safeBeats,
+    meterChanges: Array.isArray(parsed.meterChanges) ? parsed.meterChanges : [],
+    newScene: sanitizeText(parsed.newScene, 160) || fallbackScene,
+    newMemory:
+      parsed.newMemory && typeof parsed.newMemory === 'object'
+        ? parsed.newMemory
+        : { shouldSave: false },
+    storyChoices: Array.isArray(parsed.storyChoices)
+      ? parsed.storyChoices.filter((c): c is string => typeof c === 'string' && c.trim().length > 0).slice(0, 3)
+      : [],
+    endingTriggered: sanitizeText(parsed.endingTriggered, 180),
+  };
+}
+
+/**
+ * Incrementally extracts completed JSON objects from the top-level "beats": [ ... ] array
+ * while Gemini is still streaming the rest of the response.
+ */
+class IncrementalBeatsExtractor {
+  private buffer = '';
+  private inBeatsArray = false;
+  private arrayEnded = false;
+  private scanIndex = 0;
+  private inString = false;
+  private escaped = false;
+  private braceDepth = 0;
+  private objectStart = -1;
+
+  push(chunk: string): CleanStoryBeat[] {
+    if (!chunk || this.arrayEnded) {
+      this.buffer += chunk;
+      return [];
+    }
+    this.buffer += chunk;
+    const extracted: CleanStoryBeat[] = [];
+
+    if (!this.inBeatsArray) {
+      const keyMatch = /"beats"\s*:\s*\[/.exec(this.buffer);
+      if (!keyMatch) return extracted;
+      this.inBeatsArray = true;
+      this.scanIndex = keyMatch.index + keyMatch[0].length;
+    }
+
+    for (let i = this.scanIndex; i < this.buffer.length; i++) {
+      const ch = this.buffer[i];
+      if (this.inString) {
+        if (this.escaped) {
+          this.escaped = false;
+        } else if (ch === '\\') {
+          this.escaped = true;
+        } else if (ch === '"') {
+          this.inString = false;
+        }
+        continue;
+      }
+
+      if (ch === '"') {
+        this.inString = true;
+        continue;
+      }
+
+      if (ch === '{') {
+        if (this.braceDepth === 0) {
+          this.objectStart = i;
+        }
+        this.braceDepth += 1;
+      } else if (ch === '}') {
+        if (this.braceDepth > 0) {
+          this.braceDepth -= 1;
+          if (this.braceDepth === 0 && this.objectStart !== -1) {
+            const objSlice = this.buffer.slice(this.objectStart, i + 1);
+            this.objectStart = -1;
+            try {
+              const parsed = JSON.parse(objSlice);
+              const beat = normalizeBeat(parsed);
+              if (beat) extracted.push(beat);
+            } catch {
+              // Ignore malformed partial object; full payload at end handles recovery
+            }
+          }
+        }
+      } else if (ch === ']' && this.braceDepth === 0) {
+        this.arrayEnded = true;
+        this.scanIndex = i + 1;
+        break;
+      }
+      this.scanIndex = i + 1;
+    }
+
+    return extracted;
+  }
+
+  getFullText(): string {
+    return this.buffer;
+  }
+}
+
 async function startServer() {
   const app = express();
   app.set('trust proxy', 1);
@@ -398,6 +713,8 @@ async function startServer() {
       res.status(400).json({ error: 'Unsupported action.' });
       return;
     }
+    // Immediately reflect admin block/unblock state in server auth cache
+    userStatusCache.delete(targetUid);
     res.json({
       allowed: true,
       targetUid,
@@ -406,81 +723,72 @@ async function startServer() {
     });
   });
 
+  app.post('/api/story/turn-stream', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+    const body = req.body as StoryTurnBody;
+    const { mode, userMessage, currentScene, systemInstruction, prompt } = buildStoryPromptParts(body);
+
+    if (!body?.story?.title || (mode === 'reply' && !userMessage)) {
+      res.status(400).json({ error: 'Story context and user message are required.' });
+      return;
+    }
+
+    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.flushHeaders?.();
+
+    const writeEvent = (event: string, data: unknown) => {
+      if (res.writableEnded) return;
+      res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    };
+
+    try {
+      const ai = getGeminiClient();
+      const extractor = new IncrementalBeatsExtractor();
+
+      const stream = await withGeminiRetry(() =>
+        ai.models.generateContentStream({
+          model: 'gemini-4-hydrogen',
+          contents: prompt,
+          config: {
+            systemInstruction,
+            thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
+            responseMimeType: 'application/json',
+            responseSchema: STORY_TURN_RESPONSE_SCHEMA,
+          },
+        })
+      );
+
+      for await (const chunk of stream) {
+        const chunkText = chunk.text || '';
+        if (!chunkText) continue;
+        const freshBeats = extractor.push(chunkText);
+        for (const beat of freshBeats) {
+          writeEvent('beat', beat);
+        }
+      }
+
+      const payload = normalizeStoryTurnPayload(extractor.getFullText(), currentScene);
+      writeEvent('done', payload);
+      res.end();
+    } catch (err) {
+      console.error('Story stream error:', err);
+      const message = err instanceof Error ? err.message : 'Story generation failed.';
+      writeEvent('error', { error: message });
+      res.end();
+    }
+  });
+
   app.post('/api/story/turn', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
     try {
       const body = req.body as StoryTurnBody;
-      const story = body?.story;
-      const mode: 'reply' | 'continue' | 'regenerate' =
-        body?.mode === 'continue' || body?.mode === 'regenerate' ? body.mode : 'reply';
-      const userMessage = sanitizeText(body?.userMessage, 2000);
-      const language = ALLOWED_LANGUAGES.has(body?.language || '') ? (body.language as string) : 'hinglish';
-      const currentScene = sanitizeText(body?.currentScene, 400);
-      const sceneIndex = Number.isFinite(body?.sceneIndex) ? Number(body.sceneIndex) : 0;
+      const { mode, userMessage, currentScene, systemInstruction, prompt } = buildStoryPromptParts(body);
 
-      if (!story || !story.title || (mode === 'reply' && !userMessage)) {
+      if (!body?.story?.title || (mode === 'reply' && !userMessage)) {
         res.status(400).json({ error: 'Story context and user message are required.' });
         return;
       }
-
-      const characters = Array.isArray(story.characters) ? story.characters.slice(0, 8) : [];
-      const meters = Array.isArray(body.relationshipMeters) ? body.relationshipMeters.slice(0, 8) : [];
-      const memories = Array.isArray(body.memories) ? body.memories.slice(0, 8) : [];
-      const recentMessages = Array.isArray(body.recentMessages) ? body.recentMessages.slice(-10) : [];
-
-      const historyBlock = recentMessages
-        .map((m) => {
-          if (m.role === 'user') {
-            return `USER: ${sanitizeText(m.userText, 600)}`;
-          }
-          const lines = (m.beats || []).map((b) =>
-            b.type === 'narration'
-              ? `*${sanitizeText(b.text, 400)}*`
-              : `${sanitizeText(b.speakerName, 40)}: "${sanitizeText(b.text, 400)}"`
-          );
-          return lines.join('\n');
-        })
-        .join('\n---\n');
-
-      const characterBlock = characters
-        .map(
-          (c) =>
-            `- ${c.name}${c.age ? ` (${c.age})` : ''} [${c.role}]: ${c.personality} Speaking style: ${c.speakingStyle}. Relationship to user: ${c.relationshipToUser}.`
-        )
-        .join('\n');
-
-      const meterBlock = meters
-        .map((m) => `- ${m.id} (${m.label}): ${m.value}/${m.max}`)
-        .join('\n');
-
-      const memoryBlock =
-        memories.length > 0
-          ? memories.map((mem) => `- [Importance ${mem.importance}/10] ${mem.summary}`).join('\n')
-          : 'No prior major memories yet.';
-
-      const systemInstruction = [
-        `You are the interactive multi-character story director for "LEADERS STORIES", crafting an immersive roleplay scene for "${story.title}".`,
-        `Genre/Tags: ${(story.tags || []).join(', ')}. Setting: ${sanitizeText(story.setting, 400)}.`,
-        `Story Premise: ${sanitizeText(story.about, 900)}`,
-        `CAST OF CHARACTERS (maintain distinct voices, faces/identities, and let them react BOTH to the user AND to each other naturally):\n${characterBlock}`,
-        `STORY RULES:\n1. Never act like a helpful AI assistant or break character.\n2. Never repeat the opening introduction.\n3. Produce 2 to 4 short, punchy beats per turn: mix atmospheric 'narration' beats (1-2 sentences of action/emotion) and 'dialogue' beats where different characters speak with their own speakerName.\n4. Characters can interrupt, tease, warn, defend, or whisper to each other as the user participates inside the scene.\n5. Keep every beat concise and mobile-readable (no walls of text).\n6. Adjust relationship meter deltas (-12 to +12) only when justified by the user's words/choices.\n7. Record a concise memory only if a genuinely significant revelation, promise, clash, or plot shift happened.\n8. Offer 2-3 optional branching choices in 'storyChoices' only at dramatic turning points (otherwise return empty array so free-form chat feels natural).\n9. Trigger 'endingTriggered' ONLY if the scene reaches a decisive narrative climax from: ${(story.possibleEndings || []).join(' | ')}.`,
-        getLanguageInstruction(language),
-      ].join('\n\n');
-
-      const actionPrompt =
-        mode === 'continue'
-          ? `USER CHOSE TO AUTO-ADVANCE (Fast-Forward): The user stayed silent and wants the scene to keep moving forward naturally. Continue from the last beat with fresh character dialogue, tension, or plot movement—without inventing words or actions for the user.`
-          : mode === 'regenerate'
-            ? `${userMessage ? `USER'S LATEST ACTION / MESSAGE:\n"${userMessage}"\n\n` : ''}REGENERATE ALTERNATE RESPONSE: Write a fresh, distinctly different alternate reaction, dialogue angle, or dramatic twist for this moment compared to the previous version.`
-            : `USER'S LATEST ACTION / MESSAGE:\n"${userMessage}"`;
-
-      const prompt = [
-        `CURRENT SCENE (Turn ${sceneIndex + 1}): ${currentScene}`,
-        `CURRENT RELATIONSHIP METERS:\n${meterBlock || 'None'}`,
-        `RELEVANT STORY MEMORIES:\n${memoryBlock}`,
-        `RECENT SCENE HISTORY:\n${historyBlock || '(Opening scene just occurred)'}`,
-        actionPrompt,
-        `Generate the next multi-character story response now.`,
-      ].join('\n\n');
 
       const ai = getGeminiClient();
       const response = await withGeminiRetry(() =>
@@ -491,101 +799,12 @@ async function startServer() {
             systemInstruction,
             thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
             responseMimeType: 'application/json',
-            responseSchema: {
-              type: Type.OBJECT,
-              properties: {
-                beats: {
-                  type: Type.ARRAY,
-                  description: 'Ordered sequence of narration and character dialogue beats for this turn.',
-                  items: {
-                    type: Type.OBJECT,
-                    properties: {
-                      type: {
-                        type: Type.STRING,
-                        description: "Either 'narration' or 'dialogue'",
-                      },
-                      speakerName: {
-                        type: Type.STRING,
-                        description: 'Required when type is dialogue; exact character name.',
-                      },
-                      text: {
-                        type: Type.STRING,
-                        description: 'Short, evocative narration line or spoken dialogue (without surrounding quotes).',
-                      },
-                    },
-                    required: ['type', 'text'],
-                  },
-                },
-                meterChanges: {
-                  type: Type.ARRAY,
-                  items: {
-                    type: Type.OBJECT,
-                    properties: {
-                      id: { type: Type.STRING },
-                      delta: { type: Type.INTEGER },
-                      reason: { type: Type.STRING },
-                    },
-                    required: ['id', 'delta'],
-                  },
-                },
-                newScene: {
-                  type: Type.STRING,
-                  description: 'Short updated current scene label/summary (max 120 chars).',
-                },
-                newMemory: {
-                  type: Type.OBJECT,
-                  properties: {
-                    shouldSave: { type: Type.BOOLEAN },
-                    summary: { type: Type.STRING },
-                    importance: { type: Type.INTEGER },
-                    charactersInvolved: {
-                      type: Type.ARRAY,
-                      items: { type: Type.STRING },
-                    },
-                  },
-                  required: ['shouldSave'],
-                },
-                storyChoices: {
-                  type: Type.ARRAY,
-                  items: { type: Type.STRING },
-                },
-                endingTriggered: {
-                  type: Type.STRING,
-                  description: 'Empty string unless a genuine dramatic story ending was reached.',
-                },
-              },
-              required: ['beats', 'meterChanges', 'newScene', 'storyChoices', 'endingTriggered'],
-            },
+            responseSchema: STORY_TURN_RESPONSE_SCHEMA,
           },
         })
       );
 
-      const rawText = (response.text || '{}').trim();
-      const parsed = JSON.parse(rawText) as Record<string, unknown>;
-      const safeBeats = Array.isArray(parsed.beats)
-        ? parsed.beats
-            .filter((b): b is { type?: string; speakerName?: string; text?: string } => Boolean(b && typeof b === 'object'))
-            .map((b) => ({
-              type: b.type === 'narration' ? 'narration' : 'dialogue',
-              ...(b.speakerName ? { speakerName: sanitizeText(b.speakerName, 60) } : {}),
-              text: sanitizeText(b.text, 800),
-            }))
-            .filter((b) => b.text.length > 0)
-        : [];
-
-      res.json({
-        beats: safeBeats,
-        meterChanges: Array.isArray(parsed.meterChanges) ? parsed.meterChanges : [],
-        newScene: sanitizeText(parsed.newScene, 160) || currentScene,
-        newMemory:
-          parsed.newMemory && typeof parsed.newMemory === 'object'
-            ? parsed.newMemory
-            : { shouldSave: false },
-        storyChoices: Array.isArray(parsed.storyChoices)
-          ? parsed.storyChoices.filter((c): c is string => typeof c === 'string' && c.trim().length > 0).slice(0, 3)
-          : [],
-        endingTriggered: sanitizeText(parsed.endingTriggered, 180),
-      });
+      res.json(normalizeStoryTurnPayload(response.text || '{}', currentScene));
     } catch (err) {
       console.error('Story turn error:', err);
       const message = err instanceof Error ? err.message : 'Story generation failed.';
@@ -598,39 +817,35 @@ async function startServer() {
       const body = req.body as StoryTurnBody;
       const story = body?.story;
       const language = ALLOWED_LANGUAGES.has(body?.language || '') ? (body.language as string) : 'hinglish';
-      const currentScene = sanitizeText(body?.currentScene, 400);
+      const currentScene = sanitizeText(body?.currentScene, 240);
 
       if (!story || !story.title) {
         res.status(400).json({ error: 'Story context is required.' });
         return;
       }
 
-      const recentMessages = Array.isArray(body.recentMessages) ? body.recentMessages.slice(-5) : [];
+      const recentMessages = Array.isArray(body.recentMessages) ? body.recentMessages.slice(-4) : [];
       const historyBlock = recentMessages
         .map((m) => {
-          if (m.role === 'user') return `USER: ${sanitizeText(m.userText, 300)}`;
+          if (m.role === 'user') return `USER: ${sanitizeText(m.userText, 220)}`;
           return (m.beats || [])
             .map((b) =>
               b.type === 'narration'
-                ? `*${sanitizeText(b.text, 240)}*`
-                : `${sanitizeText(b.speakerName, 40)}: "${sanitizeText(b.text, 240)}"`
+                ? `*${sanitizeText(b.text, 180)}*`
+                : `${sanitizeText(b.speakerName, 36)}: "${sanitizeText(b.text, 180)}"`
             )
             .join('\n');
         })
         .join('\n');
 
-      const meters = Array.isArray(body.relationshipMeters)
-        ? body.relationshipMeters.map((m) => `${m.label}: ${m.value}/${m.max}`).join(', ')
-        : '';
-
       const ai = getGeminiClient();
       const response = await withGeminiRetry(() =>
         ai.models.generateContent({
-          model: 'gemini-4-hydrogen',
-          contents: `Story: ${story.title}\nScene: ${currentScene}\nMeters: ${meters}\nRecent dialogue:\n${historyBlock}\n\nGenerate 4 distinct, natural, in-character reply suggestions the user could say or do next (mix bold, empathetic, witty, or plot-advancing moves). Keep each under 110 characters.`,
+          model: 'gemini-3.1-flash-lite',
+          contents: `Story: ${story.title}\nScene: ${currentScene}\nRecent:\n${historyBlock}\n\nWrite 3-4 short, punchy roleplay replies the user can send next (<95 chars each).`,
           config: {
-            systemInstruction: `You write short, compelling interactive roleplay reply options for the user. ${getLanguageInstruction(language)} Return strictly 3 to 4 strings.`,
-            thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
+            systemInstruction: `Generate 3-4 vivid, short roleplay reply options for the user. ${getLanguageInstruction(language)}`,
+            thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL },
             responseMimeType: 'application/json',
             responseSchema: {
               type: Type.OBJECT,

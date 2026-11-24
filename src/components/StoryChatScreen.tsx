@@ -24,8 +24,10 @@ import {
   X,
 } from 'lucide-react';
 import {
+  buildInitialStorySessionData,
   initializeStorySessionInCloud,
   loadConversationMessages,
+  loadConversationMessagesFromCache,
   replaceLatestStoryMessageInCloud,
   restartStoryInCloud,
   rewindLastTurnInCloud,
@@ -66,6 +68,21 @@ interface SpeechRecognitionLike {
   stop: () => void;
 }
 
+interface StoryTurnApiResponse {
+  error?: string;
+  beats?: StoryBeat[];
+  meterChanges?: { id: string; delta: number; reason?: string }[];
+  newScene?: string;
+  newMemory?: {
+    shouldSave?: boolean;
+    summary?: string;
+    importance?: number;
+    charactersInvolved?: string[];
+  };
+  storyChoices?: string[];
+  endingTriggered?: string;
+}
+
 interface StoryChatScreenProps {
   story: StoryDefinition;
   user: User;
@@ -78,6 +95,18 @@ interface StoryChatScreenProps {
   onBack: () => void;
   onOpenStoryInfo: (story: StoryDefinition) => void;
   onChangeLanguage: (lang: LanguageCode) => void;
+  onLocalTurnSync?: (payload: {
+    story: StoryDefinition;
+    lastMessage: string;
+    lastSpeaker: string;
+    messageCount: number;
+    currentScene: string;
+    sceneIndex: number;
+    meters: RelationshipMeterValue[];
+    choicesMade?: string[];
+    endingReached?: string;
+    newMemory?: StoryMemoryRecord;
+  }) => void;
   onDataUpdated: () => Promise<void>;
 }
 
@@ -305,6 +334,7 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
   onBack,
   onOpenStoryInfo,
   onChangeLanguage,
+  onLocalTurnSync,
   onDataUpdated,
 }) => {
   const [messages, setMessages] = useState<ChatTurnMessage[]>([]);
@@ -327,12 +357,39 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
   const [input, setInput] = useState('');
   const [loadingInit, setLoadingInit] = useState(true);
   const [sending, setSending] = useState(false);
+  const [streamingBeats, setStreamingBeats] = useState<StoryBeat[]>([]);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
 
-  // Lightbulb AI Suggested Replies
+  // Lightbulb AI Suggested Replies + turn-keyed instant cache
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>([]);
+  const suggestionsCacheRef = useRef<Map<string, string[]>>(new Map());
+  const suggestionsAbortRef = useRef<AbortController | null>(null);
+
+  // Concurrency guards, active stream controller & serialized cloud write queue
+  const inFlightRef = useRef(false);
+  const streamAbortRef = useRef<AbortController | null>(null);
+  const cloudWriteQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const mountedRef = useRef(true);
+
+  const enqueueCloudWrite = (task: () => Promise<void>) => {
+    cloudWriteQueueRef.current = cloudWriteQueueRef.current
+      .then(task)
+      .catch((err) => {
+        console.error('Background cloud save failed:', err);
+        if (mountedRef.current) {
+          let readable = err instanceof Error ? err.message : 'Unable to sync turn to cloud.';
+          try {
+            const parsed = JSON.parse(readable) as { error?: string };
+            if (parsed.error) readable = parsed.error;
+          } catch {
+            // keep readable error string
+          }
+          setErrorBanner(`Sync warning: ${readable}`);
+        }
+      });
+  };
 
   // Microphone speech-to-text
   const [isListening, setIsListening] = useState(false);
@@ -415,6 +472,15 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
   };
 
   useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      streamAbortRef.current?.abort();
+      suggestionsAbortRef.current?.abort();
+    };
+  }, []);
+
+  useEffect(() => {
     setActiveSlide(initialSlideIndex);
     setMsgMenuOpen(false);
     setPlayGuideVisible(true);
@@ -436,18 +502,73 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
     });
   };
 
+  // Sync Turn-0 opening beats & starter choices cleanly if language is switched before user replies
+  useEffect(() => {
+    if (loadingInit) return;
+    setMessages((prev) => {
+      if (prev.length === 1 && prev[0].sequence === 0 && prev[0].role === 'story') {
+        const localizedBeats = story.openingBeats[preferredLanguage] || story.openingBeats.hinglish;
+        setActiveChoices(story.initialChoices[preferredLanguage] || story.initialChoices.hinglish);
+        return [{ ...prev[0], beats: localizedBeats }];
+      }
+      return prev;
+    });
+  }, [preferredLanguage, loadingInit, story]);
+
   useEffect(() => {
     let active = true;
-    let messageCountAfterBoot = 0;
     async function bootSession() {
       setLoadingInit(true);
       setErrorBanner(null);
+      setStreamingBeats([]);
       try {
+        // 1. Instant cache-first hydration (renders in <10ms for resumed chats)
+        const cached = await loadConversationMessagesFromCache(user.uid, story.id, 100);
+        if (!active) return;
+
+        if (cached.length > 0) {
+          setMessages(cached);
+          if (existingMeters && existingMeters.length > 0) {
+            setMeters(existingMeters);
+          }
+          if (cached.length <= 1) {
+            setActiveChoices(story.initialChoices[preferredLanguage] || story.initialChoices.hinglish);
+          }
+          setLoadingInit(false);
+          setTimeout(() => {
+            if (cached.length > 1) {
+              scrollToBottom(false);
+            } else {
+              scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'auto' });
+            }
+          }, 25);
+
+          // Silent server reconciliation in background
+          void loadConversationMessages(user.uid, story.id, 100)
+            .then((fresh) => {
+              if (!active || inFlightRef.current || fresh.length === 0) return;
+              const lastFresh = fresh[fresh.length - 1];
+              const lastCached = cached[cached.length - 1];
+              if (
+                fresh.length !== cached.length ||
+                lastFresh?.id !== lastCached?.id ||
+                lastFresh?.sequence !== lastCached?.sequence
+              ) {
+                setMessages(fresh);
+                if (fresh.length > 1) {
+                  setTimeout(() => scrollToBottom(false), 30);
+                }
+              }
+            })
+            .catch(() => {});
+          return;
+        }
+
+        // 2. Cache empty: check server (maybe returning on a new device/install)
         const loaded = await loadConversationMessages(user.uid, story.id, 100);
         if (!active) return;
 
         if (loaded.length > 0) {
-          messageCountAfterBoot = loaded.length;
           setMessages(loaded);
           if (existingMeters && existingMeters.length > 0) {
             setMeters(existingMeters);
@@ -455,35 +576,45 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
           if (loaded.length <= 1) {
             setActiveChoices(story.initialChoices[preferredLanguage] || story.initialChoices.hinglish);
           }
-        } else {
-          const initialized = await initializeStorySessionInCloud(
-            user.uid,
-            story,
-            preferredLanguage
-          );
-          if (!active) return;
-          messageCountAfterBoot = 1;
-          setMessages([initialized.initialMessage]);
-          setMeters(initialized.meters);
-          setCurrentScene(initialized.progress.currentScene);
-          setSceneIndex(0);
-          setActiveChoices(story.initialChoices[preferredLanguage] || story.initialChoices.hinglish);
-          void onDataUpdated();
-        }
-      } catch (err) {
-        if (!active) return;
-        setErrorBanner(err instanceof Error ? err.message : 'Unable to load story conversation.');
-      } finally {
-        if (active) {
           setLoadingInit(false);
           setTimeout(() => {
-            if (messageCountAfterBoot > 1) {
+            if (loaded.length > 1) {
               scrollToBottom(false);
             } else {
               scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'auto' });
             }
-          }, 40);
+          }, 30);
+        } else {
+          // 3. Brand new story: render opening scene immediately & commit to Firestore in background
+          const msgId = `msg_0_${Date.now()}`;
+          const built = buildInitialStorySessionData(user.uid, story, preferredLanguage, msgId);
+          setMessages([built.initialMessage]);
+          setMeters(built.meters);
+          setCurrentScene(built.progress.currentScene);
+          setSceneIndex(0);
+          setActiveChoices(story.initialChoices[preferredLanguage] || story.initialChoices.hinglish);
+          setLoadingInit(false);
+          onLocalTurnSync?.({
+            story,
+            lastMessage: built.conversation.lastMessage,
+            lastSpeaker: built.conversation.lastSpeaker || story.characters[0]?.name || 'Narrator',
+            messageCount: 1,
+            currentScene: built.progress.currentScene,
+            sceneIndex: 0,
+            meters: built.meters,
+          });
+          setTimeout(() => {
+            scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'auto' });
+          }, 25);
+
+          enqueueCloudWrite(async () => {
+            await initializeStorySessionInCloud(user.uid, story, preferredLanguage, msgId);
+          });
         }
+      } catch (err) {
+        if (!active) return;
+        setLoadingInit(false);
+        setErrorBanner(err instanceof Error ? err.message : 'Unable to load story conversation.');
       }
     }
     void bootSession();
@@ -517,42 +648,153 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
     return map;
   }, [story.characters]);
 
-  const handleSend = async (overrideText?: string, isChoiceSelection = false) => {
-    const textToSend = (overrideText ?? input).trim();
-    if (!textToSend || sending || loadingInit) return;
+  // Streams story beats live via SSE with automatic JSON endpoint fallback
+  const requestStoryTurnStream = async (
+    idToken: string,
+    payloadBody: Record<string, unknown>,
+    onBeat: (beat: StoryBeat) => void
+  ): Promise<StoryTurnApiResponse> => {
+    streamAbortRef.current?.abort();
+    const controller = new AbortController();
+    streamAbortRef.current = controller;
 
-    setErrorBanner(null);
-    setSuggestionsOpen(false);
-    setSending(true);
+    const response = await fetch('/api/story/turn-stream', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${idToken}`,
+      },
+      body: JSON.stringify(payloadBody),
+      signal: controller.signal,
+    });
 
-    if (!overrideText) {
-      setInput('');
-    }
-
-    const nextUserSeq = messages.length > 0 ? messages[messages.length - 1].sequence + 1 : 1;
-    const optimisticUserMsg: ChatTurnMessage = {
-      id: `temp_user_${Date.now()}`,
-      uid: user.uid,
-      conversationId: story.id,
-      role: 'user',
-      userText: textToSend,
-      sequence: nextUserSeq,
-      localTimestamp: Date.now(),
-    };
-
-    const nextHistory = [...messages, optimisticUserMsg];
-    setMessages(nextHistory);
-    setTimeout(() => scrollToBottom(true), 40);
-
-    try {
-      const idToken = await user.getIdToken();
-      const response = await fetch('/api/story/turn', {
+    const contentType = response.headers.get('content-type') || '';
+    if (!response.ok || !contentType.includes('text/event-stream') || !response.body) {
+      // Clean fallback if SSE isn't active or non-stream JSON error was returned
+      if (!response.ok && !contentType.includes('text/event-stream')) {
+        const errJson = (await response.json().catch(() => ({}))) as { error?: string };
+        throw new Error(errJson.error || 'Failed to generate next story scene.');
+      }
+      const fallbackResp = await fetch('/api/story/turn', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${idToken}`,
         },
-        body: JSON.stringify({
+        body: JSON.stringify(payloadBody),
+        signal: controller.signal,
+      });
+      const fallbackData = (await fallbackResp.json()) as StoryTurnApiResponse;
+      if (!fallbackResp.ok) {
+        throw new Error(fallbackData.error || 'Failed to generate next story scene.');
+      }
+      return fallbackData;
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let finalPayload: StoryTurnApiResponse | null = null;
+    let streamError: string | null = null;
+    let receivedBeats: StoryBeat[] = [];
+
+    const processEventBlock = (block: string) => {
+      if (!block.trim()) return;
+      let eventName = 'message';
+      const dataLines: string[] = [];
+      for (const line of block.split(/\r?\n/)) {
+        if (line.startsWith('event:')) {
+          eventName = line.slice(6).trim();
+        } else if (line.startsWith('data:')) {
+          dataLines.push(line.slice(5).trim());
+        }
+      }
+      if (dataLines.length === 0) return;
+      const rawData = dataLines.join('\n');
+      try {
+        const parsed = JSON.parse(rawData) as unknown;
+        if (eventName === 'beat' && parsed && typeof parsed === 'object') {
+          const beat = parsed as StoryBeat;
+          receivedBeats = [...receivedBeats, beat];
+          onBeat(beat);
+        } else if (eventName === 'done' && parsed && typeof parsed === 'object') {
+          finalPayload = parsed as StoryTurnApiResponse;
+        } else if (eventName === 'error' && parsed && typeof parsed === 'object') {
+          streamError = (parsed as { error?: string }).error || 'Story generation failed.';
+        }
+      } catch {
+        // Ignore partial non-JSON lines
+      }
+    };
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let separatorIdx = buffer.indexOf('\n\n');
+      while (separatorIdx !== -1) {
+        const block = buffer.slice(0, separatorIdx);
+        buffer = buffer.slice(separatorIdx + 2);
+        processEventBlock(block);
+        separatorIdx = buffer.indexOf('\n\n');
+      }
+    }
+    if (buffer.trim()) {
+      processEventBlock(buffer);
+    }
+
+    if (streamError) {
+      throw new Error(streamError);
+    }
+    if (finalPayload) {
+      return finalPayload;
+    }
+    if (receivedBeats.length > 0) {
+      return { beats: receivedBeats };
+    }
+    throw new Error('Incomplete story response. Please try again.');
+  };
+
+  const handleSend = async (overrideText?: string, isChoiceSelection = false) => {
+    const textToSend = (overrideText ?? input).trim();
+    if (!textToSend || inFlightRef.current || loadingInit) return;
+
+    inFlightRef.current = true;
+    suggestionsAbortRef.current?.abort();
+    setErrorBanner(null);
+    setSuggestionsOpen(false);
+    setSending(true);
+    setStreamingBeats([]);
+
+    if (!overrideText) {
+      setInput('');
+    }
+
+    const baseMessages = [...messages];
+    const nextUserSeq = baseMessages.length > 0 ? baseMessages[baseMessages.length - 1].sequence + 1 : 1;
+    const now = Date.now();
+    const userMsgId = `msg_${nextUserSeq}_${now}`;
+    const storySeq = nextUserSeq + 1;
+    const storyMsgId = `msg_${storySeq}_${now + 1}`;
+
+    const optimisticUserMsg: ChatTurnMessage = {
+      id: userMsgId,
+      uid: user.uid,
+      conversationId: story.id,
+      role: 'user',
+      userText: textToSend,
+      sequence: nextUserSeq,
+      localTimestamp: now,
+    };
+
+    setMessages((prev) => [...prev, optimisticUserMsg]);
+    setTimeout(() => scrollToBottom(true), 25);
+
+    try {
+      const idToken = await user.getIdToken();
+      const data = await requestStoryTurnStream(
+        idToken,
+        {
           story: {
             id: story.id,
             title: story.title,
@@ -566,35 +808,20 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
           language: preferredLanguage,
           currentScene,
           sceneIndex,
-          recentMessages: messages.slice(-10).map((m) => ({
+          recentMessages: baseMessages.slice(-7).map((m) => ({
             role: m.role,
             userText: m.userText,
             beats: m.beats,
           })),
-          memories: memories.slice(-6).map((m) => ({ summary: m.summary, importance: m.importance })),
+          memories: memories.slice(-5).map((m) => ({ summary: m.summary, importance: m.importance })),
           relationshipMeters: meters,
           userMessage: textToSend,
-        }),
-      });
-
-      const data = (await response.json()) as {
-        error?: string;
-        beats?: StoryBeat[];
-        meterChanges?: { id: string; delta: number; reason?: string }[];
-        newScene?: string;
-        newMemory?: {
-          shouldSave?: boolean;
-          summary?: string;
-          importance?: number;
-          charactersInvolved?: string[];
-        };
-        storyChoices?: string[];
-        endingTriggered?: string;
-      };
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to generate next story scene.');
-      }
+        },
+        (beat) => {
+          setStreamingBeats((prev) => [...prev, beat]);
+          scrollToBottom(true);
+        }
+      );
 
       const deltaMap = new Map<string, number>();
       (data.meterChanges || []).forEach((mc) => {
@@ -628,22 +855,30 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
             }
           : null;
 
-      const saved = await saveTurnToCloud({
+      const finalStoryMsg: ChatTurnMessage = {
+        id: storyMsgId,
         uid: user.uid,
-        story,
-        conversationExists: messages.length > 0,
-        userText: textToSend,
-        userSequence: nextUserSeq,
-        storyBeats,
-        newScene: nextSceneStr,
-        sceneIndex: nextSceneIdx,
-        updatedMeters,
-        choicesMade: updatedChoicesMade,
-        endingTriggered: data.endingTriggered?.trim() || undefined,
-        newMemory: memoryToSave,
-      });
+        conversationId: story.id,
+        role: 'story',
+        sceneSummary: nextSceneStr,
+        beats: storyBeats.slice(0, 12),
+        metersSnapshot: updatedMeters.map((m) => ({
+          id: m.id,
+          label: m.label,
+          emoji: m.emoji,
+          value: m.value,
+        })),
+        sequence: storySeq,
+        localTimestamp: now + 1,
+      };
 
-      setMessages([...messages, saved.userMessage, saved.storyMessage]);
+      // Update UI immediately without waiting on Firestore batch.commit()
+      setStreamingBeats([]);
+      setMessages((prev) => [
+        ...prev.filter((m) => m.id !== userMsgId),
+        optimisticUserMsg,
+        finalStoryMsg,
+      ]);
       setMeters(updatedMeters);
       setCurrentScene(nextSceneStr);
       setSceneIndex(nextSceneIdx);
@@ -653,51 +888,96 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
       if (data.endingTriggered?.trim()) {
         setEndingReached(data.endingTriggered.trim());
       }
-      if (memoryToSave) {
-        setMemories((prev) => [
-          ...prev,
-          {
-            id: `local_${Date.now()}`,
+
+      const newMemRecord: StoryMemoryRecord | undefined = memoryToSave
+        ? {
+            id: `local_${now}`,
             uid: user.uid,
             storyId: story.id,
             summary: memoryToSave.summary,
             importance: memoryToSave.importance,
             charactersInvolved: memoryToSave.charactersInvolved,
-          },
-        ]);
+          }
+        : undefined;
+
+      if (newMemRecord) {
+        setMemories((prev) => [...prev, newMemRecord]);
       }
 
-      void onDataUpdated();
-      setTimeout(() => scrollToBottom(true), 60);
+      const lastBeat = storyBeats[storyBeats.length - 1];
+      onLocalTurnSync?.({
+        story,
+        lastMessage: (lastBeat?.text || nextSceneStr).slice(0, 1000),
+        lastSpeaker: lastBeat?.speakerName || story.characters[0]?.name || 'Story',
+        messageCount: storySeq + 1,
+        currentScene: nextSceneStr,
+        sceneIndex: nextSceneIdx,
+        meters: updatedMeters,
+        choicesMade: updatedChoicesMade,
+        endingReached: data.endingTriggered?.trim() || undefined,
+        newMemory: newMemRecord,
+      });
+
+      setTimeout(() => scrollToBottom(true), 30);
+
+      // Persist asynchronously in ordered queue
+      enqueueCloudWrite(async () => {
+        await saveTurnToCloud({
+          uid: user.uid,
+          story,
+          conversationExists: baseMessages.length > 0,
+          userText: textToSend,
+          userSequence: nextUserSeq,
+          userMessageId: userMsgId,
+          storyMessageId: storyMsgId,
+          storyBeats,
+          newScene: nextSceneStr,
+          sceneIndex: nextSceneIdx,
+          updatedMeters,
+          choicesMade: updatedChoicesMade,
+          endingTriggered: data.endingTriggered?.trim() || undefined,
+          newMemory: memoryToSave,
+        });
+      });
     } catch (err) {
-      setMessages(messages);
-      if (!overrideText) setInput(textToSend);
-      setErrorBanner(
-        err instanceof Error ? err.message : 'Network error. Your previous conversation is safe.'
-      );
+      if ((err as { name?: string })?.name !== 'AbortError') {
+        setMessages((prev) => prev.filter((m) => m.id !== userMsgId));
+        if (!overrideText) setInput(textToSend);
+        setErrorBanner(
+          err instanceof Error ? err.message : 'Network error. Your previous conversation is safe.'
+        );
+      }
     } finally {
-      setSending(false);
+      if (mountedRef.current) {
+        setStreamingBeats([]);
+        setSending(false);
+      }
+      inFlightRef.current = false;
     }
   };
 
   // Fast-Forward (>>) auto-advance scene without user input
   const handleContinueScene = async () => {
-    if (sending || loadingInit || endingReached) return;
+    if (inFlightRef.current || loadingInit || endingReached) return;
+    inFlightRef.current = true;
+    suggestionsAbortRef.current?.abort();
     setMsgMenuOpen(false);
     setSuggestionsOpen(false);
     setErrorBanner(null);
     setSending(true);
-    setTimeout(() => scrollToBottom(true), 40);
+    setStreamingBeats([]);
+    setTimeout(() => scrollToBottom(true), 25);
+
+    const baseMessages = [...messages];
+    const nextSeq = baseMessages.length > 0 ? baseMessages[baseMessages.length - 1].sequence + 1 : 1;
+    const now = Date.now();
+    const storyMsgId = `msg_${nextSeq}_${now}`;
 
     try {
       const idToken = await user.getIdToken();
-      const response = await fetch('/api/story/turn', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${idToken}`,
-        },
-        body: JSON.stringify({
+      const data = await requestStoryTurnStream(
+        idToken,
+        {
           story: {
             id: story.id,
             title: story.title,
@@ -712,34 +992,19 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
           language: preferredLanguage,
           currentScene,
           sceneIndex,
-          recentMessages: messages.slice(-10).map((m) => ({
+          recentMessages: baseMessages.slice(-7).map((m) => ({
             role: m.role,
             userText: m.userText,
             beats: m.beats,
           })),
-          memories: memories.slice(-6).map((m) => ({ summary: m.summary, importance: m.importance })),
+          memories: memories.slice(-5).map((m) => ({ summary: m.summary, importance: m.importance })),
           relationshipMeters: meters,
-        }),
-      });
-
-      const data = (await response.json()) as {
-        error?: string;
-        beats?: StoryBeat[];
-        meterChanges?: { id: string; delta: number; reason?: string }[];
-        newScene?: string;
-        newMemory?: {
-          shouldSave?: boolean;
-          summary?: string;
-          importance?: number;
-          charactersInvolved?: string[];
-        };
-        storyChoices?: string[];
-        endingTriggered?: string;
-      };
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to advance the story scene.');
-      }
+        },
+        (beat) => {
+          setStreamingBeats((prev) => [...prev, beat]);
+          scrollToBottom(true);
+        }
+      );
 
       const deltaMap = new Map<string, number>();
       (data.meterChanges || []).forEach((mc) => {
@@ -760,7 +1025,6 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
 
       const nextSceneStr = (data.newScene || currentScene).slice(0, 500);
       const nextSceneIdx = sceneIndex + 1;
-      const nextSeq = messages.length > 0 ? messages[messages.length - 1].sequence + 1 : 1;
 
       const memoryToSave =
         data.newMemory?.shouldSave && data.newMemory.summary
@@ -771,20 +1035,25 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
             }
           : null;
 
-      const savedStoryMsg = await saveStoryContinueToCloud({
+      const finalStoryMsg: ChatTurnMessage = {
+        id: storyMsgId,
         uid: user.uid,
-        story,
-        storyBeats,
-        storySequence: nextSeq,
-        totalMessageCount: messages.length + 1,
-        newScene: nextSceneStr,
-        sceneIndex: nextSceneIdx,
-        updatedMeters,
-        endingTriggered: data.endingTriggered?.trim() || undefined,
-        newMemory: memoryToSave,
-      });
+        conversationId: story.id,
+        role: 'story',
+        sceneSummary: nextSceneStr,
+        beats: storyBeats.slice(0, 12),
+        metersSnapshot: updatedMeters.map((m) => ({
+          id: m.id,
+          label: m.label,
+          emoji: m.emoji,
+          value: m.value,
+        })),
+        sequence: nextSeq,
+        localTimestamp: now,
+      };
 
-      setMessages((prev) => [...prev, savedStoryMsg]);
+      setStreamingBeats([]);
+      setMessages((prev) => [...prev, finalStoryMsg]);
       setMeters(updatedMeters);
       setCurrentScene(nextSceneStr);
       setSceneIndex(nextSceneIdx);
@@ -793,48 +1062,87 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
       if (data.endingTriggered?.trim()) {
         setEndingReached(data.endingTriggered.trim());
       }
-      if (memoryToSave) {
-        setMemories((prev) => [
-          ...prev,
-          {
-            id: `local_${Date.now()}`,
+
+      const newMemRecord: StoryMemoryRecord | undefined = memoryToSave
+        ? {
+            id: `local_${now}`,
             uid: user.uid,
             storyId: story.id,
             summary: memoryToSave.summary,
             importance: memoryToSave.importance,
             charactersInvolved: memoryToSave.charactersInvolved,
-          },
-        ]);
+          }
+        : undefined;
+
+      if (newMemRecord) {
+        setMemories((prev) => [...prev, newMemRecord]);
       }
 
-      void onDataUpdated();
-      setTimeout(() => scrollToBottom(true), 60);
+      const lastBeat = storyBeats[storyBeats.length - 1];
+      onLocalTurnSync?.({
+        story,
+        lastMessage: (lastBeat?.text || nextSceneStr).slice(0, 1000),
+        lastSpeaker: lastBeat?.speakerName || story.characters[0]?.name || 'Story',
+        messageCount: baseMessages.length + 1,
+        currentScene: nextSceneStr,
+        sceneIndex: nextSceneIdx,
+        meters: updatedMeters,
+        endingReached: data.endingTriggered?.trim() || undefined,
+        newMemory: newMemRecord,
+      });
+
+      setTimeout(() => scrollToBottom(true), 30);
+
+      enqueueCloudWrite(async () => {
+        await saveStoryContinueToCloud({
+          uid: user.uid,
+          story,
+          storyBeats,
+          storySequence: nextSeq,
+          storyMessageId: storyMsgId,
+          totalMessageCount: baseMessages.length + 1,
+          newScene: nextSceneStr,
+          sceneIndex: nextSceneIdx,
+          updatedMeters,
+          endingTriggered: data.endingTriggered?.trim() || undefined,
+          newMemory: memoryToSave,
+        });
+      });
     } catch (err) {
-      setErrorBanner(
-        err instanceof Error ? err.message : 'Unable to advance story right now.'
-      );
+      if ((err as { name?: string })?.name !== 'AbortError') {
+        setErrorBanner(
+          err instanceof Error ? err.message : 'Unable to advance story right now.'
+        );
+      }
     } finally {
-      setSending(false);
+      if (mountedRef.current) {
+        setStreamingBeats([]);
+        setSending(false);
+      }
+      inFlightRef.current = false;
     }
   };
 
   // Regenerate the latest AI story response (...)
   const handleRegenerateLatest = async () => {
-    if (sending || loadingInit || messages.length === 0) return;
+    if (inFlightRef.current || loadingInit || messages.length === 0) return;
     setMsgMenuOpen(false);
     setErrorBanner(null);
 
-    const lastStoryIdx = messages.reduce((acc, m, i) => (m.role === 'story' ? i : acc), -1);
+    const baseMessages = [...messages];
+    const lastStoryIdx = baseMessages.reduce((acc, m, i) => (m.role === 'story' ? i : acc), -1);
     if (lastStoryIdx < 0) return;
 
-    const targetStoryMsg = messages[lastStoryIdx];
-    const priorMessages = messages.slice(0, lastStoryIdx);
+    inFlightRef.current = true;
+    suggestionsAbortRef.current?.abort();
+
+    const targetStoryMsg = baseMessages[lastStoryIdx];
+    const priorMessages = baseMessages.slice(0, lastStoryIdx);
     const prevUserMsg =
       priorMessages.length > 0 && priorMessages[priorMessages.length - 1].role === 'user'
         ? priorMessages[priorMessages.length - 1].userText
         : '';
 
-    // Restore base meters before the regenerated turn if possible
     let baseMeters = meters;
     if (priorMessages.length > 0) {
       const prevStory = [...priorMessages].reverse().find((m) => m.role === 'story');
@@ -849,17 +1157,17 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
     }
 
     setSending(true);
-    setTimeout(() => scrollToBottom(true), 40);
+    setStreamingBeats([]);
+    setTimeout(() => scrollToBottom(true), 25);
+
+    const now = Date.now();
+    const newMsgId = `msg_${targetStoryMsg.sequence}_${now}`;
 
     try {
       const idToken = await user.getIdToken();
-      const response = await fetch('/api/story/turn', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${idToken}`,
-        },
-        body: JSON.stringify({
+      const data = await requestStoryTurnStream(
+        idToken,
+        {
           story: {
             id: story.id,
             title: story.title,
@@ -874,29 +1182,20 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
           language: preferredLanguage,
           currentScene,
           sceneIndex: Math.max(0, sceneIndex - 1),
-          recentMessages: priorMessages.slice(-10).map((m) => ({
+          recentMessages: priorMessages.slice(-7).map((m) => ({
             role: m.role,
             userText: m.userText,
             beats: m.beats,
           })),
-          memories: memories.slice(-6).map((m) => ({ summary: m.summary, importance: m.importance })),
+          memories: memories.slice(-5).map((m) => ({ summary: m.summary, importance: m.importance })),
           relationshipMeters: baseMeters,
           userMessage: prevUserMsg || undefined,
-        }),
-      });
-
-      const data = (await response.json()) as {
-        error?: string;
-        beats?: StoryBeat[];
-        meterChanges?: { id: string; delta: number }[];
-        newScene?: string;
-        storyChoices?: string[];
-        endingTriggered?: string;
-      };
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to regenerate response.');
-      }
+        },
+        (beat) => {
+          setStreamingBeats((prev) => [...prev, beat]);
+          scrollToBottom(true);
+        }
+      );
 
       const deltaMap = new Map<string, number>();
       (data.meterChanges || []).forEach((mc) => {
@@ -916,20 +1215,27 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
           : [{ type: 'narration', text: '...' }];
 
       const nextSceneStr = (data.newScene || currentScene).slice(0, 500);
-      const replacedMsg = await replaceLatestStoryMessageInCloud({
+      const replacedMsg: ChatTurnMessage = {
+        id: newMsgId,
         uid: user.uid,
-        story,
-        oldMessageId: targetStoryMsg.id,
-        storySequence: targetStoryMsg.sequence,
-        totalMessageCount: messages.length,
-        storyBeats,
-        newScene: nextSceneStr,
-        sceneIndex,
-        updatedMeters,
-        endingTriggered: data.endingTriggered?.trim() || undefined,
-      });
+        conversationId: story.id,
+        role: 'story',
+        sceneSummary: nextSceneStr,
+        beats: storyBeats.slice(0, 12),
+        metersSnapshot: updatedMeters.map((m) => ({
+          id: m.id,
+          label: m.label,
+          emoji: m.emoji,
+          value: m.value,
+        })),
+        sequence: targetStoryMsg.sequence,
+        localTimestamp: now,
+      };
 
-      setMessages((prev) => prev.map((m, i) => (i === lastStoryIdx ? replacedMsg : m)));
+      setStreamingBeats([]);
+      setMessages((prev) =>
+        prev.map((m) => (m.id === targetStoryMsg.id ? replacedMsg : m))
+      );
       setMeters(updatedMeters);
       setCurrentScene(nextSceneStr);
       if (Array.isArray(data.storyChoices)) {
@@ -938,39 +1244,77 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
       if (data.endingTriggered?.trim()) {
         setEndingReached(data.endingTriggered.trim());
       }
-      void onDataUpdated();
-      setTimeout(() => scrollToBottom(true), 60);
+
+      const lastBeat = storyBeats[storyBeats.length - 1];
+      onLocalTurnSync?.({
+        story,
+        lastMessage: (lastBeat?.text || nextSceneStr).slice(0, 1000),
+        lastSpeaker: lastBeat?.speakerName || story.characters[0]?.name || 'Story',
+        messageCount: baseMessages.length,
+        currentScene: nextSceneStr,
+        sceneIndex,
+        meters: updatedMeters,
+        endingReached: data.endingTriggered?.trim() || undefined,
+      });
+
+      setTimeout(() => scrollToBottom(true), 30);
+
+      enqueueCloudWrite(async () => {
+        await replaceLatestStoryMessageInCloud({
+          uid: user.uid,
+          story,
+          oldMessageId: targetStoryMsg.id,
+          storyMessageId: newMsgId,
+          storySequence: targetStoryMsg.sequence,
+          totalMessageCount: baseMessages.length,
+          storyBeats,
+          newScene: nextSceneStr,
+          sceneIndex,
+          updatedMeters,
+          endingTriggered: data.endingTriggered?.trim() || undefined,
+        });
+      });
     } catch (err) {
-      setErrorBanner(
-        err instanceof Error ? err.message : 'Unable to regenerate response right now.'
-      );
+      if ((err as { name?: string })?.name !== 'AbortError') {
+        setErrorBanner(
+          err instanceof Error ? err.message : 'Unable to regenerate response right now.'
+        );
+      }
     } finally {
-      setSending(false);
+      if (mountedRef.current) {
+        setStreamingBeats([]);
+        setSending(false);
+      }
+      inFlightRef.current = false;
     }
   };
 
   // Undo / rewind last turn (...)
   const handleUndoLastTurn = async () => {
-    if (sending || loadingInit || messages.length <= 1) return;
+    if (inFlightRef.current || loadingInit || messages.length <= 1) return;
+    inFlightRef.current = true;
     setMsgMenuOpen(false);
     setErrorBanner(null);
 
-    const lastMsg = messages[messages.length - 1];
+    const snapshotMessages = [...messages];
+    const lastMsg = snapshotMessages[snapshotMessages.length - 1];
     const deleteIds: string[] = [lastMsg.id];
-    let sliceEnd = messages.length - 1;
+    let sliceEnd = snapshotMessages.length - 1;
 
-    // If lastMsg is an AI story message preceded directly by a user message, rewind the whole turn pair
     if (
       lastMsg.role === 'story' &&
       sliceEnd > 1 &&
-      messages[sliceEnd - 1]?.role === 'user'
+      snapshotMessages[sliceEnd - 1]?.role === 'user'
     ) {
-      deleteIds.push(messages[sliceEnd - 1].id);
+      deleteIds.push(snapshotMessages[sliceEnd - 1].id);
       sliceEnd -= 1;
     }
 
-    const remaining = messages.slice(0, sliceEnd);
-    if (remaining.length === 0) return;
+    const remaining = snapshotMessages.slice(0, sliceEnd);
+    if (remaining.length === 0) {
+      inFlightRef.current = false;
+      return;
+    }
 
     const prevLast = remaining[remaining.length - 1];
     const prevStory = [...remaining].reverse().find((m) => m.role === 'story');
@@ -984,7 +1328,33 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
           })
         : story.relationshipMeters.map((m) => ({ ...m, value: m.initialValue }));
 
-    try {
+    // Instant UI rewind
+    setMessages(remaining);
+    setCurrentScene(restoredScene);
+    setSceneIndex(restoredSceneIdx);
+    setMeters(restoredMeters);
+    setEndingReached('');
+    if (remaining.length === 1) {
+      setActiveChoices(story.initialChoices[preferredLanguage] || story.initialChoices.hinglish);
+    }
+
+    const lastBeat = prevLast.beats?.[prevLast.beats.length - 1];
+    onLocalTurnSync?.({
+      story,
+      lastMessage: (prevLast.userText || lastBeat?.text || restoredScene).slice(0, 1000),
+      lastSpeaker:
+        prevLast.role === 'user'
+          ? 'You'
+          : lastBeat?.speakerName || story.characters[0]?.name || 'Story',
+      messageCount: remaining.length,
+      currentScene: restoredScene,
+      sceneIndex: restoredSceneIdx,
+      meters: restoredMeters,
+    });
+
+    inFlightRef.current = false;
+
+    enqueueCloudWrite(async () => {
       await rewindLastTurnInCloud({
         uid: user.uid,
         story,
@@ -995,19 +1365,7 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
         restoredSceneIndex: restoredSceneIdx,
         restoredMeters,
       });
-
-      setMessages(remaining);
-      setCurrentScene(restoredScene);
-      setSceneIndex(restoredSceneIdx);
-      setMeters(restoredMeters);
-      setEndingReached('');
-      if (remaining.length === 1) {
-        setActiveChoices(story.initialChoices[preferredLanguage] || story.initialChoices.hinglish);
-      }
-      void onDataUpdated();
-    } catch (err) {
-      setErrorBanner(err instanceof Error ? err.message : 'Unable to undo last turn.');
-    }
+    });
   };
 
   // Copy latest story message text cleanly (...)
@@ -1033,9 +1391,25 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
 
   const handleLightbulbClick = async () => {
     if (suggestionsOpen) {
+      suggestionsAbortRef.current?.abort();
       setSuggestionsOpen(false);
       return;
     }
+
+    const lastMsgId = messages[messages.length - 1]?.id || 'init';
+    const cacheKey = `${story.id}:${preferredLanguage}:${sceneIndex}:${lastMsgId}`;
+    const cached = suggestionsCacheRef.current.get(cacheKey);
+    if (cached && cached.length > 0) {
+      setSuggestions(cached);
+      setSuggestionsLoading(false);
+      setSuggestionsOpen(true);
+      return;
+    }
+
+    suggestionsAbortRef.current?.abort();
+    const controller = new AbortController();
+    suggestionsAbortRef.current = controller;
+
     setSuggestionsOpen(true);
     setSuggestionsLoading(true);
     setErrorBanner(null);
@@ -1053,23 +1427,34 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
           language: preferredLanguage,
           currentScene,
           relationshipMeters: meters,
-          recentMessages: messages.slice(-5).map((m) => ({
+          recentMessages: messages.slice(-4).map((m) => ({
             role: m.role,
             userText: m.userText,
             beats: m.beats,
           })),
         }),
+        signal: controller.signal,
       });
       const data = (await resp.json()) as { suggestions?: string[]; error?: string };
       if (!resp.ok) {
         throw new Error(data.error || 'Could not generate suggestions.');
       }
-      setSuggestions(data.suggestions || []);
+      const list = Array.isArray(data.suggestions) ? data.suggestions : [];
+      if (list.length > 0) {
+        if (suggestionsCacheRef.current.size > 40) {
+          suggestionsCacheRef.current.clear();
+        }
+        suggestionsCacheRef.current.set(cacheKey, list);
+      }
+      setSuggestions(list);
     } catch (err) {
+      if ((err as { name?: string })?.name === 'AbortError') return;
       setSuggestionsOpen(false);
       setErrorBanner(err instanceof Error ? err.message : 'Unable to fetch AI reply ideas.');
     } finally {
-      setSuggestionsLoading(false);
+      if (mountedRef.current && suggestionsAbortRef.current === controller) {
+        setSuggestionsLoading(false);
+      }
     }
   };
 
@@ -1152,10 +1537,14 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
   };
 
   const handleConfirmRestart = async () => {
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
     setRestartConfirmOpen(false);
     setLoadingInit(true);
     setErrorBanner(null);
+    suggestionsCacheRef.current.clear();
     try {
+      await cloudWriteQueueRef.current;
       const fresh = await restartStoryInCloud(user.uid, story, preferredLanguage);
       setMessages([fresh.initialMessage]);
       setMeters(fresh.meters);
@@ -1174,6 +1563,7 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
       setErrorBanner(err instanceof Error ? err.message : 'Unable to restart story.');
     } finally {
       setLoadingInit(false);
+      inFlightRef.current = false;
     }
   };
 
@@ -1415,8 +1805,51 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
             </div>
           )}
 
-          {/* Typing Indicator */}
-          {sending && (
+          {/* Live Streaming Story Bubble or Snappy Typing Indicator */}
+          {sending && streamingBeats.length > 0 ? (
+            <div className="flex flex-col items-start">
+              <div className="w-full max-w-[92%] sm:max-w-[85%] rounded-2xl rounded-bl-sm bg-[#1C1D22] border border-white/[0.08] px-4 py-3.5 space-y-3 shadow-lg">
+                <div className="space-y-3">
+                  {streamingBeats.map((beat, bIdx) => {
+                    if (beat.type === 'narration') {
+                      return (
+                        <p
+                          key={bIdx}
+                          className="text-[14.5px] italic text-[#A1A3AD] leading-relaxed"
+                        >
+                          *{beat.text}*
+                        </p>
+                      );
+                    }
+                    const speaker =
+                      beat.speakerName || story.characters[0]?.name || 'Character';
+                    const portrait =
+                      characterPortraitMap.get(speaker.toLowerCase()) ||
+                      characterPortraitMap.get(speaker.split(' ')[0]?.toLowerCase() || '');
+                    return (
+                      <div key={bIdx} className="flex items-start gap-2.5">
+                        {portrait && (
+                          <StoryImage
+                            src={portrait}
+                            alt={speaker}
+                            className="w-6 h-6 rounded-full object-cover object-top mt-0.5 shrink-0 ring-1 ring-white/15"
+                          />
+                        )}
+                        <p className="text-[15px] text-white leading-relaxed">
+                          <span className="font-semibold text-zinc-100">{speaker}: </span>
+                          <span className="text-zinc-100">"{beat.text}"</span>
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="flex items-center gap-1.5 pt-0.5 text-[11px] text-zinc-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#E5233D] animate-pulse" />
+                  <span>Scene unfolding...</span>
+                </div>
+              </div>
+            </div>
+          ) : sending ? (
             <div className="flex justify-start">
               <div className="rounded-2xl bg-[#1C1D22] border border-white/[0.06] px-4 py-3 flex items-center gap-2 text-xs text-zinc-400">
                 <span className="flex gap-1">
@@ -1427,7 +1860,7 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
                 <span>Characters are reacting...</span>
               </div>
             </div>
-          )}
+          ) : null}
 
           <div ref={messagesEndRef} />
         </div>
@@ -1558,7 +1991,11 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
                 </button>
               </div>
               {suggestionsLoading ? (
-                <div className="py-3 text-xs text-zinc-400">Thinking of replies for this scene...</div>
+                <div className="grid grid-cols-1 gap-1.5 py-0.5">
+                  <div className="h-9 rounded-xl bg-white/[0.05] animate-pulse" />
+                  <div className="h-9 rounded-xl bg-white/[0.05] animate-pulse" />
+                  <div className="h-9 w-5/6 rounded-xl bg-white/[0.05] animate-pulse" />
+                </div>
               ) : (
                 <div className="grid grid-cols-1 gap-1.5">
                   {suggestions.map((item, idx) => (

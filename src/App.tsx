@@ -328,6 +328,65 @@ function LeadersStoriesShell() {
     setAdminDashboardOpen(true);
   }, [user, isAdmin, pushOverlayHistory]);
 
+  const handleLocalTurnSync = useCallback(
+    (payload: {
+      story: StoryDefinition;
+      lastMessage: string;
+      lastSpeaker: string;
+      messageCount: number;
+      currentScene: string;
+      sceneIndex: number;
+      meters: RelationshipMeterValue[];
+      choicesMade?: string[];
+      endingReached?: string;
+      newMemory?: StoryMemoryRecord;
+    }) => {
+      const uid = user?.uid;
+      if (!uid) return;
+      const now = Date.now();
+      setConversations((prev) => {
+        const nextSummary: ConversationSummary = {
+          uid,
+          conversationId: payload.story.id,
+          storyId: payload.story.id,
+          storyTitle: payload.story.title,
+          coverImage: payload.story.coverImage,
+          lastMessage: payload.lastMessage,
+          lastSpeaker: payload.lastSpeaker,
+          messageCount: payload.messageCount,
+          localUpdatedAt: now,
+        };
+        const rest = prev.filter((c) => c.storyId !== payload.story.id);
+        return [nextSummary, ...rest];
+      });
+      setProgressMap((prev) => ({
+        ...prev,
+        [payload.story.id]: {
+          uid,
+          storyId: payload.story.id,
+          currentScene: payload.currentScene,
+          sceneIndex: payload.sceneIndex,
+          status: payload.endingReached ? 'completed' : 'active',
+          endingReached: payload.endingReached,
+          choicesMade: payload.choicesMade ?? prev[payload.story.id]?.choicesMade ?? [],
+          savedCharacterIds: payload.story.characters.map((c) => c.id),
+        },
+      }));
+      setRelationshipsMap((prev) => ({
+        ...prev,
+        [payload.story.id]: payload.meters,
+      }));
+      if (payload.newMemory) {
+        const mem = payload.newMemory;
+        setMemoriesMap((prev) => ({
+          ...prev,
+          [payload.story.id]: [...(prev[payload.story.id] || []), mem],
+        }));
+      }
+    },
+    [user?.uid]
+  );
+
   // Loading state while auth boots or user's cloud data is restoring after login/reinstall
   if (!authReady || restoringCloud) {
     return (
@@ -494,6 +553,7 @@ function LeadersStoriesShell() {
         onChangeLanguage={(lang) => {
           void handleChangeLanguage(lang);
         }}
+        onLocalTurnSync={handleLocalTurnSync}
         onDataUpdated={() => loadCloudCatalogAndUserData(user, { silent: true })}
       />
     );

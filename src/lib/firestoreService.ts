@@ -180,9 +180,9 @@ export async function checkUserBlockedStatus(
   uid: string
 ): Promise<{ blocked: boolean; reason?: string }> {
   try {
-    const blockedSnap = await getDoc(doc(db, 'blockedUsers', uid));
-    if (blockedSnap.exists()) {
-      const data = blockedSnap.data() as { reason?: string };
+    const { snap } = await getDocResilient(doc(db, 'blockedUsers', uid));
+    if (snap && snap.exists()) {
+      const data = snap.data() as { reason?: string };
       return { blocked: true, reason: data.reason };
     }
     return { blocked: false };
@@ -527,6 +527,28 @@ async function commitDeleteOpsInChunks(refs: DocumentReference[]): Promise<void>
   }
 }
 
+export async function loadConversationMessagesFromCache(
+  uid: string,
+  conversationId: string,
+  maxItems = 80
+): Promise<ChatTurnMessage[]> {
+  try {
+    const q = query(
+      collection(db, 'users', uid, 'conversations', conversationId, 'messages'),
+      where('uid', '==', uid)
+    );
+    const snap = await getDocsFromCache(q);
+    const items = snap.docs.map((d) => ({
+      ...(d.data() as ChatTurnMessage),
+      id: d.id,
+    }));
+    items.sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0));
+    return items.slice(-maxItems);
+  } catch {
+    return [];
+  }
+}
+
 export async function loadConversationMessages(
   uid: string,
   conversationId: string,
@@ -539,7 +561,8 @@ export async function loadConversationMessages(
       collection(db, 'users', uid, 'conversations', conversationId, 'messages'),
       where('uid', '==', uid)
     );
-    const snap = await getDocs(q);
+    const { snap } = await getDocsResilient(q);
+    if (!snap) return [];
     const items = snap.docs.map((d) => ({
       ...(d.data() as ChatTurnMessage),
       id: d.id,
@@ -551,50 +574,44 @@ export async function loadConversationMessages(
   }
 }
 
-export async function initializeStorySessionInCloud(
+export function buildInitialStorySessionData(
   uid: string,
   story: StoryDefinition,
-  language: LanguageCode
-): Promise<{
+  language: LanguageCode,
+  msgId = `msg_0_${Date.now()}`
+): {
   conversation: ConversationSummary;
   initialMessage: ChatTurnMessage;
   meters: RelationshipMeterValue[];
   progress: StoryProgressRecord;
-}> {
-  const conversationId = story.id;
-  const path = `users/${uid}/conversations/${conversationId}`;
-  try {
-    const meters: RelationshipMeterValue[] = story.relationshipMeters.map((m) => ({
-      ...m,
-      value: m.initialValue,
-    }));
-    const openingBeats = story.openingBeats[language] || story.openingBeats.hinglish;
-    const lastBeat = openingBeats[openingBeats.length - 1];
-    const lastSpeaker = lastBeat?.speakerName || story.characters[0]?.name || 'Narrator';
-    const lastPreview = (lastBeat?.text || story.tagline).slice(0, 1000);
-    const msgId = `msg_0_${Date.now()}`;
+} {
+  const meters: RelationshipMeterValue[] = story.relationshipMeters.map((m) => ({
+    ...m,
+    value: m.initialValue,
+  }));
+  const openingBeats = story.openingBeats[language] || story.openingBeats.hinglish;
+  const lastBeat = openingBeats[openingBeats.length - 1];
+  const lastSpeaker = lastBeat?.speakerName || story.characters[0]?.name || 'Narrator';
+  const lastPreview = (lastBeat?.text || story.tagline).slice(0, 1000);
+  const now = Date.now();
 
-    const batch = writeBatch(db);
-    const convRef = doc(db, 'users', uid, 'conversations', conversationId);
-    const convPayload: ConversationSummary = {
+  return {
+    conversation: {
       uid,
-      conversationId,
+      conversationId: story.id,
       storyId: story.id,
       storyTitle: story.title.slice(0, 140),
       coverImage: story.coverImage.slice(0, 512),
       lastMessage: lastPreview,
       lastSpeaker: lastSpeaker.slice(0, 100),
       messageCount: 1,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    };
-    batch.set(convRef, convPayload);
-
-    const msgRef = doc(db, 'users', uid, 'conversations', conversationId, 'messages', msgId);
-    const initialMsgPayload = {
+      localUpdatedAt: now,
+    },
+    initialMessage: {
+      id: msgId,
       uid,
-      conversationId,
-      role: 'story' as const,
+      conversationId: story.id,
+      role: 'story',
       sceneSummary: story.openingScene.slice(0, 500),
       beats: openingBeats,
       metersSnapshot: meters.map((m) => ({
@@ -604,12 +621,10 @@ export async function initializeStorySessionInCloud(
         value: m.value,
       })),
       sequence: 0,
-      createdAt: serverTimestamp(),
-    };
-    batch.set(msgRef, initialMsgPayload);
-
-    const progRef = doc(db, 'users', uid, 'storyProgress', story.id);
-    const progPayload: StoryProgressRecord = {
+      localTimestamp: now,
+    },
+    meters,
+    progress: {
       uid,
       storyId: story.id,
       currentScene: story.openingScene.slice(0, 500),
@@ -617,27 +632,75 @@ export async function initializeStorySessionInCloud(
       status: 'active',
       choicesMade: [],
       savedCharacterIds: story.characters.map((c) => c.id),
+    },
+  };
+}
+
+export async function initializeStorySessionInCloud(
+  uid: string,
+  story: StoryDefinition,
+  language: LanguageCode,
+  msgId = `msg_0_${Date.now()}`
+): Promise<{
+  conversation: ConversationSummary;
+  initialMessage: ChatTurnMessage;
+  meters: RelationshipMeterValue[];
+  progress: StoryProgressRecord;
+}> {
+  const conversationId = story.id;
+  const path = `users/${uid}/conversations/${conversationId}`;
+  try {
+    const built = buildInitialStorySessionData(uid, story, language, msgId);
+    const batch = writeBatch(db);
+    const convRef = doc(db, 'users', uid, 'conversations', conversationId);
+    batch.set(convRef, {
+      uid,
+      conversationId,
+      storyId: story.id,
+      storyTitle: story.title.slice(0, 140),
+      coverImage: story.coverImage.slice(0, 512),
+      lastMessage: built.conversation.lastMessage,
+      lastSpeaker: built.conversation.lastSpeaker,
+      messageCount: 1,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+
+    const msgRef = doc(db, 'users', uid, 'conversations', conversationId, 'messages', msgId);
+    batch.set(msgRef, {
+      uid,
+      conversationId,
+      role: 'story',
+      sceneSummary: built.initialMessage.sceneSummary,
+      beats: built.initialMessage.beats,
+      metersSnapshot: built.initialMessage.metersSnapshot,
+      sequence: 0,
+      createdAt: serverTimestamp(),
+    });
+
+    const progRef = doc(db, 'users', uid, 'storyProgress', story.id);
+    batch.set(progRef, {
+      uid,
+      storyId: story.id,
+      currentScene: built.progress.currentScene,
+      sceneIndex: 0,
+      status: 'active',
+      choicesMade: [],
+      savedCharacterIds: built.progress.savedCharacterIds,
       startedAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-    };
-    batch.set(progRef, progPayload);
+    });
 
     const relRef = doc(db, 'users', uid, 'relationships', story.id);
     batch.set(relRef, {
       uid,
       storyId: story.id,
-      meters,
+      meters: built.meters,
       updatedAt: serverTimestamp(),
     });
 
     await batch.commit();
-
-    return {
-      conversation: { ...convPayload, localUpdatedAt: Date.now() },
-      initialMessage: { ...initialMsgPayload, id: msgId, localTimestamp: Date.now() },
-      meters,
-      progress: progPayload,
-    };
+    return built;
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, path);
   }
@@ -649,6 +712,8 @@ export async function saveTurnToCloud(params: {
   conversationExists: boolean;
   userText: string;
   userSequence: number;
+  userMessageId?: string;
+  storyMessageId?: string;
   storyBeats: StoryBeat[];
   newScene: string;
   sceneIndex: number;
@@ -676,15 +741,18 @@ export async function saveTurnToCloud(params: {
   try {
     const batch = writeBatch(db);
     const now = Date.now();
-    const userMsgId = `msg_${userSequence}_${now}`;
+    const userMsgId = params.userMessageId || `msg_${userSequence}_${now}`;
     const storySeq = userSequence + 1;
-    const storyMsgId = `msg_${storySeq}_${now + 1}`;
+    const storyMsgId = params.storyMessageId || `msg_${storySeq}_${now + 1}`;
 
     const lastBeat = storyBeats[storyBeats.length - 1];
     const lastSpeaker = lastBeat?.speakerName || story.characters[0]?.name || 'Story';
     const lastPreview = (lastBeat?.text || newScene).slice(0, 1000);
 
     const convRef = doc(db, 'users', uid, 'conversations', conversationId);
+    const progRef = doc(db, 'users', uid, 'storyProgress', story.id);
+    const relRef = doc(db, 'users', uid, 'relationships', story.id);
+
     if (params.conversationExists) {
       batch.update(convRef, {
         lastMessage: lastPreview,
@@ -734,7 +802,6 @@ export async function saveTurnToCloud(params: {
     };
     batch.set(doc(db, 'users', uid, 'conversations', conversationId, 'messages', storyMsgId), storyMsgPayload);
 
-    const progRef = doc(db, 'users', uid, 'storyProgress', story.id);
     const progUpdate: Record<string, unknown> = {
       currentScene: newScene.slice(0, 500),
       sceneIndex,
@@ -746,12 +813,27 @@ export async function saveTurnToCloud(params: {
     if (endingTriggered) {
       progUpdate.endingReached = endingTriggered.slice(0, 200);
     }
-    batch.update(progRef, progUpdate);
 
-    batch.update(doc(db, 'users', uid, 'relationships', story.id), {
-      meters: updatedMeters,
-      updatedAt: serverTimestamp(),
-    });
+    if (params.conversationExists) {
+      batch.update(progRef, progUpdate);
+      batch.update(relRef, {
+        meters: updatedMeters,
+        updatedAt: serverTimestamp(),
+      });
+    } else {
+      batch.set(progRef, {
+        uid,
+        storyId: story.id,
+        ...progUpdate,
+        startedAt: serverTimestamp(),
+      });
+      batch.set(relRef, {
+        uid,
+        storyId: story.id,
+        meters: updatedMeters,
+        updatedAt: serverTimestamp(),
+      });
+    }
 
     if (newMemory && newMemory.summary) {
       const memId = `mem_${story.id}_${now}`.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 128);
@@ -781,6 +863,7 @@ export async function saveStoryContinueToCloud(params: {
   story: StoryDefinition;
   storyBeats: StoryBeat[];
   storySequence: number;
+  storyMessageId?: string;
   totalMessageCount: number;
   newScene: string;
   sceneIndex: number;
@@ -806,7 +889,7 @@ export async function saveStoryContinueToCloud(params: {
   try {
     const batch = writeBatch(db);
     const now = Date.now();
-    const storyMsgId = `msg_${storySequence}_${now}`;
+    const storyMsgId = params.storyMessageId || `msg_${storySequence}_${now}`;
     const lastBeat = storyBeats[storyBeats.length - 1];
     const lastSpeaker = lastBeat?.speakerName || story.characters[0]?.name || 'Story';
     const lastPreview = (lastBeat?.text || newScene).slice(0, 1000);
@@ -874,6 +957,7 @@ export async function replaceLatestStoryMessageInCloud(params: {
   uid: string;
   story: StoryDefinition;
   oldMessageId: string;
+  storyMessageId?: string;
   storySequence: number;
   totalMessageCount: number;
   storyBeats: StoryBeat[];
@@ -900,7 +984,7 @@ export async function replaceLatestStoryMessageInCloud(params: {
   try {
     const batch = writeBatch(db);
     const now = Date.now();
-    const newMsgId = `msg_${storySequence}_${now}`;
+    const newMsgId = params.storyMessageId || `msg_${storySequence}_${now}`;
     const lastBeat = storyBeats[storyBeats.length - 1];
     const lastSpeaker = lastBeat?.speakerName || story.characters[0]?.name || 'Story';
     const lastPreview = (lastBeat?.text || newScene).slice(0, 1000);
@@ -1071,7 +1155,8 @@ export async function restartStoryInCloud(
 export async function fetchPublishedAdminStories(): Promise<StoryDefinition[]> {
   try {
     const q = query(collection(db, 'stories'), where('published', '==', true));
-    const snap = await getDocs(q);
+    const { snap } = await getDocsResilient(q);
+    if (!snap) return [];
     return snap.docs.map((d) => {
       const data = d.data() as Record<string, unknown>;
       return {
@@ -1157,16 +1242,16 @@ export async function fetchAppConfig(): Promise<{
   content: AppContentConfig;
 }> {
   try {
-    const [settingsSnap, contentSnap] = await Promise.all([
-      getDoc(doc(db, 'appConfig', 'settings')),
-      getDoc(doc(db, 'appConfig', 'content')),
+    const [{ snap: settingsSnap }, { snap: contentSnap }] = await Promise.all([
+      getDocResilient(doc(db, 'appConfig', 'settings')),
+      getDocResilient(doc(db, 'appConfig', 'content')),
     ]);
 
-    const settings: AppSettingsConfig = settingsSnap.exists()
+    const settings: AppSettingsConfig = settingsSnap && settingsSnap.exists()
       ? { ...DEFAULT_APP_SETTINGS, ...(settingsSnap.data() as Partial<AppSettingsConfig>) }
       : DEFAULT_APP_SETTINGS;
 
-    const content: AppContentConfig = contentSnap.exists()
+    const content: AppContentConfig = contentSnap && contentSnap.exists()
       ? { ...DEFAULT_APP_CONTENT, ...(contentSnap.data() as Partial<AppContentConfig>) }
       : DEFAULT_APP_CONTENT;
 
