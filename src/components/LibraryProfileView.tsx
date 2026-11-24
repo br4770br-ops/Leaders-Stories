@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { signOut, updateProfile, type User } from 'firebase/auth';
 import {
   Check,
@@ -86,6 +86,12 @@ export const LibraryProfileView: React.FC<LibraryProfileViewProps> = ({
 
   const [adminOpen, setAdminOpen] = useState(false);
   const [showIOSGuide, setShowIOSGuide] = useState(false);
+
+  useEffect(() => {
+    if (!editingName) {
+      setUsernameInput(profile?.username || user?.displayName || '');
+    }
+  }, [profile?.username, user?.displayName, editingName]);
 
   const storyMap = useMemo(() => new Map(stories.map((s) => [s.id, s])), [stories]);
   const favoriteIds = useMemo(() => new Set(favorites.map((f) => f.storyId)), [favorites]);

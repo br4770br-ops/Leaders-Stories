@@ -273,7 +273,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             </section>
 
             {/* Most Popular Characters */}
-            <section className="space-y-3.5">
+            <section className="space-y-3.5 cv-section">
               <h2 className="font-display text-lg sm:text-xl font-bold text-white">
                 Most Popular Characters
               </h2>
@@ -304,7 +304,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             </section>
 
             {/* Trending Stories */}
-            <section className="space-y-3.5">
+            <section className="space-y-3.5 cv-section">
               <h2 className="font-display text-lg sm:text-xl font-bold text-white">
                 Trending Stories
               </h2>
@@ -322,7 +322,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             </section>
 
             {/* Popular Stories */}
-            <section className="space-y-3.5">
+            <section className="space-y-3.5 cv-section">
               <h2 className="font-display text-lg sm:text-xl font-bold text-white">
                 Popular Stories
               </h2>
@@ -340,7 +340,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             </section>
 
             {/* Recently Added */}
-            <section className="space-y-3.5">
+            <section className="space-y-3.5 cv-section">
               <h2 className="font-display text-lg sm:text-xl font-bold text-white">
                 Recently Added
               </h2>

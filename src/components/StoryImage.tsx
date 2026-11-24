@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BookOpen } from 'lucide-react';
 
 interface StoryImageProps {
@@ -9,7 +9,7 @@ interface StoryImageProps {
   loading?: 'lazy' | 'eager';
 }
 
-export const StoryImage: React.FC<StoryImageProps> = ({
+export const StoryImage: React.FC<StoryImageProps> = React.memo(({
   src,
   alt,
   className = '',
@@ -17,6 +17,10 @@ export const StoryImage: React.FC<StoryImageProps> = ({
   loading = 'lazy',
 }) => {
   const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setFailed(false);
+  }, [src]);
 
   if (!src || failed) {
     return (
@@ -40,9 +44,10 @@ export const StoryImage: React.FC<StoryImageProps> = ({
       src={src}
       alt={alt}
       loading={loading}
+      decoding="async"
       referrerPolicy="no-referrer"
       onError={() => setFailed(true)}
       className={className}
     />
   );
-};
+});

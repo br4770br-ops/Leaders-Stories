@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { ChevronRight, LogIn, MessageCircle, Sparkles } from 'lucide-react';
 import { toMillis } from '../lib/firestoreService';
 import type { ConversationSummary, StoryDefinition, StoryProgressRecord } from '../types/story';
@@ -35,7 +35,7 @@ export const ChatsView: React.FC<ChatsViewProps> = ({
   onResumeStory,
   onExploreHome,
 }) => {
-  const storyMap = new Map(stories.map((s) => [s.id, s]));
+  const storyMap = useMemo(() => new Map(stories.map((s) => [s.id, s])), [stories]);
 
   return (
     <div className="min-h-dvh bg-[#0A0A0D] text-white pb-24">

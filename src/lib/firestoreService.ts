@@ -10,14 +10,13 @@ import {
   doc,
   getDoc,
   getDocs,
-  limit,
-  orderBy,
   query,
   serverTimestamp,
   setDoc,
   updateDoc,
   where,
   writeBatch,
+  type DocumentReference,
 } from 'firebase/firestore';
 import { ADMIN_BOOTSTRAP_EMAIL, auth, db } from './firebase';
 import type {
@@ -313,6 +312,15 @@ export async function toggleFavoriteStory(
   }
 }
 
+async function commitDeleteOpsInChunks(refs: DocumentReference[]): Promise<void> {
+  const CHUNK_SIZE = 450;
+  for (let i = 0; i < refs.length; i += CHUNK_SIZE) {
+    const batch = writeBatch(db);
+    refs.slice(i, i + CHUNK_SIZE).forEach((ref) => batch.delete(ref));
+    await batch.commit();
+  }
+}
+
 export async function loadConversationMessages(
   uid: string,
   conversationId: string,
@@ -320,17 +328,18 @@ export async function loadConversationMessages(
 ): Promise<ChatTurnMessage[]> {
   const path = `users/${uid}/conversations/${conversationId}/messages`;
   try {
+    // Single-field equality filter matches firestore.rules without requiring a composite index
     const q = query(
       collection(db, 'users', uid, 'conversations', conversationId, 'messages'),
-      where('uid', '==', uid),
-      orderBy('sequence', 'asc'),
-      limit(maxItems)
+      where('uid', '==', uid)
     );
     const snap = await getDocs(q);
-    return snap.docs.map((d) => ({
+    const items = snap.docs.map((d) => ({
       ...(d.data() as ChatTurnMessage),
       id: d.id,
     }));
+    items.sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0));
+    return items.slice(-maxItems);
   } catch (err) {
     handleFirestoreError(err, OperationType.LIST, path);
   }
@@ -574,27 +583,30 @@ export async function restartStoryInCloud(
   const conversationId = story.id;
   const path = `users/${uid}/conversations/${conversationId}`;
   try {
-    // Delete old messages and memories for this story
-    const msgsSnap = await getDocs(
-      query(
-        collection(db, 'users', uid, 'conversations', conversationId, 'messages'),
-        where('uid', '==', uid)
-      )
-    );
-    const memSnap = await getDocs(
-      query(
-        collection(db, 'users', uid, 'memories'),
-        where('uid', '==', uid),
-        where('storyId', '==', story.id)
-      )
-    );
-    const batch = writeBatch(db);
-    msgsSnap.docs.forEach((d) => batch.delete(d.ref));
-    memSnap.docs.forEach((d) => batch.delete(d.ref));
-    batch.delete(doc(db, 'users', uid, 'conversations', conversationId));
-    batch.delete(doc(db, 'users', uid, 'storyProgress', story.id));
-    batch.delete(doc(db, 'users', uid, 'relationships', story.id));
-    await batch.commit();
+    // Single-field equality queries avoid composite index requirements
+    const [msgsSnap, memSnap] = await Promise.all([
+      getDocs(
+        query(
+          collection(db, 'users', uid, 'conversations', conversationId, 'messages'),
+          where('uid', '==', uid)
+        )
+      ),
+      getDocs(
+        query(collection(db, 'users', uid, 'memories'), where('uid', '==', uid))
+      ),
+    ]);
+
+    const refsToDelete: DocumentReference[] = [
+      ...msgsSnap.docs.map((d) => d.ref),
+      ...memSnap.docs
+        .filter((d) => (d.data() as { storyId?: string }).storyId === story.id)
+        .map((d) => d.ref),
+      doc(db, 'users', uid, 'conversations', conversationId),
+      doc(db, 'users', uid, 'storyProgress', story.id),
+      doc(db, 'users', uid, 'relationships', story.id),
+    ];
+
+    await commitDeleteOpsInChunks(refsToDelete);
 
     return await initializeStorySessionInCloud(uid, story, language);
   } catch (err) {
@@ -749,26 +761,22 @@ export async function deleteAccountAndCloudData(user: User, password: string): P
     const convSnap = await getDocs(
       query(collection(db, 'users', uid, 'conversations'), where('uid', '==', uid))
     );
+    const refsToDelete: DocumentReference[] = [];
     for (const c of convSnap.docs) {
       const msgSnap = await getDocs(
         query(collection(db, 'users', uid, 'conversations', c.id, 'messages'), where('uid', '==', uid))
       );
-      const msgBatch = writeBatch(db);
-      msgSnap.docs.forEach((m) => msgBatch.delete(m.ref));
-      msgBatch.delete(c.ref);
-      await msgBatch.commit();
+      msgSnap.docs.forEach((m) => refsToDelete.push(m.ref));
+      refsToDelete.push(c.ref);
     }
 
     const subCollections = ['favorites', 'storyProgress', 'relationships', 'memories', 'preferences'];
     for (const sub of subCollections) {
       const snap = await getDocs(query(collection(db, 'users', uid, sub), where('uid', '==', uid)));
-      if (!snap.empty) {
-        const b = writeBatch(db);
-        snap.docs.forEach((d) => b.delete(d.ref));
-        await b.commit();
-      }
+      snap.docs.forEach((d) => refsToDelete.push(d.ref));
     }
 
+    await commitDeleteOpsInChunks(refsToDelete);
     await deleteDoc(doc(db, 'users', uid));
     await deleteUser(user);
   } catch (err) {

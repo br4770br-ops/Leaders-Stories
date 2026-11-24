@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { onAuthStateChanged, type User } from 'firebase/auth';
 import { Bookmark, Compass, Home, MessageCircle, Search, WifiOff } from 'lucide-react';
 import { registerSW } from 'virtual:pwa-register';
@@ -58,58 +58,83 @@ function LeadersStoriesShell() {
   const isOnline = useOnlineStatus();
   const { isInstallable, isInstalled, isIOS, install } = usePWAInstall();
 
+  const overlayStateRef = useRef({
+    hasChat: false,
+    hasDetail: false,
+    hasAuth: false,
+    pushedHistoryDepth: 0,
+  });
+
+  useEffect(() => {
+    overlayStateRef.current.hasChat = Boolean(activeChatStory);
+    overlayStateRef.current.hasDetail = Boolean(selectedStory);
+    overlayStateRef.current.hasAuth = authModalOpen;
+  }, [activeChatStory, selectedStory, authModalOpen]);
+
   useEffect(() => {
     registerSW({ immediate: true });
   }, []);
 
-  const loadCloudCatalogAndUserData = useCallback(async (currentUser: User | null) => {
-    try {
-      const published = await fetchPublishedAdminStories();
-      setCustomStories(published);
-    } catch {
-      // ignore optional custom story fetch issues
-    }
+  const loadCloudCatalogAndUserData = useCallback(
+    async (currentUser: User | null, options?: { silent?: boolean }) => {
+      const silent = Boolean(options?.silent);
+      if (!silent) {
+        try {
+          const published = await fetchPublishedAdminStories();
+          setCustomStories(published);
+        } catch {
+          // ignore optional custom story fetch issues
+        }
+      }
 
-    if (!currentUser || !currentUser.emailVerified) {
-      setProfile(null);
-      setFavorites([]);
-      setConversations([]);
-      setProgressMap({});
-      setRelationshipsMap({});
-      setMemoriesMap({});
-      setIsAdmin(false);
-      return;
-    }
+      if (!currentUser || !currentUser.emailVerified) {
+        setProfile(null);
+        setFavorites([]);
+        setConversations([]);
+        setProgressMap({});
+        setRelationshipsMap({});
+        setMemoriesMap({});
+        setIsAdmin(false);
+        return;
+      }
 
-    setRestoringCloud(true);
-    setRestoreError(null);
-    try {
-      const [restored, adminFlag] = await Promise.all([
-        restoreAllUserCloudData(currentUser),
-        isUserAdmin(currentUser),
-      ]);
-      setProfile(restored.profile);
-      setPreferredLanguage(restored.language);
-      setFavorites(restored.favorites);
-      setConversations(restored.conversations);
-      setProgressMap(restored.progressMap);
-      setRelationshipsMap(restored.relationshipsMap);
-      setMemoriesMap(restored.memoriesMap);
-      setIsAdmin(adminFlag);
-    } catch (err) {
-      setRestoreError(
-        err instanceof Error ? err.message : 'Unable to restore your cloud story data.'
-      );
-    } finally {
-      setRestoringCloud(false);
-    }
-  }, []);
+      if (!silent) {
+        setRestoringCloud(true);
+      }
+      setRestoreError(null);
+      try {
+        const [restored, adminFlag] = await Promise.all([
+          restoreAllUserCloudData(currentUser),
+          isUserAdmin(currentUser),
+        ]);
+        setProfile(restored.profile);
+        setPreferredLanguage(restored.language);
+        setFavorites(restored.favorites);
+        setConversations(restored.conversations);
+        setProgressMap(restored.progressMap);
+        setRelationshipsMap(restored.relationshipsMap);
+        setMemoriesMap(restored.memoriesMap);
+        setIsAdmin(adminFlag);
+      } catch (err) {
+        if (!silent) {
+          setRestoreError(
+            err instanceof Error ? err.message : 'Unable to restore your cloud story data.'
+          );
+        }
+      } finally {
+        if (!silent) {
+          setRestoringCloud(false);
+        }
+      }
+    },
+    []
+  );
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (fbUser) => {
       setUser(fbUser);
       setAuthReady(true);
-      void loadCloudCatalogAndUserData(fbUser);
+      void loadCloudCatalogAndUserData(fbUser, { silent: false });
     });
     return () => unsub();
   }, [loadCloudCatalogAndUserData]);
@@ -117,17 +142,35 @@ function LeadersStoriesShell() {
   // Handle Android hardware/browser back button smoothly across nested screens
   useEffect(() => {
     const handlePopState = () => {
-      if (activeChatStory) {
+      const st = overlayStateRef.current;
+      if (st.pushedHistoryDepth > 0) {
+        st.pushedHistoryDepth -= 1;
+      }
+      if (st.hasChat) {
         setActiveChatStory(null);
-      } else if (selectedStory) {
+      } else if (st.hasDetail) {
         setSelectedStory(null);
-      } else if (authModalOpen) {
+      } else if (st.hasAuth) {
         setAuthModalOpen(false);
+        setPendingActionStory(null);
       }
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [activeChatStory, selectedStory, authModalOpen]);
+  }, []);
+
+  const pushOverlayHistory = useCallback((view: string) => {
+    window.history.pushState({ view }, '');
+    overlayStateRef.current.pushedHistoryDepth += 1;
+  }, []);
+
+  const closeTopOverlay = useCallback((closeFn: () => void) => {
+    if (overlayStateRef.current.pushedHistoryDepth > 0) {
+      window.history.back();
+    } else {
+      closeFn();
+    }
+  }, []);
 
   const allStories = useMemo(() => {
     const mergedMap = new Map<string, StoryDefinition>();
@@ -138,55 +181,71 @@ function LeadersStoriesShell() {
 
   const favoriteIds = useMemo(() => new Set(favorites.map((f) => f.storyId)), [favorites]);
 
-  const handleToggleFavorite = async (story: StoryDefinition) => {
-    if (!user || !user.emailVerified) {
-      setAuthModalOpen(true);
-      return;
-    }
-    const currentlyFav = favoriteIds.has(story.id);
-    if (currentlyFav) {
-      setFavorites((prev) => prev.filter((f) => f.storyId !== story.id));
-    } else {
-      setFavorites((prev) => [
-        ...prev,
-        {
-          uid: user.uid,
-          storyId: story.id,
-          title: story.title,
-          coverImage: story.coverImage,
-          genre: story.primaryCategory,
-        },
-      ]);
-    }
-    try {
-      await toggleFavoriteStory(user.uid, story, currentlyFav);
-    } catch {
-      await loadCloudCatalogAndUserData(user);
-    }
-  };
+  const handleToggleFavorite = useCallback(
+    async (story: StoryDefinition) => {
+      if (!user || !user.emailVerified) {
+        pushOverlayHistory('auth');
+        setAuthModalOpen(true);
+        return;
+      }
+      const currentlyFav = favoriteIds.has(story.id);
+      if (currentlyFav) {
+        setFavorites((prev) => prev.filter((f) => f.storyId !== story.id));
+      } else {
+        setFavorites((prev) => [
+          ...prev,
+          {
+            uid: user.uid,
+            storyId: story.id,
+            title: story.title,
+            coverImage: story.coverImage,
+            genre: story.primaryCategory,
+          },
+        ]);
+      }
+      try {
+        await toggleFavoriteStory(user.uid, story, currentlyFav);
+      } catch {
+        await loadCloudCatalogAndUserData(user, { silent: true });
+      }
+    },
+    [user, favoriteIds, loadCloudCatalogAndUserData, pushOverlayHistory]
+  );
 
-  const handleStartChat = (story: StoryDefinition) => {
-    if (!user || !user.emailVerified) {
-      setPendingActionStory(story);
-      setAuthModalOpen(true);
-      return;
-    }
-    window.history.pushState({ view: 'chat' }, '');
-    setSelectedStory(null);
-    setActiveChatStory(story);
-  };
+  const handleStartChat = useCallback(
+    (story: StoryDefinition) => {
+      if (!user || !user.emailVerified) {
+        setPendingActionStory(story);
+        pushOverlayHistory('auth');
+        setAuthModalOpen(true);
+        return;
+      }
+      if (!selectedStory) {
+        pushOverlayHistory('chat');
+      }
+      setSelectedStory(null);
+      setActiveChatStory(story);
+    },
+    [user, selectedStory, pushOverlayHistory]
+  );
 
-  const handleSelectStory = (story: StoryDefinition) => {
-    window.history.pushState({ view: 'detail' }, '');
-    setSelectedStory(story);
-  };
+  const handleSelectStory = useCallback(
+    (story: StoryDefinition) => {
+      pushOverlayHistory('detail');
+      setSelectedStory(story);
+    },
+    [pushOverlayHistory]
+  );
 
-  const handleChangeLanguage = async (lang: LanguageCode) => {
-    setPreferredLanguage(lang);
-    if (user && user.emailVerified) {
-      await updateUserLanguageAndProfile(user.uid, { preferredLanguage: lang });
-    }
-  };
+  const handleChangeLanguage = useCallback(
+    async (lang: LanguageCode) => {
+      setPreferredLanguage(lang);
+      if (user && user.emailVerified) {
+        await updateUserLanguageAndProfile(user.uid, { preferredLanguage: lang });
+      }
+    },
+    [user]
+  );
 
   // Loading state while auth boots or user's cloud data is restoring after login/reinstall
   if (!authReady || restoringCloud) {
@@ -223,16 +282,19 @@ function LeadersStoriesShell() {
       <AuthScreen
         currentUser={user}
         subtitle="Sign in with Email & Password so your conversations and choices sync permanently."
-        onClose={() => {
-          setAuthModalOpen(false);
-          setPendingActionStory(null);
-        }}
+        onClose={() =>
+          closeTopOverlay(() => {
+            setAuthModalOpen(false);
+            setPendingActionStory(null);
+          })
+        }
         onVerifiedSuccess={() => {
           setAuthModalOpen(false);
           if (pendingActionStory) {
             const st = pendingActionStory;
             setPendingActionStory(null);
             setSelectedStory(null);
+            pushOverlayHistory('chat');
             setActiveChatStory(st);
           }
         }}
@@ -250,7 +312,7 @@ function LeadersStoriesShell() {
         existingProgress={progressMap[activeChatStory.id]}
         existingMeters={relationshipsMap[activeChatStory.id]}
         existingMemories={memoriesMap[activeChatStory.id] || []}
-        onBack={() => setActiveChatStory(null)}
+        onBack={() => closeTopOverlay(() => setActiveChatStory(null))}
         onOpenStoryInfo={(st) => {
           setActiveChatStory(null);
           setSelectedStory(st);
@@ -258,7 +320,7 @@ function LeadersStoriesShell() {
         onChangeLanguage={(lang) => {
           void handleChangeLanguage(lang);
         }}
-        onDataUpdated={() => loadCloudCatalogAndUserData(user)}
+        onDataUpdated={() => loadCloudCatalogAndUserData(user, { silent: true })}
       />
     );
   }
@@ -270,7 +332,7 @@ function LeadersStoriesShell() {
         story={selectedStory}
         isFavorite={favoriteIds.has(selectedStory.id)}
         hasExistingChat={conversations.some((c) => c.storyId === selectedStory.id)}
-        onBack={() => setSelectedStory(null)}
+        onBack={() => closeTopOverlay(() => setSelectedStory(null))}
         onToggleFavorite={(st) => void handleToggleFavorite(st)}
         onStartChat={handleStartChat}
       />
@@ -350,7 +412,11 @@ function LeadersStoriesShell() {
           onResumeStory={handleStartChat}
           onToggleFavorite={(st) => void handleToggleFavorite(st)}
           onChangeLanguage={handleChangeLanguage}
-          onProfileUpdated={() => loadCloudCatalogAndUserData(user)}
+          onProfileUpdated={async () => {
+            const published = await fetchPublishedAdminStories().catch(() => []);
+            if (published.length > 0) setCustomStories(published);
+            await loadCloudCatalogAndUserData(user, { silent: true });
+          }}
         />
       )}
 

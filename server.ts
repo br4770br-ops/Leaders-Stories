@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
+import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
@@ -166,6 +167,24 @@ function getGeminiClient(): GoogleGenAI {
   });
 }
 
+async function withGeminiRetry<T>(fn: () => Promise<T>, maxAttempts = 2): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err;
+      const msg = err instanceof Error ? err.message : String(err);
+      const isTransient = /429|503|RESOURCE_EXHAUSTED|UNAVAILABLE|ECONNRESET|ETIMEDOUT/i.test(msg);
+      if (!isTransient || attempt === maxAttempts) {
+        throw err;
+      }
+      await new Promise((r) => setTimeout(r, 600 * attempt));
+    }
+  }
+  throw lastError;
+}
+
 function sanitizeText(val: unknown, maxLen: number): string {
   if (typeof val !== 'string') return '';
   return val.trim().slice(0, maxLen);
@@ -312,84 +331,109 @@ async function startServer() {
       ].join('\n\n');
 
       const ai = getGeminiClient();
-      const response = await ai.models.generateContent({
-        model: 'gemini-4-hydrogen',
-        contents: prompt,
-        config: {
-          systemInstruction,
-          thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
-          responseMimeType: 'application/json',
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              beats: {
-                type: Type.ARRAY,
-                description: 'Ordered sequence of narration and character dialogue beats for this turn.',
-                items: {
+      const response = await withGeminiRetry(() =>
+        ai.models.generateContent({
+          model: 'gemini-4-hydrogen',
+          contents: prompt,
+          config: {
+            systemInstruction,
+            thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
+            responseMimeType: 'application/json',
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                beats: {
+                  type: Type.ARRAY,
+                  description: 'Ordered sequence of narration and character dialogue beats for this turn.',
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      type: {
+                        type: Type.STRING,
+                        description: "Either 'narration' or 'dialogue'",
+                      },
+                      speakerName: {
+                        type: Type.STRING,
+                        description: 'Required when type is dialogue; exact character name.',
+                      },
+                      text: {
+                        type: Type.STRING,
+                        description: 'Short, evocative narration line or spoken dialogue (without surrounding quotes).',
+                      },
+                    },
+                    required: ['type', 'text'],
+                  },
+                },
+                meterChanges: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      id: { type: Type.STRING },
+                      delta: { type: Type.INTEGER },
+                      reason: { type: Type.STRING },
+                    },
+                    required: ['id', 'delta'],
+                  },
+                },
+                newScene: {
+                  type: Type.STRING,
+                  description: 'Short updated current scene label/summary (max 120 chars).',
+                },
+                newMemory: {
                   type: Type.OBJECT,
                   properties: {
-                    type: {
-                      type: Type.STRING,
-                      description: "Either 'narration' or 'dialogue'",
-                    },
-                    speakerName: {
-                      type: Type.STRING,
-                      description: 'Required when type is dialogue; exact character name.',
-                    },
-                    text: {
-                      type: Type.STRING,
-                      description: 'Short, evocative narration line or spoken dialogue (without surrounding quotes).',
+                    shouldSave: { type: Type.BOOLEAN },
+                    summary: { type: Type.STRING },
+                    importance: { type: Type.INTEGER },
+                    charactersInvolved: {
+                      type: Type.ARRAY,
+                      items: { type: Type.STRING },
                     },
                   },
-                  required: ['type', 'text'],
+                  required: ['shouldSave'],
+                },
+                storyChoices: {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
+                },
+                endingTriggered: {
+                  type: Type.STRING,
+                  description: 'Empty string unless a genuine dramatic story ending was reached.',
                 },
               },
-              meterChanges: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    id: { type: Type.STRING },
-                    delta: { type: Type.INTEGER },
-                    reason: { type: Type.STRING },
-                  },
-                  required: ['id', 'delta'],
-                },
-              },
-              newScene: {
-                type: Type.STRING,
-                description: 'Short updated current scene label/summary (max 120 chars).',
-              },
-              newMemory: {
-                type: Type.OBJECT,
-                properties: {
-                  shouldSave: { type: Type.BOOLEAN },
-                  summary: { type: Type.STRING },
-                  importance: { type: Type.INTEGER },
-                  charactersInvolved: {
-                    type: Type.ARRAY,
-                    items: { type: Type.STRING },
-                  },
-                },
-                required: ['shouldSave'],
-              },
-              storyChoices: {
-                type: Type.ARRAY,
-                items: { type: Type.STRING },
-              },
-              endingTriggered: {
-                type: Type.STRING,
-                description: 'Empty string unless a genuine dramatic story ending was reached.',
-              },
+              required: ['beats', 'meterChanges', 'newScene', 'storyChoices', 'endingTriggered'],
             },
-            required: ['beats', 'meterChanges', 'newScene', 'storyChoices', 'endingTriggered'],
           },
-        },
-      });
+        })
+      );
 
       const rawText = (response.text || '{}').trim();
-      const parsed = JSON.parse(rawText);
-      res.json(parsed);
+      const parsed = JSON.parse(rawText) as Record<string, unknown>;
+      const safeBeats = Array.isArray(parsed.beats)
+        ? parsed.beats
+            .filter((b): b is { type?: string; speakerName?: string; text?: string } => Boolean(b && typeof b === 'object'))
+            .map((b) => ({
+              type: b.type === 'narration' ? 'narration' : 'dialogue',
+              ...(b.speakerName ? { speakerName: sanitizeText(b.speakerName, 60) } : {}),
+              text: sanitizeText(b.text, 800),
+            }))
+            .filter((b) => b.text.length > 0)
+        : [];
+
+      res.json({
+        beats: safeBeats,
+        meterChanges: Array.isArray(parsed.meterChanges) ? parsed.meterChanges : [],
+        newScene: sanitizeText(parsed.newScene, 160) || currentScene,
+        newMemory:
+          parsed.newMemory && typeof parsed.newMemory === 'object'
+            ? parsed.newMemory
+            : { shouldSave: false },
+        storyChoices: Array.isArray(parsed.storyChoices)
+          ? parsed.storyChoices.filter((c): c is string => typeof c === 'string' && c.trim().length > 0).slice(0, 3)
+          : [],
+        endingTriggered: sanitizeText(parsed.endingTriggered, 180),
+      });
     } catch (err) {
       console.error('Story turn error:', err);
       const message = err instanceof Error ? err.message : 'Story generation failed.';
@@ -428,25 +472,27 @@ async function startServer() {
         : '';
 
       const ai = getGeminiClient();
-      const response = await ai.models.generateContent({
-        model: 'gemini-4-hydrogen',
-        contents: `Story: ${story.title}\nScene: ${currentScene}\nMeters: ${meters}\nRecent dialogue:\n${historyBlock}\n\nGenerate 4 distinct, natural, in-character reply suggestions the user could say or do next (mix bold, empathetic, witty, or plot-advancing moves). Keep each under 110 characters.`,
-        config: {
-          systemInstruction: `You write short, compelling interactive roleplay reply options for the user. ${getLanguageInstruction(language)} Return strictly 3 to 4 strings.`,
-          thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
-          responseMimeType: 'application/json',
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              suggestions: {
-                type: Type.ARRAY,
-                items: { type: Type.STRING },
+      const response = await withGeminiRetry(() =>
+        ai.models.generateContent({
+          model: 'gemini-4-hydrogen',
+          contents: `Story: ${story.title}\nScene: ${currentScene}\nMeters: ${meters}\nRecent dialogue:\n${historyBlock}\n\nGenerate 4 distinct, natural, in-character reply suggestions the user could say or do next (mix bold, empathetic, witty, or plot-advancing moves). Keep each under 110 characters.`,
+          config: {
+            systemInstruction: `You write short, compelling interactive roleplay reply options for the user. ${getLanguageInstruction(language)} Return strictly 3 to 4 strings.`,
+            thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
+            responseMimeType: 'application/json',
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                suggestions: {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
+                },
               },
+              required: ['suggestions'],
             },
-            required: ['suggestions'],
           },
-        },
-      });
+        })
+      );
 
       const parsed = JSON.parse((response.text || '{"suggestions":[]}').trim()) as {
         suggestions?: string[];
@@ -461,21 +507,49 @@ async function startServer() {
     }
   });
 
+  app.all('/api/*', (_req, res) => {
+    res.status(404).json({ error: 'API endpoint not found.' });
+  });
+
+  const httpServer = http.createServer(app);
+
   if (!IS_PROD) {
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        allowedHosts: true,
+        ws: { server: httpServer },
+        hmr: process.env.DISABLE_HMR === 'true' ? false : { server: httpServer },
+      },
       appType: 'spa',
     });
     app.use(vite.middlewares);
   } else {
     const distDir = path.resolve(__dirname, 'dist');
-    app.use(express.static(distDir));
+    app.use(
+      express.static(distDir, {
+        maxAge: '30d',
+        setHeaders: (res, filePath) => {
+          if (
+            filePath.endsWith('index.html') ||
+            filePath.endsWith('sw.js') ||
+            filePath.endsWith('registerSW.js') ||
+            filePath.endsWith('manifest.webmanifest')
+          ) {
+            res.setHeader('Cache-Control', 'no-cache');
+          } else if (filePath.includes(`${path.sep}assets${path.sep}`)) {
+            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+          }
+        },
+      })
+    );
     app.get('*', (_req, res) => {
+      res.setHeader('Cache-Control', 'no-cache');
       res.sendFile(path.join(distDir, 'index.html'));
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
+  httpServer.listen(PORT, '0.0.0.0', () => {
     console.log(`LEADERS STORIES server running on http://0.0.0.0:${PORT}`);
   });
 }

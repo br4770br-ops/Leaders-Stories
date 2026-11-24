@@ -17,6 +17,12 @@
     -webkit-tap-highlight-color: transparent;
   }
 
+  button,
+  a,
+  [role="button"] {
+    touch-action: manipulation;
+  }
+
   .font-display {
     font-family: "Plus Jakarta Sans", system-ui, sans-serif;
   }
@@ -33,6 +39,16 @@
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+.touch-scroll {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+.cv-section {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 340px;
 }
 
 .pb-safe {

@@ -75,6 +75,102 @@ const LANGUAGE_LABELS: Record<LanguageCode, string> = {
   english: 'English',
 };
 
+interface ChatMessageListProps {
+  messages: ChatTurnMessage[];
+  meters: RelationshipMeterValue[];
+  story: StoryDefinition;
+  characterPortraitMap: Map<string, string>;
+}
+
+const ChatMessageList: React.FC<ChatMessageListProps> = React.memo(
+  ({ messages, meters, story, characterPortraitMap }) => {
+    const latestStoryIdx = useMemo(
+      () => messages.reduce((lastIdx, m, i) => (m.role === 'story' ? i : lastIdx), -1),
+      [messages]
+    );
+
+    return (
+      <>
+        {messages.map((msg, idx) => {
+          const isLatestStoryMsg = msg.role === 'story' && idx === latestStoryIdx;
+
+          if (msg.role === 'user') {
+            return (
+              <div key={msg.id} className="flex justify-end">
+                <div className="max-w-[84%] sm:max-w-[75%] rounded-2xl rounded-br-sm bg-gradient-to-br from-[#A61C31] to-[#841425] px-4 py-3 text-[15px] leading-relaxed text-white shadow-md">
+                  <p className="whitespace-pre-wrap break-words">{msg.userText}</p>
+                  <div className="flex justify-end mt-1">
+                    <CheckCheck className="w-3.5 h-3.5 text-white/75" />
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          const metersToDisplay = isLatestStoryMsg ? meters : msg.metersSnapshot || [];
+
+          return (
+            <div key={msg.id} className="flex justify-start">
+              <div className="w-full max-w-[92%] sm:max-w-[85%] rounded-2xl rounded-bl-sm bg-[#1C1D22] border border-white/[0.06] px-4 py-3.5 space-y-3 shadow-lg">
+                {isLatestStoryMsg && metersToDisplay.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pb-2 border-b border-white/[0.07] text-[13px] font-semibold tabular-nums">
+                    {metersToDisplay.map((m) => (
+                      <div key={m.id} className="flex items-center gap-1.5 text-zinc-100">
+                        <span>{m.emoji}</span>
+                        <span className="text-zinc-300">{m.label}:</span>
+                        <span className="text-white">
+                          {m.value}/
+                          {story.relationshipMeters.find((d) => d.id === m.id)?.max ?? 100}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="space-y-3">
+                  {(msg.beats || []).map((beat, bIdx) => {
+                    if (beat.type === 'narration') {
+                      return (
+                        <p
+                          key={bIdx}
+                          className="text-[14.5px] italic text-[#A1A3AD] leading-relaxed"
+                        >
+                          *{beat.text}*
+                        </p>
+                      );
+                    }
+                    const speaker =
+                      beat.speakerName || story.characters[0]?.name || 'Character';
+                    const portrait =
+                      characterPortraitMap.get(speaker.toLowerCase()) ||
+                      characterPortraitMap.get(speaker.split(' ')[0]?.toLowerCase() || '');
+
+                    return (
+                      <div key={bIdx} className="flex items-start gap-2.5">
+                        {portrait && (
+                          <StoryImage
+                            src={portrait}
+                            alt={speaker}
+                            className="w-6 h-6 rounded-full object-cover object-top mt-0.5 shrink-0 ring-1 ring-white/15"
+                          />
+                        )}
+                        <p className="text-[15px] text-white leading-relaxed">
+                          <span className="font-semibold text-zinc-100">{speaker}: </span>
+                          <span className="text-zinc-100">"{beat.text}"</span>
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </>
+    );
+  }
+);
+
 export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
   story,
   user,
@@ -130,7 +226,9 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
   const scrollToBottom = (smooth = true) => {
-    messagesEndRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto' });
+    requestAnimationFrame(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto' });
+    });
   };
 
   useEffect(() => {
@@ -146,6 +244,9 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
           setMessages(loaded);
           if (existingMeters && existingMeters.length > 0) {
             setMeters(existingMeters);
+          }
+          if (loaded.length <= 1) {
+            setActiveChoices(story.initialChoices[preferredLanguage] || story.initialChoices.hinglish);
           }
         } else {
           const initialized = await initializeStorySessionInCloud(
@@ -167,7 +268,7 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
       } finally {
         if (active) {
           setLoadingInit(false);
-          setTimeout(() => scrollToBottom(false), 60);
+          setTimeout(() => scrollToBottom(false), 40);
         }
       }
     }
@@ -177,6 +278,13 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
       recognitionRef.current?.stop();
     };
   }, [story.id, user.uid]);
+
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 112)}px`;
+  }, [input]);
 
   const handleScroll = () => {
     const el = scrollContainerRef.current;
@@ -554,50 +662,57 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
             </button>
 
             {menuOpen && (
-              <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-[#191920] border border-white/10 shadow-2xl p-1.5 z-40 space-y-1">
-                <div className="px-3 py-1.5 text-[11px] font-semibold text-zinc-400 flex items-center gap-1.5">
-                  <Globe className="w-3.5 h-3.5" /> Language
-                </div>
-                {(['hinglish', 'hindi', 'english'] as LanguageCode[]).map((lang) => (
+              <>
+                <div
+                  className="fixed inset-0 z-30"
+                  onClick={() => setMenuOpen(false)}
+                  aria-hidden="true"
+                />
+                <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-[#191920] border border-white/10 shadow-2xl p-1.5 z-40 space-y-1">
+                  <div className="px-3 py-1.5 text-[11px] font-semibold text-zinc-400 flex items-center gap-1.5">
+                    <Globe className="w-3.5 h-3.5" /> Language
+                  </div>
+                  {(['hinglish', 'hindi', 'english'] as LanguageCode[]).map((lang) => (
+                    <button
+                      key={lang}
+                      type="button"
+                      onClick={() => {
+                        onChangeLanguage(lang);
+                        setMenuOpen(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 rounded-xl text-xs font-medium flex items-center justify-between transition ${
+                        preferredLanguage === lang
+                          ? 'bg-[#E5233D]/20 text-white'
+                          : 'text-zinc-300 hover:bg-white/5'
+                      }`}
+                    >
+                      <span>{LANGUAGE_LABELS[lang]}</span>
+                      {preferredLanguage === lang && <span className="text-[#E5233D]">Active</span>}
+                    </button>
+                  ))}
+                  <div className="border-t border-white/10 my-1" />
                   <button
-                    key={lang}
                     type="button"
                     onClick={() => {
-                      onChangeLanguage(lang);
                       setMenuOpen(false);
+                      onOpenStoryInfo(story);
                     }}
-                    className={`w-full text-left px-3 py-2 rounded-xl text-xs font-medium flex items-center justify-between transition ${
-                      preferredLanguage === lang
-                        ? 'bg-[#E5233D]/20 text-white'
-                        : 'text-zinc-300 hover:bg-white/5'
-                    }`}
+                    className="w-full text-left px-3 py-2 rounded-xl text-xs text-zinc-200 hover:bg-white/5 flex items-center gap-2"
                   >
-                    <span>{LANGUAGE_LABELS[lang]}</span>
-                    {preferredLanguage === lang && <span className="text-[#E5233D]">Active</span>}
+                    <Info className="w-3.5 h-3.5" /> Story Details & Media
                   </button>
-                ))}
-                <div className="border-t border-white/10 my-1" />
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    onOpenStoryInfo(story);
-                  }}
-                  className="w-full text-left px-3 py-2 rounded-xl text-xs text-zinc-200 hover:bg-white/5 flex items-center gap-2"
-                >
-                  <Info className="w-3.5 h-3.5" /> Story Details & Media
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    setRestartConfirmOpen(true);
-                  }}
-                  className="w-full text-left px-3 py-2 rounded-xl text-xs text-red-400 hover:bg-red-500/10 flex items-center gap-2"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" /> Restart Story
-                </button>
-              </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setRestartConfirmOpen(true);
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl text-xs text-red-400 hover:bg-red-500/10 flex items-center gap-2"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" /> Restart Story
+                  </button>
+                </div>
+              </>
             )}
           </div>
         </div>
@@ -607,7 +722,7 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
       <div
         ref={scrollContainerRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto px-3.5 sm:px-4 pt-2 pb-4"
+        className="flex-1 overflow-y-auto touch-scroll px-3.5 sm:px-4 pt-2 pb-4"
       >
         <div className="max-w-3xl mx-auto space-y-4">
           {/* Scene Context Strip */}
@@ -623,86 +738,12 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
               <div className="h-12 w-2/3 ml-auto rounded-2xl bg-[#18181D] animate-pulse" />
             </div>
           ) : (
-            messages.map((msg, idx) => {
-              const isLatestStoryMsg =
-                msg.role === 'story' &&
-                idx ===
-                  messages.reduce((lastIdx, m, i) => (m.role === 'story' ? i : lastIdx), -1);
-
-              if (msg.role === 'user') {
-                return (
-                  <div key={msg.id} className="flex justify-end">
-                    <div className="max-w-[84%] sm:max-w-[75%] rounded-2xl rounded-br-sm bg-gradient-to-br from-[#A61C31] to-[#841425] px-4 py-3 text-[15px] leading-relaxed text-white shadow-md">
-                      <p className="whitespace-pre-wrap break-words">{msg.userText}</p>
-                      <div className="flex justify-end mt-1">
-                        <CheckCheck className="w-3.5 h-3.5 text-white/75" />
-                      </div>
-                    </div>
-                  </div>
-                );
-              }
-
-              const metersToDisplay = isLatestStoryMsg
-                ? meters
-                : msg.metersSnapshot || [];
-
-              return (
-                <div key={msg.id} className="flex justify-start">
-                  <div className="w-full max-w-[92%] sm:max-w-[85%] rounded-2xl rounded-bl-sm bg-[#1C1D22] border border-white/[0.06] px-4 py-3.5 space-y-3 shadow-lg">
-                    {/* Story-specific Relationship Meters */}
-                    {isLatestStoryMsg && metersToDisplay.length > 0 && (
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pb-2 border-b border-white/[0.07] text-[13px] font-semibold tabular-nums">
-                        {metersToDisplay.map((m) => (
-                          <div key={m.id} className="flex items-center gap-1.5 text-zinc-100">
-                            <span>{m.emoji}</span>
-                            <span className="text-zinc-300">{m.label}:</span>
-                            <span className="text-white">
-                              {m.value}/{story.relationshipMeters.find((d) => d.id === m.id)?.max ?? 100}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Ordered Narration + Multi-Character Dialogue Beats */}
-                    <div className="space-y-3">
-                      {(msg.beats || []).map((beat, bIdx) => {
-                        if (beat.type === 'narration') {
-                          return (
-                            <p
-                              key={bIdx}
-                              className="text-[14.5px] italic text-[#A1A3AD] leading-relaxed"
-                            >
-                              *{beat.text}*
-                            </p>
-                          );
-                        }
-                        const speaker = beat.speakerName || story.characters[0]?.name || 'Character';
-                        const portrait =
-                          characterPortraitMap.get(speaker.toLowerCase()) ||
-                          characterPortraitMap.get(speaker.split(' ')[0]?.toLowerCase() || '');
-
-                        return (
-                          <div key={bIdx} className="flex items-start gap-2.5">
-                            {portrait && (
-                              <StoryImage
-                                src={portrait}
-                                alt={speaker}
-                                className="w-6 h-6 rounded-full object-cover object-top mt-0.5 shrink-0 ring-1 ring-white/15"
-                              />
-                            )}
-                            <p className="text-[15px] text-white leading-relaxed">
-                              <span className="font-semibold text-zinc-100">{speaker}: </span>
-                              <span className="text-zinc-100">"{beat.text}"</span>
-                            </p>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              );
-            })
+            <ChatMessageList
+              messages={messages}
+              meters={meters}
+              story={story}
+              characterPortraitMap={characterPortraitMap}
+            />
           )}
 
           {/* Ending Reached Banner */}

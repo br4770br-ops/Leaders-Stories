@@ -11,7 +11,7 @@ interface StoryCardProps {
   rankNumber?: number;
 }
 
-export const StoryCard: React.FC<StoryCardProps> = ({
+export const StoryCard: React.FC<StoryCardProps> = React.memo(({
   story,
   isFavorite,
   onSelect,
@@ -44,7 +44,7 @@ export const StoryCard: React.FC<StoryCardProps> = ({
             onToggleFavorite(story);
           }}
           aria-label={isFavorite ? `Remove ${story.title} from favourites` : `Save ${story.title} to favourites`}
-          className="absolute top-2 right-2 min-w-[40px] min-h-[40px] rounded-full bg-black/55 backdrop-blur-md flex items-center justify-center text-white hover:bg-black/75 transition active:scale-95"
+          className="absolute top-2 right-2 min-w-[40px] min-h-[40px] rounded-full bg-black/70 flex items-center justify-center text-white hover:bg-black/85 transition active:scale-95"
         >
           <Heart
             className={`w-4 h-4 transition ${
@@ -54,14 +54,14 @@ export const StoryCard: React.FC<StoryCardProps> = ({
         </button>
 
         {/* Chat count bottom right */}
-        <div className="absolute bottom-2.5 right-2.5 px-2 py-1 rounded-lg bg-black/65 backdrop-blur-sm text-[11px] font-medium text-zinc-100 flex items-center gap-1 pointer-events-none tabular-nums">
+        <div className="absolute bottom-2.5 right-2.5 px-2 py-1 rounded-lg bg-black/75 text-[11px] font-medium text-zinc-100 flex items-center gap-1 pointer-events-none tabular-nums">
           <MessageSquare className="w-3 h-3 text-zinc-300" />
           <span>{story.chatCountLabel}</span>
         </div>
 
         {/* Optional Top 50 Rank */}
         {typeof rankNumber === 'number' && (
-          <div className="absolute bottom-2 left-2.5 w-8 h-8 rounded-full bg-black/75 border border-[#E5233D]/60 flex items-center justify-center font-display text-sm font-extrabold text-[#E5233D] shadow-md pointer-events-none tabular-nums">
+          <div className="absolute bottom-2 left-2.5 w-8 h-8 rounded-full bg-black/80 border border-[#E5233D]/60 flex items-center justify-center font-display text-sm font-extrabold text-[#E5233D] shadow-md pointer-events-none tabular-nums">
             {rankNumber}
           </div>
         )}
@@ -89,4 +89,4 @@ export const StoryCard: React.FC<StoryCardProps> = ({
       </button>
     </article>
   );
-};
+});
