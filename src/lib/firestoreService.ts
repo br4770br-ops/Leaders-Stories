@@ -776,6 +776,254 @@ export async function saveTurnToCloud(params: {
   }
 }
 
+export async function saveStoryContinueToCloud(params: {
+  uid: string;
+  story: StoryDefinition;
+  storyBeats: StoryBeat[];
+  storySequence: number;
+  totalMessageCount: number;
+  newScene: string;
+  sceneIndex: number;
+  updatedMeters: RelationshipMeterValue[];
+  endingTriggered?: string;
+  newMemory?: { summary: string; importance: number; charactersInvolved?: string[] } | null;
+}): Promise<ChatTurnMessage> {
+  const {
+    uid,
+    story,
+    storyBeats,
+    storySequence,
+    totalMessageCount,
+    newScene,
+    sceneIndex,
+    updatedMeters,
+    endingTriggered,
+    newMemory,
+  } = params;
+  const conversationId = story.id;
+  const path = `users/${uid}/conversations/${conversationId}/messages`;
+
+  try {
+    const batch = writeBatch(db);
+    const now = Date.now();
+    const storyMsgId = `msg_${storySequence}_${now}`;
+    const lastBeat = storyBeats[storyBeats.length - 1];
+    const lastSpeaker = lastBeat?.speakerName || story.characters[0]?.name || 'Story';
+    const lastPreview = (lastBeat?.text || newScene).slice(0, 1000);
+
+    batch.update(doc(db, 'users', uid, 'conversations', conversationId), {
+      lastMessage: lastPreview,
+      lastSpeaker: lastSpeaker.slice(0, 100),
+      messageCount: totalMessageCount,
+      updatedAt: serverTimestamp(),
+    });
+
+    const storyMsgPayload = {
+      uid,
+      conversationId,
+      role: 'story' as const,
+      sceneSummary: newScene.slice(0, 500),
+      beats: storyBeats.slice(0, 12),
+      metersSnapshot: updatedMeters.map((m) => ({
+        id: m.id,
+        label: m.label,
+        emoji: m.emoji,
+        value: m.value,
+      })),
+      sequence: storySequence,
+      createdAt: serverTimestamp(),
+    };
+    batch.set(doc(db, 'users', uid, 'conversations', conversationId, 'messages', storyMsgId), storyMsgPayload);
+
+    const progUpdate: Record<string, unknown> = {
+      currentScene: newScene.slice(0, 500),
+      sceneIndex,
+      status: endingTriggered ? 'completed' : 'active',
+      updatedAt: serverTimestamp(),
+    };
+    if (endingTriggered) {
+      progUpdate.endingReached = endingTriggered.slice(0, 200);
+    }
+    batch.update(doc(db, 'users', uid, 'storyProgress', story.id), progUpdate);
+
+    batch.update(doc(db, 'users', uid, 'relationships', story.id), {
+      meters: updatedMeters,
+      updatedAt: serverTimestamp(),
+    });
+
+    if (newMemory && newMemory.summary) {
+      const memId = `mem_${story.id}_${now}`.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 128);
+      batch.set(doc(db, 'users', uid, 'memories', memId), {
+        uid,
+        storyId: story.id,
+        summary: newMemory.summary.slice(0, 600),
+        importance: Math.min(10, Math.max(1, Math.round(newMemory.importance || 6))),
+        charactersInvolved: (newMemory.charactersInvolved || []).slice(0, 10),
+        createdAt: serverTimestamp(),
+      });
+    }
+
+    await batch.commit();
+    return { ...storyMsgPayload, id: storyMsgId, localTimestamp: now };
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, path);
+  }
+}
+
+export async function replaceLatestStoryMessageInCloud(params: {
+  uid: string;
+  story: StoryDefinition;
+  oldMessageId: string;
+  storySequence: number;
+  totalMessageCount: number;
+  storyBeats: StoryBeat[];
+  newScene: string;
+  sceneIndex: number;
+  updatedMeters: RelationshipMeterValue[];
+  endingTriggered?: string;
+}): Promise<ChatTurnMessage> {
+  const {
+    uid,
+    story,
+    oldMessageId,
+    storySequence,
+    totalMessageCount,
+    storyBeats,
+    newScene,
+    sceneIndex,
+    updatedMeters,
+    endingTriggered,
+  } = params;
+  const conversationId = story.id;
+  const path = `users/${uid}/conversations/${conversationId}/messages`;
+
+  try {
+    const batch = writeBatch(db);
+    const now = Date.now();
+    const newMsgId = `msg_${storySequence}_${now}`;
+    const lastBeat = storyBeats[storyBeats.length - 1];
+    const lastSpeaker = lastBeat?.speakerName || story.characters[0]?.name || 'Story';
+    const lastPreview = (lastBeat?.text || newScene).slice(0, 1000);
+
+    if (oldMessageId && !oldMessageId.startsWith('temp_')) {
+      batch.delete(doc(db, 'users', uid, 'conversations', conversationId, 'messages', oldMessageId));
+    }
+
+    const storyMsgPayload = {
+      uid,
+      conversationId,
+      role: 'story' as const,
+      sceneSummary: newScene.slice(0, 500),
+      beats: storyBeats.slice(0, 12),
+      metersSnapshot: updatedMeters.map((m) => ({
+        id: m.id,
+        label: m.label,
+        emoji: m.emoji,
+        value: m.value,
+      })),
+      sequence: storySequence,
+      createdAt: serverTimestamp(),
+    };
+    batch.set(doc(db, 'users', uid, 'conversations', conversationId, 'messages', newMsgId), storyMsgPayload);
+
+    batch.update(doc(db, 'users', uid, 'conversations', conversationId), {
+      lastMessage: lastPreview,
+      lastSpeaker: lastSpeaker.slice(0, 100),
+      messageCount: totalMessageCount,
+      updatedAt: serverTimestamp(),
+    });
+
+    const progUpdate: Record<string, unknown> = {
+      currentScene: newScene.slice(0, 500),
+      sceneIndex,
+      status: endingTriggered ? 'completed' : 'active',
+      updatedAt: serverTimestamp(),
+    };
+    if (endingTriggered) {
+      progUpdate.endingReached = endingTriggered.slice(0, 200);
+    }
+    batch.update(doc(db, 'users', uid, 'storyProgress', story.id), progUpdate);
+
+    batch.update(doc(db, 'users', uid, 'relationships', story.id), {
+      meters: updatedMeters,
+      updatedAt: serverTimestamp(),
+    });
+
+    await batch.commit();
+    return { ...storyMsgPayload, id: newMsgId, localTimestamp: now };
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, path);
+  }
+}
+
+export async function rewindLastTurnInCloud(params: {
+  uid: string;
+  story: StoryDefinition;
+  deleteMessageIds: string[];
+  remainingLastMessage?: ChatTurnMessage;
+  remainingCount: number;
+  restoredScene: string;
+  restoredSceneIndex: number;
+  restoredMeters: RelationshipMeterValue[];
+}): Promise<void> {
+  const {
+    uid,
+    story,
+    deleteMessageIds,
+    remainingLastMessage,
+    remainingCount,
+    restoredScene,
+    restoredSceneIndex,
+    restoredMeters,
+  } = params;
+  const conversationId = story.id;
+  const path = `users/${uid}/conversations/${conversationId}/messages`;
+
+  try {
+    const batch = writeBatch(db);
+    deleteMessageIds.forEach((id) => {
+      if (id && !id.startsWith('temp_')) {
+        batch.delete(doc(db, 'users', uid, 'conversations', conversationId, 'messages', id));
+      }
+    });
+
+    const lastBeat = remainingLastMessage?.beats?.[remainingLastMessage.beats.length - 1];
+    const lastSpeaker =
+      remainingLastMessage?.role === 'user'
+        ? 'You'
+        : lastBeat?.speakerName || story.characters[0]?.name || 'Story';
+    const lastPreview = (
+      remainingLastMessage?.userText ||
+      lastBeat?.text ||
+      restoredScene
+    ).slice(0, 1000);
+
+    batch.update(doc(db, 'users', uid, 'conversations', conversationId), {
+      lastMessage: lastPreview,
+      lastSpeaker: lastSpeaker.slice(0, 100),
+      messageCount: remainingCount,
+      updatedAt: serverTimestamp(),
+    });
+
+    batch.update(doc(db, 'users', uid, 'storyProgress', story.id), {
+      currentScene: restoredScene.slice(0, 500),
+      sceneIndex: Math.max(0, restoredSceneIndex),
+      status: 'active',
+      endingReached: '',
+      updatedAt: serverTimestamp(),
+    });
+
+    batch.update(doc(db, 'users', uid, 'relationships', story.id), {
+      meters: restoredMeters,
+      updatedAt: serverTimestamp(),
+    });
+
+    await batch.commit();
+  } catch (err) {
+    handleFirestoreError(err, OperationType.DELETE, path);
+  }
+}
+
 export async function restartStoryInCloud(
   uid: string,
   story: StoryDefinition,

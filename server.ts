@@ -358,6 +358,7 @@ interface StoryTurnBody {
     max: number;
   }[];
   userMessage?: string;
+  mode?: 'reply' | 'continue' | 'regenerate';
 }
 
 async function startServer() {
@@ -409,12 +410,14 @@ async function startServer() {
     try {
       const body = req.body as StoryTurnBody;
       const story = body?.story;
+      const mode: 'reply' | 'continue' | 'regenerate' =
+        body?.mode === 'continue' || body?.mode === 'regenerate' ? body.mode : 'reply';
       const userMessage = sanitizeText(body?.userMessage, 2000);
       const language = ALLOWED_LANGUAGES.has(body?.language || '') ? (body.language as string) : 'hinglish';
       const currentScene = sanitizeText(body?.currentScene, 400);
       const sceneIndex = Number.isFinite(body?.sceneIndex) ? Number(body.sceneIndex) : 0;
 
-      if (!story || !story.title || !userMessage) {
+      if (!story || !story.title || (mode === 'reply' && !userMessage)) {
         res.status(400).json({ error: 'Story context and user message are required.' });
         return;
       }
@@ -463,12 +466,19 @@ async function startServer() {
         getLanguageInstruction(language),
       ].join('\n\n');
 
+      const actionPrompt =
+        mode === 'continue'
+          ? `USER CHOSE TO AUTO-ADVANCE (Fast-Forward): The user stayed silent and wants the scene to keep moving forward naturally. Continue from the last beat with fresh character dialogue, tension, or plot movement—without inventing words or actions for the user.`
+          : mode === 'regenerate'
+            ? `${userMessage ? `USER'S LATEST ACTION / MESSAGE:\n"${userMessage}"\n\n` : ''}REGENERATE ALTERNATE RESPONSE: Write a fresh, distinctly different alternate reaction, dialogue angle, or dramatic twist for this moment compared to the previous version.`
+            : `USER'S LATEST ACTION / MESSAGE:\n"${userMessage}"`;
+
       const prompt = [
         `CURRENT SCENE (Turn ${sceneIndex + 1}): ${currentScene}`,
         `CURRENT RELATIONSHIP METERS:\n${meterBlock || 'None'}`,
         `RELEVANT STORY MEMORIES:\n${memoryBlock}`,
         `RECENT SCENE HISTORY:\n${historyBlock || '(Opening scene just occurred)'}`,
-        `USER'S LATEST ACTION / MESSAGE:\n"${userMessage}"`,
+        actionPrompt,
         `Generate the next multi-character story response now.`,
       ].join('\n\n');
 

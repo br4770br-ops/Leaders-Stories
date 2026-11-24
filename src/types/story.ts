@@ -80,6 +80,7 @@ export interface StoryDefinition {
   characters: StoryCharacter[];
   relationshipMeters: RelationshipMeterDef[];
   openingScene: string;
+  playGuide?: Record<LanguageCode, string>;
   openingBeats: Record<LanguageCode, StoryBeat[]>;
   initialChoices: Record<LanguageCode, string[]>;
   possibleEndings: string[];

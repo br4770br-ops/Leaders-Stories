@@ -3,24 +3,33 @@ import type { User } from 'firebase/auth';
 import {
   ArrowDown,
   ArrowLeft,
+  BookOpen,
   Brain,
   CheckCheck,
+  Copy,
+  FastForward,
   Globe,
   Info,
   Lightbulb,
   Mic,
   MicOff,
+  MoreHorizontal,
   MoreVertical,
+  RefreshCw,
   RotateCcw,
   Send,
   Sparkles,
+  Undo2,
   Users,
   X,
 } from 'lucide-react';
 import {
   initializeStorySessionInCloud,
   loadConversationMessages,
+  replaceLatestStoryMessageInCloud,
   restartStoryInCloud,
+  rewindLastTurnInCloud,
+  saveStoryContinueToCloud,
   saveTurnToCloud,
 } from '../lib/firestoreService';
 import type {
@@ -32,6 +41,7 @@ import type {
   StoryMemoryRecord,
   StoryProgressRecord,
 } from '../types/story';
+import { FullscreenGalleryModal } from './FullscreenGalleryModal';
 import { StoryImage } from './StoryImage';
 
 interface SpeechRecognitionAlternativeLike {
@@ -82,10 +92,39 @@ interface ChatMessageListProps {
   meters: RelationshipMeterValue[];
   story: StoryDefinition;
   characterPortraitMap: Map<string, string>;
+  sending: boolean;
+  endingReached: string;
+  msgMenuOpen: boolean;
+  playGuideVisible: boolean;
+  copiedToast: boolean;
+  onToggleMsgMenu: () => void;
+  onCloseMsgMenu: () => void;
+  onContinueScene: () => void;
+  onRegenerateLatest: () => void;
+  onUndoLastTurn: () => void;
+  onCopyLatest: (msg: ChatTurnMessage) => void;
+  onTogglePlayGuide: () => void;
 }
 
 const ChatMessageList: React.FC<ChatMessageListProps> = React.memo(
-  ({ messages, meters, story, characterPortraitMap }) => {
+  ({
+    messages,
+    meters,
+    story,
+    characterPortraitMap,
+    sending,
+    endingReached,
+    msgMenuOpen,
+    playGuideVisible,
+    copiedToast,
+    onToggleMsgMenu,
+    onCloseMsgMenu,
+    onContinueScene,
+    onRegenerateLatest,
+    onUndoLastTurn,
+    onCopyLatest,
+    onTogglePlayGuide,
+  }) => {
     const latestStoryIdx = useMemo(
       () => messages.reduce((lastIdx, m, i) => (m.role === 'story' ? i : lastIdx), -1),
       [messages]
@@ -112,7 +151,7 @@ const ChatMessageList: React.FC<ChatMessageListProps> = React.memo(
           const metersToDisplay = isLatestStoryMsg ? meters : msg.metersSnapshot || [];
 
           return (
-            <div key={msg.id} className="flex justify-start">
+            <div key={msg.id} className="flex flex-col items-start">
               <div className="w-full max-w-[92%] sm:max-w-[85%] rounded-2xl rounded-bl-sm bg-[#1C1D22] border border-white/[0.06] px-4 py-3.5 space-y-3 shadow-lg">
                 {isLatestStoryMsg && metersToDisplay.length > 0 && (
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pb-2 border-b border-white/[0.07] text-[13px] font-semibold tabular-nums">
@@ -165,6 +204,87 @@ const ChatMessageList: React.FC<ChatMessageListProps> = React.memo(
                   })}
                 </div>
               </div>
+
+              {/* Kavana-style Fast-Forward (>>) and More (...) actions below latest story message */}
+              {isLatestStoryMsg && !sending && !endingReached && (
+                <div className="relative flex items-center gap-2.5 mt-2.5 pl-0.5">
+                  <button
+                    type="button"
+                    onClick={onContinueScene}
+                    aria-label="Continue scene"
+                    title="Auto-advance scene (>>)"
+                    className="w-10 h-10 rounded-full bg-[#24252C] hover:bg-[#31323B] border border-white/[0.08] flex items-center justify-center text-white shadow-md transition active:scale-95"
+                  >
+                    <FastForward className="w-4 h-4 fill-white text-white" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={onToggleMsgMenu}
+                    aria-label="More message options"
+                    title="Message options"
+                    className="w-10 h-10 rounded-full bg-[#24252C] hover:bg-[#31323B] border border-white/[0.08] flex items-center justify-center text-white shadow-md transition active:scale-95"
+                  >
+                    <MoreHorizontal className="w-4 h-4 text-white" />
+                  </button>
+
+                  {copiedToast && (
+                    <span className="text-xs font-medium text-emerald-400 pl-1">
+                      Copied!
+                    </span>
+                  )}
+
+                  {msgMenuOpen && (
+                    <>
+                      <div
+                        className="fixed inset-0 z-30"
+                        onClick={onCloseMsgMenu}
+                        aria-hidden="true"
+                      />
+                      <div className="absolute left-0 bottom-12 w-56 rounded-2xl bg-[#191922] border border-white/10 shadow-2xl p-1.5 z-40 space-y-0.5">
+                        <button
+                          type="button"
+                          onClick={onRegenerateLatest}
+                          className="w-full text-left px-3 py-2.5 rounded-xl text-xs font-medium text-zinc-100 hover:bg-white/5 flex items-center gap-2.5 transition"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5 text-[#E5233D]" />
+                          <span>Regenerate response</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={onUndoLastTurn}
+                          disabled={messages.length <= 1}
+                          className="w-full text-left px-3 py-2.5 rounded-xl text-xs font-medium text-zinc-100 hover:bg-white/5 disabled:opacity-40 disabled:pointer-events-none flex items-center gap-2.5 transition"
+                        >
+                          <Undo2 className="w-3.5 h-3.5 text-amber-400" />
+                          <span>Undo last turn</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => onCopyLatest(msg)}
+                          className="w-full text-left px-3 py-2.5 rounded-xl text-xs font-medium text-zinc-100 hover:bg-white/5 flex items-center gap-2.5 transition"
+                        >
+                          <Copy className="w-3.5 h-3.5 text-zinc-300" />
+                          <span>Copy scene text</span>
+                        </button>
+
+                        <div className="border-t border-white/10 my-1" />
+
+                        <button
+                          type="button"
+                          onClick={onTogglePlayGuide}
+                          className="w-full text-left px-3 py-2.5 rounded-xl text-xs font-medium text-zinc-200 hover:bg-white/5 flex items-center gap-2.5 transition"
+                        >
+                          <BookOpen className="w-3.5 h-3.5 text-[#EA8C44]" />
+                          <span>{playGuideVisible ? 'Hide Play Guide' : 'Show Play Guide'}</span>
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           );
         })}
@@ -219,15 +339,96 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
   const [micStatusMessage, setMicStatusMessage] = useState<string | null>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
 
-  // Drawers & menus
+  // Drawers, menus & Play Guide
   const [menuOpen, setMenuOpen] = useState(false);
+  const [msgMenuOpen, setMsgMenuOpen] = useState(false);
+  const [playGuideVisible, setPlayGuideVisible] = useState(true);
+  const [playGuideChoicesOpen, setPlayGuideChoicesOpen] = useState(false);
+  const [copiedToast, setCopiedToast] = useState(false);
   const [contextDrawerOpen, setContextDrawerOpen] = useState(false);
   const [restartConfirmOpen, setRestartConfirmOpen] = useState(false);
   const [showScrollBottom, setShowScrollBottom] = useState(false);
 
+  // Showcase Carousel & Fullscreen Gallery
+  const showcaseSlides = useMemo(() => {
+    const items = [...(story.mediaGallery || [])];
+    const seenUrls = new Set(items.map((item) => item.url));
+    story.characters.forEach((char) => {
+      if (char.portrait && !seenUrls.has(char.portrait)) {
+        seenUrls.add(char.portrait);
+        items.push({
+          id: `char_${char.id}`,
+          url: char.portrait,
+          caption: `${char.name} — ${char.relationshipToUser}`,
+        });
+      }
+    });
+    if (items.length === 0) {
+      items.push({ id: 'cover', url: story.coverImage, caption: story.tagline });
+    }
+    return items;
+  }, [story]);
+
+  const initialSlideIndex = showcaseSlides.length >= 3 ? 1 : 0;
+  const [activeSlide, setActiveSlide] = useState<number>(initialSlideIndex);
+  const [galleryIndex, setGalleryIndex] = useState<number | null>(null);
+
+  const carouselRef = useRef<HTMLDivElement | null>(null);
+  const slideRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const carouselRafRef = useRef<number | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
+
+  const scrollToSlide = (idx: number, smooth = true) => {
+    const track = carouselRef.current;
+    const card = slideRefs.current[idx];
+    if (!track || !card) return;
+    const targetLeft = card.offsetLeft - (track.clientWidth - card.offsetWidth) / 2;
+    track.scrollTo({
+      left: Math.max(0, targetLeft),
+      behavior: smooth ? 'smooth' : 'auto',
+    });
+    setActiveSlide(idx);
+  };
+
+  const handleCarouselScroll = () => {
+    if (carouselRafRef.current !== null) return;
+    carouselRafRef.current = requestAnimationFrame(() => {
+      carouselRafRef.current = null;
+      const track = carouselRef.current;
+      if (!track) return;
+      const center = track.scrollLeft + track.clientWidth / 2;
+      let closestIdx = 0;
+      let minDist = Number.POSITIVE_INFINITY;
+      slideRefs.current.forEach((el, idx) => {
+        if (!el) return;
+        const cardCenter = el.offsetLeft + el.offsetWidth / 2;
+        const dist = Math.abs(center - cardCenter);
+        if (dist < minDist) {
+          minDist = dist;
+          closestIdx = idx;
+        }
+      });
+      setActiveSlide((prev) => (prev === closestIdx ? prev : closestIdx));
+    });
+  };
+
+  useEffect(() => {
+    setActiveSlide(initialSlideIndex);
+    setMsgMenuOpen(false);
+    setPlayGuideVisible(true);
+    setPlayGuideChoicesOpen(false);
+    const timer = setTimeout(() => {
+      scrollToSlide(initialSlideIndex, false);
+    }, 20);
+    return () => {
+      clearTimeout(timer);
+      if (carouselRafRef.current !== null) {
+        cancelAnimationFrame(carouselRafRef.current);
+      }
+    };
+  }, [story.id, initialSlideIndex]);
 
   const scrollToBottom = (smooth = true) => {
     requestAnimationFrame(() => {
@@ -237,6 +438,7 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
 
   useEffect(() => {
     let active = true;
+    let messageCountAfterBoot = 0;
     async function bootSession() {
       setLoadingInit(true);
       setErrorBanner(null);
@@ -245,6 +447,7 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
         if (!active) return;
 
         if (loaded.length > 0) {
+          messageCountAfterBoot = loaded.length;
           setMessages(loaded);
           if (existingMeters && existingMeters.length > 0) {
             setMeters(existingMeters);
@@ -259,6 +462,7 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
             preferredLanguage
           );
           if (!active) return;
+          messageCountAfterBoot = 1;
           setMessages([initialized.initialMessage]);
           setMeters(initialized.meters);
           setCurrentScene(initialized.progress.currentScene);
@@ -272,7 +476,13 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
       } finally {
         if (active) {
           setLoadingInit(false);
-          setTimeout(() => scrollToBottom(false), 40);
+          setTimeout(() => {
+            if (messageCountAfterBoot > 1) {
+              scrollToBottom(false);
+            } else {
+              scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'auto' });
+            }
+          }, 40);
         }
       }
     }
@@ -470,6 +680,357 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
     }
   };
 
+  // Fast-Forward (>>) auto-advance scene without user input
+  const handleContinueScene = async () => {
+    if (sending || loadingInit || endingReached) return;
+    setMsgMenuOpen(false);
+    setSuggestionsOpen(false);
+    setErrorBanner(null);
+    setSending(true);
+    setTimeout(() => scrollToBottom(true), 40);
+
+    try {
+      const idToken = await user.getIdToken();
+      const response = await fetch('/api/story/turn', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({
+          story: {
+            id: story.id,
+            title: story.title,
+            tagline: story.tagline,
+            about: story.about,
+            setting: story.setting,
+            tags: story.tags,
+            characters: story.characters,
+            possibleEndings: story.possibleEndings,
+          },
+          mode: 'continue',
+          language: preferredLanguage,
+          currentScene,
+          sceneIndex,
+          recentMessages: messages.slice(-10).map((m) => ({
+            role: m.role,
+            userText: m.userText,
+            beats: m.beats,
+          })),
+          memories: memories.slice(-6).map((m) => ({ summary: m.summary, importance: m.importance })),
+          relationshipMeters: meters,
+        }),
+      });
+
+      const data = (await response.json()) as {
+        error?: string;
+        beats?: StoryBeat[];
+        meterChanges?: { id: string; delta: number; reason?: string }[];
+        newScene?: string;
+        newMemory?: {
+          shouldSave?: boolean;
+          summary?: string;
+          importance?: number;
+          charactersInvolved?: string[];
+        };
+        storyChoices?: string[];
+        endingTriggered?: string;
+      };
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to advance the story scene.');
+      }
+
+      const deltaMap = new Map<string, number>();
+      (data.meterChanges || []).forEach((mc) => {
+        const clamped = Math.max(-15, Math.min(15, Math.round(mc.delta || 0)));
+        deltaMap.set(mc.id, clamped);
+      });
+
+      const updatedMeters = meters.map((m) => {
+        const delta = deltaMap.get(m.id) || 0;
+        const nextVal = Math.max(m.min, Math.min(m.max, m.value + delta));
+        return { ...m, value: nextVal };
+      });
+
+      const storyBeats: StoryBeat[] =
+        Array.isArray(data.beats) && data.beats.length > 0
+          ? data.beats
+          : [{ type: 'narration', text: '...' }];
+
+      const nextSceneStr = (data.newScene || currentScene).slice(0, 500);
+      const nextSceneIdx = sceneIndex + 1;
+      const nextSeq = messages.length > 0 ? messages[messages.length - 1].sequence + 1 : 1;
+
+      const memoryToSave =
+        data.newMemory?.shouldSave && data.newMemory.summary
+          ? {
+              summary: data.newMemory.summary,
+              importance: data.newMemory.importance || 6,
+              charactersInvolved: data.newMemory.charactersInvolved || [],
+            }
+          : null;
+
+      const savedStoryMsg = await saveStoryContinueToCloud({
+        uid: user.uid,
+        story,
+        storyBeats,
+        storySequence: nextSeq,
+        totalMessageCount: messages.length + 1,
+        newScene: nextSceneStr,
+        sceneIndex: nextSceneIdx,
+        updatedMeters,
+        endingTriggered: data.endingTriggered?.trim() || undefined,
+        newMemory: memoryToSave,
+      });
+
+      setMessages((prev) => [...prev, savedStoryMsg]);
+      setMeters(updatedMeters);
+      setCurrentScene(nextSceneStr);
+      setSceneIndex(nextSceneIdx);
+      setActiveChoices(Array.isArray(data.storyChoices) ? data.storyChoices.slice(0, 3) : []);
+
+      if (data.endingTriggered?.trim()) {
+        setEndingReached(data.endingTriggered.trim());
+      }
+      if (memoryToSave) {
+        setMemories((prev) => [
+          ...prev,
+          {
+            id: `local_${Date.now()}`,
+            uid: user.uid,
+            storyId: story.id,
+            summary: memoryToSave.summary,
+            importance: memoryToSave.importance,
+            charactersInvolved: memoryToSave.charactersInvolved,
+          },
+        ]);
+      }
+
+      void onDataUpdated();
+      setTimeout(() => scrollToBottom(true), 60);
+    } catch (err) {
+      setErrorBanner(
+        err instanceof Error ? err.message : 'Unable to advance story right now.'
+      );
+    } finally {
+      setSending(false);
+    }
+  };
+
+  // Regenerate the latest AI story response (...)
+  const handleRegenerateLatest = async () => {
+    if (sending || loadingInit || messages.length === 0) return;
+    setMsgMenuOpen(false);
+    setErrorBanner(null);
+
+    const lastStoryIdx = messages.reduce((acc, m, i) => (m.role === 'story' ? i : acc), -1);
+    if (lastStoryIdx < 0) return;
+
+    const targetStoryMsg = messages[lastStoryIdx];
+    const priorMessages = messages.slice(0, lastStoryIdx);
+    const prevUserMsg =
+      priorMessages.length > 0 && priorMessages[priorMessages.length - 1].role === 'user'
+        ? priorMessages[priorMessages.length - 1].userText
+        : '';
+
+    // Restore base meters before the regenerated turn if possible
+    let baseMeters = meters;
+    if (priorMessages.length > 0) {
+      const prevStory = [...priorMessages].reverse().find((m) => m.role === 'story');
+      if (prevStory?.metersSnapshot && prevStory.metersSnapshot.length > 0) {
+        baseMeters = meters.map((m) => {
+          const snap = prevStory.metersSnapshot?.find((s) => s.id === m.id);
+          return snap ? { ...m, value: snap.value } : m;
+        });
+      }
+    } else {
+      baseMeters = story.relationshipMeters.map((m) => ({ ...m, value: m.initialValue }));
+    }
+
+    setSending(true);
+    setTimeout(() => scrollToBottom(true), 40);
+
+    try {
+      const idToken = await user.getIdToken();
+      const response = await fetch('/api/story/turn', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({
+          story: {
+            id: story.id,
+            title: story.title,
+            tagline: story.tagline,
+            about: story.about,
+            setting: story.setting,
+            tags: story.tags,
+            characters: story.characters,
+            possibleEndings: story.possibleEndings,
+          },
+          mode: 'regenerate',
+          language: preferredLanguage,
+          currentScene,
+          sceneIndex: Math.max(0, sceneIndex - 1),
+          recentMessages: priorMessages.slice(-10).map((m) => ({
+            role: m.role,
+            userText: m.userText,
+            beats: m.beats,
+          })),
+          memories: memories.slice(-6).map((m) => ({ summary: m.summary, importance: m.importance })),
+          relationshipMeters: baseMeters,
+          userMessage: prevUserMsg || undefined,
+        }),
+      });
+
+      const data = (await response.json()) as {
+        error?: string;
+        beats?: StoryBeat[];
+        meterChanges?: { id: string; delta: number }[];
+        newScene?: string;
+        storyChoices?: string[];
+        endingTriggered?: string;
+      };
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to regenerate response.');
+      }
+
+      const deltaMap = new Map<string, number>();
+      (data.meterChanges || []).forEach((mc) => {
+        const clamped = Math.max(-15, Math.min(15, Math.round(mc.delta || 0)));
+        deltaMap.set(mc.id, clamped);
+      });
+
+      const updatedMeters = baseMeters.map((m) => {
+        const delta = deltaMap.get(m.id) || 0;
+        const nextVal = Math.max(m.min, Math.min(m.max, m.value + delta));
+        return { ...m, value: nextVal };
+      });
+
+      const storyBeats: StoryBeat[] =
+        Array.isArray(data.beats) && data.beats.length > 0
+          ? data.beats
+          : [{ type: 'narration', text: '...' }];
+
+      const nextSceneStr = (data.newScene || currentScene).slice(0, 500);
+      const replacedMsg = await replaceLatestStoryMessageInCloud({
+        uid: user.uid,
+        story,
+        oldMessageId: targetStoryMsg.id,
+        storySequence: targetStoryMsg.sequence,
+        totalMessageCount: messages.length,
+        storyBeats,
+        newScene: nextSceneStr,
+        sceneIndex,
+        updatedMeters,
+        endingTriggered: data.endingTriggered?.trim() || undefined,
+      });
+
+      setMessages((prev) => prev.map((m, i) => (i === lastStoryIdx ? replacedMsg : m)));
+      setMeters(updatedMeters);
+      setCurrentScene(nextSceneStr);
+      if (Array.isArray(data.storyChoices)) {
+        setActiveChoices(data.storyChoices.slice(0, 3));
+      }
+      if (data.endingTriggered?.trim()) {
+        setEndingReached(data.endingTriggered.trim());
+      }
+      void onDataUpdated();
+      setTimeout(() => scrollToBottom(true), 60);
+    } catch (err) {
+      setErrorBanner(
+        err instanceof Error ? err.message : 'Unable to regenerate response right now.'
+      );
+    } finally {
+      setSending(false);
+    }
+  };
+
+  // Undo / rewind last turn (...)
+  const handleUndoLastTurn = async () => {
+    if (sending || loadingInit || messages.length <= 1) return;
+    setMsgMenuOpen(false);
+    setErrorBanner(null);
+
+    const lastMsg = messages[messages.length - 1];
+    const deleteIds: string[] = [lastMsg.id];
+    let sliceEnd = messages.length - 1;
+
+    // If lastMsg is an AI story message preceded directly by a user message, rewind the whole turn pair
+    if (
+      lastMsg.role === 'story' &&
+      sliceEnd > 1 &&
+      messages[sliceEnd - 1]?.role === 'user'
+    ) {
+      deleteIds.push(messages[sliceEnd - 1].id);
+      sliceEnd -= 1;
+    }
+
+    const remaining = messages.slice(0, sliceEnd);
+    if (remaining.length === 0) return;
+
+    const prevLast = remaining[remaining.length - 1];
+    const prevStory = [...remaining].reverse().find((m) => m.role === 'story');
+    const restoredScene = prevStory?.sceneSummary || story.openingScene;
+    const restoredSceneIdx = Math.max(0, sceneIndex - 1);
+    const restoredMeters =
+      prevStory?.metersSnapshot && prevStory.metersSnapshot.length > 0
+        ? meters.map((m) => {
+            const snap = prevStory.metersSnapshot?.find((s) => s.id === m.id);
+            return snap ? { ...m, value: snap.value } : m;
+          })
+        : story.relationshipMeters.map((m) => ({ ...m, value: m.initialValue }));
+
+    try {
+      await rewindLastTurnInCloud({
+        uid: user.uid,
+        story,
+        deleteMessageIds: deleteIds,
+        remainingLastMessage: prevLast,
+        remainingCount: remaining.length,
+        restoredScene,
+        restoredSceneIndex: restoredSceneIdx,
+        restoredMeters,
+      });
+
+      setMessages(remaining);
+      setCurrentScene(restoredScene);
+      setSceneIndex(restoredSceneIdx);
+      setMeters(restoredMeters);
+      setEndingReached('');
+      if (remaining.length === 1) {
+        setActiveChoices(story.initialChoices[preferredLanguage] || story.initialChoices.hinglish);
+      }
+      void onDataUpdated();
+    } catch (err) {
+      setErrorBanner(err instanceof Error ? err.message : 'Unable to undo last turn.');
+    }
+  };
+
+  // Copy latest story message text cleanly (...)
+  const handleCopyLatest = async (msg: ChatTurnMessage) => {
+    setMsgMenuOpen(false);
+    const formatted = (msg.beats || [])
+      .map((b) =>
+        b.type === 'narration'
+          ? `*${b.text}*`
+          : `${b.speakerName || story.characters[0]?.name || 'Character'}: "${b.text}"`
+      )
+      .join('\n\n');
+    try {
+      if (navigator.clipboard && formatted) {
+        await navigator.clipboard.writeText(formatted);
+        setCopiedToast(true);
+        setTimeout(() => setCopiedToast(false), 1800);
+      }
+    } catch {
+      // ignore clipboard restrictions
+    }
+  };
+
   const handleLightbulbClick = async () => {
     if (suggestionsOpen) {
       setSuggestionsOpen(false);
@@ -605,6 +1166,10 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
       setMemories([]);
       setActiveChoices(story.initialChoices[preferredLanguage] || story.initialChoices.hinglish);
       await onDataUpdated();
+      setTimeout(() => {
+        scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+        scrollToSlide(initialSlideIndex, true);
+      }, 40);
     } catch (err) {
       setErrorBanner(err instanceof Error ? err.message : 'Unable to restart story.');
     } finally {
@@ -729,15 +1294,83 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
         className="flex-1 overflow-y-auto touch-scroll px-3.5 sm:px-4 pt-2 pb-4"
       >
         <div className="max-w-3xl mx-auto space-y-4">
+          {/* Swipeable Scene & Character Showcase Carousel */}
+          <div className="-mx-3.5 sm:-mx-4 pt-1 pb-1">
+            <div
+              ref={carouselRef}
+              onScroll={handleCarouselScroll}
+              className="flex items-center gap-3 overflow-x-auto no-scrollbar snap-x snap-mandatory px-[calc(50%-122px)] sm:px-[calc(50%-136px)] py-1.5"
+            >
+              {showcaseSlides.map((slide, idx) => {
+                const isActive = idx === activeSlide;
+                return (
+                  <button
+                    key={slide.id}
+                    ref={(el) => {
+                      slideRefs.current[idx] = el;
+                    }}
+                    type="button"
+                    onClick={() => {
+                      if (isActive) {
+                        setGalleryIndex(idx);
+                      } else {
+                        scrollToSlide(idx, true);
+                      }
+                    }}
+                    aria-label={slide.caption}
+                    className={`w-[244px] sm:w-[272px] aspect-[3/4] shrink-0 snap-center rounded-[24px] overflow-hidden relative bg-[#15151A] transition-all duration-300 ease-out focus:outline-none ${
+                      isActive
+                        ? 'scale-100 opacity-100 shadow-[0_18px_45px_rgba(0,0,0,0.65)] ring-1 ring-white/15'
+                        : 'scale-[0.91] opacity-55 hover:opacity-80'
+                    }`}
+                  >
+                    <StoryImage
+                      src={slide.url}
+                      alt={slide.caption}
+                      fallbackTitle={story.title}
+                      loading={idx <= 2 ? 'eager' : 'lazy'}
+                      className="w-full h-full object-cover object-top"
+                    />
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Centered Story Hook Caption beneath active card */}
+            <div className="px-5 pt-2.5 pb-1 text-center space-y-2.5">
+              <p className="text-[16px] sm:text-[18px] font-bold text-white leading-snug tracking-tight max-w-[360px] sm:max-w-[440px] mx-auto">
+                {showcaseSlides[activeSlide]?.caption || story.tagline}
+              </p>
+
+              {showcaseSlides.length > 1 && (
+                <div className="flex items-center justify-center gap-1.5">
+                  {showcaseSlides.map((slide, idx) => (
+                    <button
+                      key={slide.id}
+                      type="button"
+                      onClick={() => scrollToSlide(idx, true)}
+                      aria-label={`View slide ${idx + 1}`}
+                      className={`h-1.5 rounded-full transition-all duration-200 ${
+                        idx === activeSlide
+                          ? 'w-5 bg-white'
+                          : 'w-1.5 bg-white/25 hover:bg-white/50'
+                      }`}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Scene Context Strip */}
-          <div className="text-center py-1">
+          <div className="text-center pt-0.5 pb-1">
             <span className="text-[11px] font-medium text-zinc-500">
               {currentScene}
             </span>
           </div>
 
           {loadingInit ? (
-            <div className="space-y-3 py-8">
+            <div className="space-y-3 py-6">
               <div className="h-28 rounded-2xl bg-[#18181D] animate-pulse" />
               <div className="h-12 w-2/3 ml-auto rounded-2xl bg-[#18181D] animate-pulse" />
             </div>
@@ -747,6 +1380,21 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
               meters={meters}
               story={story}
               characterPortraitMap={characterPortraitMap}
+              sending={sending}
+              endingReached={endingReached}
+              msgMenuOpen={msgMenuOpen}
+              playGuideVisible={playGuideVisible}
+              copiedToast={copiedToast}
+              onToggleMsgMenu={() => setMsgMenuOpen((prev) => !prev)}
+              onCloseMsgMenu={() => setMsgMenuOpen(false)}
+              onContinueScene={() => void handleContinueScene()}
+              onRegenerateLatest={() => void handleRegenerateLatest()}
+              onUndoLastTurn={() => void handleUndoLastTurn()}
+              onCopyLatest={(m) => void handleCopyLatest(m)}
+              onTogglePlayGuide={() => {
+                setPlayGuideVisible((p) => !p);
+                setMsgMenuOpen(false);
+              }}
             />
           )}
 
@@ -818,8 +1466,66 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
             </div>
           )}
 
-          {/* Optional Story Choices at pivotal moments */}
-          {activeChoices.length > 0 && !sending && !endingReached && (
+          {/* Kavana-style Play Guide Dashed Amber Card */}
+          {playGuideVisible && !endingReached && (
+            <div
+              onClick={() => {
+                if (activeChoices.length > 0) {
+                  setPlayGuideChoicesOpen((prev) => !prev);
+                }
+              }}
+              className={`rounded-2xl bg-[#0C0C10]/95 border-[1.5px] border-dashed border-[#853F18] px-4 py-3 shadow-lg transition-colors ${
+                activeChoices.length > 0 ? 'cursor-pointer hover:border-[#B85923]' : ''
+              }`}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-[#EA8C44]">
+                  <BookOpen className="w-4 h-4 shrink-0" />
+                  <span className="text-[13.5px] font-bold tracking-tight">Play Guide</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setPlayGuideVisible(false);
+                  }}
+                  aria-label="Hide Play Guide"
+                  className="text-zinc-500 hover:text-zinc-300 p-0.5 rounded-md transition"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <p className="text-[15px] sm:text-[15.5px] font-medium text-white leading-snug mt-1.5">
+                {story.playGuide?.[preferredLanguage] ||
+                  story.playGuide?.hinglish ||
+                  story.tagline}
+              </p>
+
+              {playGuideChoicesOpen && activeChoices.length > 0 && !sending && (
+                <div
+                  className="mt-2.5 pt-2.5 border-t border-white/[0.08] flex gap-2 overflow-x-auto no-scrollbar pb-0.5"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {activeChoices.map((choice, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        setPlayGuideChoicesOpen(false);
+                        void handleSend(choice, true);
+                      }}
+                      className="px-3.5 py-2 rounded-xl bg-[#1F1519] hover:bg-[#2E1A22] border border-[#E5233D]/35 text-xs font-medium text-zinc-100 whitespace-nowrap shrink-0 transition"
+                    >
+                      {choice}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Optional Story Choices when Play Guide is hidden */}
+          {!playGuideVisible && activeChoices.length > 0 && !sending && !endingReached && (
             <div className="flex gap-2 overflow-x-auto no-scrollbar pb-0.5">
               {activeChoices.map((choice, idx) => (
                 <button
@@ -1048,6 +1754,13 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
           </div>
         </div>
       )}
+
+      <FullscreenGalleryModal
+        items={showcaseSlides}
+        activeIndex={galleryIndex}
+        onClose={() => setGalleryIndex(null)}
+        onChangeIndex={(idx) => setGalleryIndex(idx)}
+      />
     </div>
   );
 };

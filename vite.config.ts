@@ -63,7 +63,7 @@ export default defineConfig(() => {
               options: {
                 cacheName: 'story-artwork-cache',
                 expiration: {
-                  maxEntries: 80,
+                  maxEntries: 120,
                   maxAgeSeconds: 60 * 60 * 24 * 30,
                 },
                 cacheableResponse: {

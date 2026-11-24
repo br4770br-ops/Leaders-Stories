@@ -44,27 +44,27 @@ export const STORIES_CATALOG: StoryDefinition[] = [
       {
         id: 'shm_1',
         url: '/src/assets/images/cover_she_hates_me_1795460761296.jpg',
-        caption: "Morning clash outside Xavier's Gate",
+        caption: 'Subah ki pehli bell se pehle hi corridor mein books bikhar gayin — aur campus ki sabse khatarnaak rivalry shuru ho gayi.',
       },
       {
         id: 'shm_2',
-        url: '/src/assets/images/scene_campus_corridor_1795460773005.jpg',
-        caption: 'Dropped notebooks in the Heritage Wing corridor',
+        url: '/src/assets/images/portrait_isha_heroine_1795460773662.jpg',
+        caption: 'Topper Isha Sharma tumhe bilkul pasand nahi karti... par ab poora semester usi ke saath project karna hai!',
       },
       {
         id: 'shm_3',
-        url: '/src/assets/images/banner_featured_campus_1795460772450.jpg',
-        caption: 'Twilight confrontation by the central fountain',
+        url: '/src/assets/images/portrait_vivaan_rival_1795460852271.jpg',
+        caption: 'Isha ka protective dost Vivaan har pal tum par nazar rakhe hai. Kya tum is campus love-hate war ko jeet paoge?',
       },
       {
         id: 'shm_4',
-        url: '/src/assets/images/portrait_isha_heroine_1795460773662.jpg',
-        caption: 'Isha Sharma — Debate Society Captain',
+        url: '/src/assets/images/scene_campus_corridor_1795460773005.jpg',
+        caption: 'Heritage Wing ke sunsaan corridor mein har mulaqat dil ki dhadkan tez kar deti hai.',
       },
       {
         id: 'shm_5',
-        url: '/src/assets/images/portrait_vivaan_rival_1795460852271.jpg',
-        caption: 'Vivaan Kapoor — Protective Best Friend',
+        url: '/src/assets/images/banner_featured_campus_1795460772450.jpg',
+        caption: 'Shaam dhalte hi central fountain ke paas chhupi feelings bahar aane lagti hain.',
       },
     ],
     setting: "St. Xavier's Heritage College main locker corridor, morning bell ringing",
@@ -98,6 +98,11 @@ export const STORIES_CATALOG: StoryDefinition[] = [
       { id: 'trust', label: 'Trust', emoji: '🤝', initialValue: 20, min: 0, max: 100, tone: 'trust' },
     ],
     openingScene: "Xavier's Locker Corridor — Project Partner Announcement",
+    playGuide: {
+      hinglish: 'Apni kahani khud likho, topper rival se nafrat 😤 karoge ya pyaar? ❤️',
+      hindi: 'अपनी कहानी खुद लिखो, इस टकराव से नफ़रत 😤 चुनोगे या प्यार? ❤️',
+      english: 'Write your own fate — clash with your sharp rival 😤 or win her heart? ❤️',
+    },
     openingBeats: {
       hinglish: [
         {
@@ -191,12 +196,17 @@ export const STORIES_CATALOG: StoryDefinition[] = [
       {
         id: 'mah_1',
         url: '/src/assets/images/cover_mahabharat_traveler_1795460761928.jpg',
-        caption: 'Arrival beside the Celestial Kaal-Chakra outside Hastinapur',
+        caption: 'Kaal-Chakra ki sunheri roshni ne tumhe 3000 saal peeche Hastinapur ki dharti par pahuncha diya!',
       },
       {
         id: 'mah_2',
-        url: '/src/assets/images/banner_featured_campus_1795460772450.jpg',
-        caption: 'Twilight echoes across realms',
+        url: '/src/assets/images/devika_royal_portrait_1795516087327.jpg',
+        caption: 'Rajkumari Devika ko tumhari aankhon mein bhavishya ka raaz dikh gaya hai — kya wo tumhara bharosa karengi?',
+      },
+      {
+        id: 'mah_3',
+        url: '/src/assets/images/arjun_warrior_portrait_1795516087468.jpg',
+        caption: 'Maharathi Arjun ka dhanush uth chuka hai! Apni sacchai sabit karoge ya itihaas badal doge?',
       },
     ],
     setting: 'Outskirts of ancient Hastinapur at dusk, glowing temporal wheel cooling in the dust',
@@ -209,7 +219,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
         personality: 'Astute, courageous, deeply devoted to dharma yet curious about your impossible sky-iron watch and clothes.',
         speakingStyle: 'Graceful, poetic yet razor-sharp Sanskrit-inflected speech.',
         relationshipToUser: 'First witness to your arrival from the future',
-        portrait: '/src/assets/images/cover_mahabharat_traveler_1795460761928.jpg',
+        portrait: '/src/assets/images/devika_royal_portrait_1795516087327.jpg',
       },
       {
         id: 'senapati_arjun',
@@ -219,7 +229,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
         personality: 'Disciplined, vigilant, slow to trust strangers near royal camps, respects truth and valor.',
         speakingStyle: 'Composed, commanding warrior cadence.',
         relationshipToUser: 'Suspicious protector questioning your intentions',
-        portrait: '/src/assets/images/cover_mahabharat_traveler_1795460761928.jpg',
+        portrait: '/src/assets/images/arjun_warrior_portrait_1795516087468.jpg',
       },
     ],
     relationshipMeters: [
@@ -228,6 +238,11 @@ export const STORIES_CATALOG: StoryDefinition[] = [
       { id: 'dharma', label: 'Destiny Alignment', emoji: '☸️', initialValue: 50, min: 0, max: 100, tone: 'respect' },
     ],
     openingScene: 'Hastinapur Ridge — The Golden Kaal-Chakra',
+    playGuide: {
+      hinglish: 'Itihaas ke beech khade ho — sach bataoge 📜 ya niyati badloge? ⚔️',
+      hindi: 'इतिहास के बीच खड़े हो — सच बताओगे 📜 या नियति बदलोगे? ⚔️',
+      english: 'Caught inside ancient Hastinapur — confess your era 📜 or alter destiny? ⚔️',
+    },
     openingBeats: {
       hinglish: [
         {
@@ -321,7 +336,17 @@ export const STORIES_CATALOG: StoryDefinition[] = [
       {
         id: 'mq_1',
         url: '/src/assets/images/cover_mafia_queen_1795460848370.jpg',
-        caption: 'Midnight penthouse negotiation with Tara Malhotra',
+        caption: '42nd-floor penthouse mein ek black contract aur cheh mahine ki khatarnaak deal tumhara intezaar kar rahi hai.',
+      },
+      {
+        id: 'mq_2',
+        url: '/src/assets/images/tara_mafia_portrait_1795516087170.jpg',
+        caption: 'Mumbai aur Milan ki untouchable Mafia Queen Tara Malhotra ne tumhara saara karz kharid liya — kya tum unka dil pighla paoge?',
+      },
+      {
+        id: 'mq_3',
+        url: '/src/assets/images/kabir_enforcer_portrait_1795516087491.jpg',
+        caption: 'Syndicate Enforcer Kabir Rana ko tum par bilkul bharosa nahi hai. Ek galti aur poori duniya dushman ban jayegi.',
       },
     ],
     setting: 'Rain-streaked 42nd-floor penthouse overlooking Mumbai skyline at midnight',
@@ -334,7 +359,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
         personality: 'Ice-cold, calculating, mesmerizingly composed, never shows mercy publicly—yet fiercely protective of those who earn her loyalty.',
         speakingStyle: 'Low, unhurried velvet authority.',
         relationshipToUser: 'Your ruthless new patron and reluctant protector',
-        portrait: '/src/assets/images/cover_mafia_queen_1795460848370.jpg',
+        portrait: '/src/assets/images/tara_mafia_portrait_1795516087170.jpg',
       },
       {
         id: 'kabir_consigliere',
@@ -344,7 +369,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
         personality: 'Cynical, razor-sharp, fiercely suspicious of outsiders entering Tara’s inner circle.',
         speakingStyle: 'Terse, intimidating, clipped warnings.',
         relationshipToUser: 'Watches you like a threat waiting to slip',
-        portrait: '/src/assets/images/cover_mafia_queen_1795460848370.jpg',
+        portrait: '/src/assets/images/kabir_enforcer_portrait_1795516087491.jpg',
       },
     ],
     relationshipMeters: [
@@ -353,6 +378,11 @@ export const STORIES_CATALOG: StoryDefinition[] = [
       { id: 'danger', label: 'Syndicate Threat', emoji: '🔫', initialValue: 65, min: 0, max: 100, tone: 'fear' },
     ],
     openingScene: 'Penthouse Suite — Signing the Six-Month Debt Contract',
+    playGuide: {
+      hinglish: 'Underworld ki rani ke aage jhukoge 🥀 ya unka bharosa jeetoge? 🔥',
+      hindi: 'अंडरवर्ल्ड की रानी के आगे झुकोगे 🥀 या उनका भरोसा जीतोगे? 🔥',
+      english: 'Obey the ruthless Mafia Queen 🥀 or turn her cold heart toward you? 🔥',
+    },
     openingBeats: {
       hinglish: [
         {
@@ -445,7 +475,17 @@ export const STORIES_CATALOG: StoryDefinition[] = [
       {
         id: 'sy_1',
         url: '/src/assets/images/cover_still_yours_1795460763922.jpg',
-        caption: 'Rainy night hallway reunion after two years',
+        caption: 'Do saal baad ek monsoon blackout wali raat mein phir takra gayi nazrein... aur waqt wahin tham gaya.',
+      },
+      {
+        id: 'sy_2',
+        url: '/src/assets/images/ananya_ex_portrait_1795516087023.jpg',
+        caption: 'Ananya Verma ki ungli mein aaj bhi tumhari di hui purani silver ring chamak rahi hai. Kya pyaar abhi bhi zinda hai?',
+      },
+      {
+        id: 'sy_3',
+        url: '/src/assets/images/roshni_flatmate_portrait_1795516088415.jpg',
+        caption: 'Flatmate Roshni ne Ananya ke har aansu dekhe hain — kya wo tumhe ek aur mauka degi?',
       },
     ],
     setting: 'Dimly lit Mumbai apartment hallway during a monsoon downpour',
@@ -458,7 +498,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
         personality: 'Warm, deeply emotional, hides hurt behind polite composure, still wears the silver ring you once gifted.',
         speakingStyle: 'Soft, trembling honesty mixed with quiet guardedness.',
         relationshipToUser: 'Ex-partner you never truly got closure with',
-        portrait: '/src/assets/images/cover_still_yours_1795460763922.jpg',
+        portrait: '/src/assets/images/ananya_ex_portrait_1795516087023.jpg',
       },
       {
         id: 'roshni',
@@ -468,7 +508,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
         personality: 'Observant, protective, remembers how broken Ananya was after you left.',
         speakingStyle: 'Direct and gently skeptical.',
         relationshipToUser: 'Wary friend guarding Ananya from fresh heartbreak',
-        portrait: '/src/assets/images/cover_still_yours_1795460763922.jpg',
+        portrait: '/src/assets/images/roshni_flatmate_portrait_1795516088415.jpg',
       },
     ],
     relationshipMeters: [
@@ -477,6 +517,11 @@ export const STORIES_CATALOG: StoryDefinition[] = [
       { id: 'hurt', label: 'Unspoken Hurt', emoji: '🌧️', initialValue: 64, min: 0, max: 100, tone: 'hate' },
     ],
     openingScene: 'Monsoon Hallway — First Words After Two Years',
+    playGuide: {
+      hinglish: 'Do saal baad purana pyaar saamne hai — maaf karoge 🌧️ ya haath thaamoge? ❤️',
+      hindi: 'दो साल बाद पुराना प्यार सामने है — अलविदा कहोगे 🌧️ या हाथ थामोगे? ❤️',
+      english: 'Your ex stands inches away in the rain — seek closure 🌧️ or start over? ❤️',
+    },
     openingBeats: {
       hinglish: [
         {
@@ -568,7 +613,17 @@ export const STORIES_CATALOG: StoryDefinition[] = [
       {
         id: 'ktmh_1',
         url: '/src/assets/images/cover_kaash_tum_meri_hoti_1795460764613.jpg',
-        caption: 'Autumn walk across the university courtyard',
+        caption: 'Sunehri shaam aur campus ke sookhe patte — dosti aur chahat ke beech sabse mushkil imtihaan.',
+      },
+      {
+        id: 'ktmh_2',
+        url: '/src/assets/images/mehak_crush_portrait_1795516088891.jpg',
+        caption: 'Jise tumne hamesha sabse zyada chaha, aaj Mehak Gill tumse puchh rahi hai — kya tum dil ki baat keh paoge?',
+      },
+      {
+        id: 'ktmh_3',
+        url: '/src/assets/images/aarav_friend_portrait_1795516089434.jpg',
+        caption: 'Tumhara sabse kareebi dost Aarav Khanna ab tumhara rival ban chuka hai — jeet dosti ki hogi ya pyaar ki?',
       },
     ],
     setting: 'Golden-hour autumn walkway across university campus',
@@ -581,7 +636,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
         personality: 'Radiant, warm-hearted, secretly notices how you care for her more than anyone else.',
         speakingStyle: 'Playful, affectionate, emotionally expressive.',
         relationshipToUser: 'Best friend caught between two hearts',
-        portrait: '/src/assets/images/cover_kaash_tum_meri_hoti_1795460764613.jpg',
+        portrait: '/src/assets/images/mehak_crush_portrait_1795516088891.jpg',
       },
       {
         id: 'aarav',
@@ -591,7 +646,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
         personality: 'Charming, confident, suspects you love Mehak too and subtly pushes to claim her first.',
         speakingStyle: 'Easygoing on the surface with quiet competitive edge.',
         relationshipToUser: 'Friend turning into a romantic rival',
-        portrait: '/src/assets/images/cover_kaash_tum_meri_hoti_1795460764613.jpg',
+        portrait: '/src/assets/images/aarav_friend_portrait_1795516089434.jpg',
       },
     ],
     relationshipMeters: [
@@ -600,6 +655,11 @@ export const STORIES_CATALOG: StoryDefinition[] = [
       { id: 'jealousy', label: 'Jealousy', emoji: '🔥', initialValue: 35, min: 0, max: 100, tone: 'jealousy' },
     ],
     openingScene: 'Autumn Quad — Before the Weekend Fest',
+    playGuide: {
+      hinglish: 'Dil ki baat chhupate rahoge 😔 ya Aarav se pehle izhaar karoge? 💗',
+      hindi: 'दिल की बात छुपाते रहोगे 😔 या आरव से पहले इज़हार करोगे? 💗',
+      english: 'Stay silent as the best friend 😔 or confess before Aarav steals her away? 💗',
+    },
     openingBeats: {
       hinglish: [
         {
@@ -691,7 +751,17 @@ export const STORIES_CATALOG: StoryDefinition[] = [
       {
         id: 'mcc_1',
         url: '/src/assets/images/cover_college_crush_1795460764992.jpg',
-        caption: 'Cherry Blossom Walkway glance',
+        caption: 'Cherry Blossom Walkway par har roz shaam 4 baje ek muskaan tumhare intezaar mein rukti hai.',
+      },
+      {
+        id: 'mcc_2',
+        url: '/src/assets/images/sana_campus_portrait_1795516088958.jpg',
+        caption: 'Kya tum college ki sabse sundar ladki Sana Kapoor ka dil jeet paoge?',
+      },
+      {
+        id: 'mcc_3',
+        url: '/src/assets/images/rohan_wingman_portrait_1795516090991.jpg',
+        caption: 'Wingman Rohan pichhe se seeti baja kar ishara kar raha hai — aaj baat ki to baat ban jayegi!',
       },
     ],
     setting: 'Blossom-lined cobblestone campus pathway after afternoon lecture',
@@ -704,7 +774,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
         personality: 'Cheerful, witty, observant, secretly likes that you always walk quietly behind her.',
         speakingStyle: 'Light, teasing, genuinely warm.',
         relationshipToUser: 'Your secret campus crush who already noticed you',
-        portrait: '/src/assets/images/cover_college_crush_1795460764992.jpg',
+        portrait: '/src/assets/images/sana_campus_portrait_1795516088958.jpg',
       },
       {
         id: 'rohan_wingman',
@@ -714,7 +784,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
         personality: 'Loud, supportive, always pushing you out of your shell.',
         speakingStyle: 'Energetic bro banter.',
         relationshipToUser: 'Your best friend cheering from across the path',
-        portrait: '/src/assets/images/cover_college_crush_1795460764992.jpg',
+        portrait: '/src/assets/images/rohan_wingman_portrait_1795516090991.jpg',
       },
     ],
     relationshipMeters: [
@@ -722,6 +792,11 @@ export const STORIES_CATALOG: StoryDefinition[] = [
       { id: 'friendship', label: 'Vibe', emoji: '☕', initialValue: 55, min: 0, max: 100, tone: 'friendship' },
     ],
     openingScene: 'Blossom Walkway — She Looked Back',
+    playGuide: {
+      hinglish: 'Sana ne tumhe dekh liya hai — shy rahoge 🌸 ya pehli baar baat karoge? ☕',
+      hindi: 'सना ने तुम्हें देख लिया है — झिझकोगे 🌸 या आज दिल की बात कहोगे? ☕',
+      english: 'Sana caught you looking — play it cool 🌸 or spark your first real date? ☕',
+    },
     openingBeats: {
       hinglish: [
         {
@@ -811,7 +886,17 @@ export const STORIES_CATALOG: StoryDefinition[] = [
       {
         id: 'sowm_1',
         url: '/src/assets/images/cover_obsessed_with_me_1795460766128.jpg',
-        caption: 'Cornered in the Psychology Stacks',
+        caption: 'Library ke sabse sunsaan kone mein tum akela nahi ho... koi har saans ka hisaab rakh raha hai.',
+      },
+      {
+        id: 'sowm_2',
+        url: '/src/assets/images/niharika_obsessed_portrait_1795516146132.jpg',
+        caption: 'Niharika Sen ki khamosh muskaan ke peeche ek khatarnaak zidd chhipi hai — tum sirf uske ho, ya bhaag paoge?',
+      },
+      {
+        id: 'sowm_3',
+        url: '/src/assets/images/maya_counselor_portrait_1795516090021.jpg',
+        caption: 'Floor Supervisor Maya kuch hi doori par hain... par kya tum bina Niharika ko bhadkaye madad maang paoge?',
       },
     ],
     setting: 'Quiet upper floor wooden aisle of the university archive library',
@@ -824,7 +909,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
         personality: 'Eerily calm, brilliant, hyper-fixated on protecting and possessing you, unnervingly gentle voice even while threatening rivals.',
         speakingStyle: 'Sweet, whispered, razor-intense certainty.',
         relationshipToUser: 'Secretly tracking your every move out of twisted devotion',
-        portrait: '/src/assets/images/cover_obsessed_with_me_1795460766128.jpg',
+        portrait: '/src/assets/images/niharika_obsessed_portrait_1795516146132.jpg',
       },
       {
         id: 'inspector_meera',
@@ -834,7 +919,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
         personality: 'Sharp-eared, notices when students look cornered.',
         speakingStyle: 'Calm, observant.',
         relationshipToUser: 'Potential lifeline if you can signal her without triggering Niharika',
-        portrait: '/src/assets/images/cover_obsessed_with_me_1795460766128.jpg',
+        portrait: '/src/assets/images/maya_counselor_portrait_1795516090021.jpg',
       },
     ],
     relationshipMeters: [
@@ -843,6 +928,11 @@ export const STORIES_CATALOG: StoryDefinition[] = [
       { id: 'danger', label: 'Danger', emoji: '⚠️', initialValue: 72, min: 0, max: 100, tone: 'fear' },
     ],
     openingScene: 'Archive Stack 4 — Too Close to Breathe',
+    playGuide: {
+      hinglish: 'Niharika ki zidd badh rahi hai — bhaag nikloge 🗝️ ya use shant karoge? ⚠️',
+      hindi: 'निहारिका की ज़िद बढ़ रही है — भाग निकलोगे 🗝️ या उसे शांत करोगे? ⚠️',
+      english: 'Her obsession is tightening — outsmart Niharika 🗝️ or signal for help? ⚠️',
+    },
     openingBeats: {
       hinglish: [
         {
@@ -932,7 +1022,17 @@ export const STORIES_CATALOG: StoryDefinition[] = [
       {
         id: 'rmb_1',
         url: '/src/assets/images/cover_roommate_boss_1795460767429.jpg',
-        caption: 'Midnight living room rules negotiation',
+        caption: 'Ek flat, ek sofa, aur aadhi raat ki house rules — kya tum aur tumhari boss ek chhat ke neeche reh paoge?',
+      },
+      {
+        id: 'rmb_2',
+        url: '/src/assets/images/natasha_boss_portrait_1795516089566.jpg',
+        caption: 'Office ki sabse strict Creative Director Natasha Oberoi ab ghar mein tumhari roommate ban chuki hain!',
+      },
+      {
+        id: 'rmb_3',
+        url: '/src/assets/images/sanjay_broker_portrait_1795516089945.jpg',
+        caption: 'Double-booking karne wala Broker Sanjay phone par bhaag raha hai — teen mahine ka yeh drama abhi shuru hua hai!',
       },
     ],
     setting: 'High-rise glass apartment living room at 11:30 PM',
@@ -945,7 +1045,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
         personality: 'Workaholic perfectionist, deadpan witty, fiercely professional at work yet secretly chaotic with takeout noodles at home.',
         speakingStyle: 'Crisp corporate precision slowly melting into warm banter.',
         relationshipToUser: 'Your intimidating boss stuck sharing your apartment',
-        portrait: '/src/assets/images/cover_roommate_boss_1795460767429.jpg',
+        portrait: '/src/assets/images/natasha_boss_portrait_1795516089566.jpg',
       },
       {
         id: 'broker_sanjay',
@@ -955,7 +1055,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
         personality: 'Fast-talking, refusing to refund the deposit.',
         speakingStyle: 'Chaotic sales hustle.',
         relationshipToUser: 'The reason you two are stuck together for 3 months',
-        portrait: '/src/assets/images/cover_roommate_boss_1795460767429.jpg',
+        portrait: '/src/assets/images/sanjay_broker_portrait_1795516089945.jpg',
       },
     ],
     relationshipMeters: [
@@ -963,6 +1063,11 @@ export const STORIES_CATALOG: StoryDefinition[] = [
       { id: 'respect', label: 'Work Respect', emoji: '💼', initialValue: 45, min: 0, max: 100, tone: 'respect' },
     ],
     openingScene: 'Skyline Living Room — The House Rules',
+    playGuide: {
+      hinglish: 'Strict boss ab roommate hain — rules todoge 😏 ya unka dil jeetoge? 💘',
+      hindi: 'सख़्त बॉस अब रूममेट हैं — नियम तोड़ोगे 😏 या उनका दिल जीतोगे? 💘',
+      english: 'Stuck sharing an apartment with your boss — tease her 😏 or win respect? 💘',
+    },
     openingBeats: {
       hinglish: [
         {
@@ -1052,7 +1157,17 @@ export const STORIES_CATALOG: StoryDefinition[] = [
       {
         id: 'mas_1',
         url: '/src/assets/images/cover_maa_aur_shaitaan_1795460849481.jpg',
-        caption: 'Shadow rising above the pine ridge',
+        caption: 'Amavasya ki raat aur Himalaya ki dhund mein jag utha ek shraapit saya... kya tum apni maa ko bacha paoge?',
+      },
+      {
+        id: 'mas_2',
+        url: '/src/assets/images/kavita_mother_portrait_1795516091317.jpg',
+        caption: 'Maa Kavita apni jaan par khel kar tumhari dhaal bani hui hain — par unhone kaunsa raaz chhupaya hai?',
+      },
+      {
+        id: 'mas_3',
+        url: '/src/assets/images/bhairav_shrine_portrait_1795516147050.jpg',
+        caption: 'Mandir ke pujari Baba Bhairav jaante hain ki uss raat tumhare pita ne kya sauda kiya tha!',
       },
     ],
     setting: 'Fog-choked Himalayan forest trail near your ancestral cottage at dusk',
@@ -1065,7 +1180,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
         personality: 'Terrified yet unbreakable; hides a dark secret about why your family fled the valley years ago.',
         speakingStyle: 'Urgent, trembling warmth mixed with fierce maternal resolve.',
         relationshipToUser: 'Shielding you from an ancient pact',
-        portrait: '/src/assets/images/cover_maa_aur_shaitaan_1795460849481.jpg',
+        portrait: '/src/assets/images/kavita_mother_portrait_1795516091317.jpg',
       },
       {
         id: 'pujari_bhairav',
@@ -1075,7 +1190,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
         personality: 'Cryptic, solemn, knows the ritual that binds the mountain demon.',
         speakingStyle: 'Gravely hushed warnings.',
         relationshipToUser: 'Knows your father’s true fate',
-        portrait: '/src/assets/images/cover_maa_aur_shaitaan_1795460849481.jpg',
+        portrait: '/src/assets/images/bhairav_shrine_portrait_1795516147050.jpg',
       },
     ],
     relationshipMeters: [
@@ -1084,6 +1199,11 @@ export const STORIES_CATALOG: StoryDefinition[] = [
       { id: 'truth', label: 'Hidden Truth', emoji: '📜', initialValue: 15, min: 0, max: 100, tone: 'respect' },
     ],
     openingScene: 'Misty Pine Trail — Eyes in the Fog',
+    playGuide: {
+      hinglish: 'Pahadi shraap ka saamna hai — Maa ko bachaoge 🕯️ ya andhere se ladoge? 👁️',
+      hindi: 'पहाड़ी शाप का सामना है — माँ को बचाओगे 🕯️ या अंधेरे का सच जानोगे? 👁️',
+      english: 'An ancient mountain curse awakens — shield your mother 🕯️ or face the shadow? 👁️',
+    },
     openingBeats: {
       hinglish: [
         {
@@ -1173,7 +1293,17 @@ export const STORIES_CATALOG: StoryDefinition[] = [
       {
         id: 'wla_1',
         url: '/src/assets/images/cover_wo_laut_aayi_1795460849473.jpg',
-        caption: 'The phantom in crimson silk on the grand staircase',
+        caption: 'Aadhi raat, toota hua marble hall, aur oopar seedhiyon par ghungroo ki aahat — darwaza khud band ho chuka hai.',
+      },
+      {
+        id: 'wla_2',
+        url: '/src/assets/images/damayanti_bride_portrait_1795516093464.jpg',
+        caption: '60 saal se laal Banarasi saree mein intezaar kar rahi Damayanti ko lagta hai tum uske liye laut aaye ho!',
+      },
+      {
+        id: 'wla_3',
+        url: '/src/assets/images/harish_watchman_portrait_1795516146598.jpg',
+        caption: 'Gate ke bahar khada chaukidar Harish radio par chilla raha hai — kya tum subah tak zinda bahar nikal paoge?',
       },
     ],
     setting: 'Decaying marble staircase of Roy Chowdhury Mansion at midnight',
@@ -1186,7 +1316,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
         personality: 'Hauntingly poised, tragic, dangerously possessive if lied to, softens if shown genuine empathy.',
         speakingStyle: 'Echoing, lyrical, chillingly intimate whispers.',
         relationshipToUser: 'Believes you are the reincarnation of her lost betrothed',
-        portrait: '/src/assets/images/cover_wo_laut_aayi_1795460849473.jpg',
+        portrait: '/src/assets/images/damayanti_bride_portrait_1795516093464.jpg',
       },
       {
         id: 'chaukidar_harish',
@@ -1196,7 +1326,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
         personality: 'Panicked, superstitious, locked outside the iron gate.',
         speakingStyle: 'Frantic whispers over your crackling walkie-talkie.',
         relationshipToUser: 'Trying to guide you out before 3 AM',
-        portrait: '/src/assets/images/cover_wo_laut_aayi_1795460849473.jpg',
+        portrait: '/src/assets/images/harish_watchman_portrait_1795516146598.jpg',
       },
     ],
     relationshipMeters: [
@@ -1204,6 +1334,11 @@ export const STORIES_CATALOG: StoryDefinition[] = [
       { id: 'mercy', label: 'Spirit Mercy', emoji: '🕯️', initialValue: 30, min: 0, max: 100, tone: 'love' },
     ],
     openingScene: 'Grand Staircase — Moonlight & Anklets',
+    playGuide: {
+      hinglish: 'Ghungroo ki aahat paas aa rahi hai — bhaagoge 🚪 ya Damayanti ka sach sunoge? 👻',
+      hindi: 'घुँघरू की आहट पास आ रही है — भागोगे 🚪 या दमयंती का सच सुनोगे? 👻',
+      english: 'The mansion gates are locked — flee into the dark 🚪 or hear the bride’s truth? 👻',
+    },
     openingBeats: {
       hinglish: [
         {
@@ -1294,7 +1429,17 @@ export const STORIES_CATALOG: StoryDefinition[] = [
       {
         id: 'bkh_1',
         url: '/src/assets/images/cover_badodiya_haveli_1795460771623.jpg',
-        caption: 'Lantern light beneath the red-lit jharokha',
+        caption: 'Teen peedhiyon se band Badodiya Ki Haveli ke laal jharokhe mein aaj bhi koi khada dikhai deta hai!',
+      },
+      {
+        id: 'bkh_2',
+        url: '/src/assets/images/meera_podcaster_portrait_1795516149082.jpg',
+        caption: 'Nidar podcaster Meera Rathore camera lekar haveli ka shraap todne nikli hai — par kya wo dar ko jhel payegi?',
+      },
+      {
+        id: 'bkh_3',
+        url: '/src/assets/images/dev_companion_portrait_1795516148313.jpg',
+        caption: 'Dara hua cousin Dev tumhara haath thaame khada hai... ek galat kadam aur haveli ke darwaze band ho jayenge!',
       },
     ],
     setting: 'Courtyard archway of Badodiya Ki Haveli under a full moon',
@@ -1307,7 +1452,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
         personality: 'Curious, bold until real paranormal clues shake her, loyal in danger.',
         speakingStyle: 'Fast-paced observant Hinglish.',
         relationshipToUser: 'Co-explorer holding the camera',
-        portrait: '/src/assets/images/cover_badodiya_haveli_1795460771623.jpg',
+        portrait: '/src/assets/images/meera_podcaster_portrait_1795516149082.jpg',
       },
       {
         id: 'dev_cousin',
@@ -1317,7 +1462,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
         personality: 'Nervous, superstitious, surprisingly brave when someone he cares for is threatened.',
         speakingStyle: 'Jumpy, humorous panic.',
         relationshipToUser: 'Your cousin clinging to your sleeve',
-        portrait: '/src/assets/images/cover_badodiya_haveli_1795460771623.jpg',
+        portrait: '/src/assets/images/dev_companion_portrait_1795516148313.jpg',
       },
     ],
     relationshipMeters: [
@@ -1325,6 +1470,11 @@ export const STORIES_CATALOG: StoryDefinition[] = [
       { id: 'fear', label: 'Haunting Level', emoji: '🌒', initialValue: 55, min: 0, max: 100, tone: 'fear' },
     ],
     openingScene: 'Haveli Main Gate — Shadows in the Red Window',
+    playGuide: {
+      hinglish: 'Laal khidki se koi dekh raha hai — haveli ke andar jaoge 🏮 ya pichhe hatoge? 🌒',
+      hindi: 'लाल खिड़की से कोई देख रहा है — भीतर कदम रखोगे 🏮 या पीछे हटोगे? 🌒',
+      english: 'Shadows beckon from the red jharokha — step inside 🏮 or survive the night? 🌒',
+    },
     openingBeats: {
       hinglish: [
         {
@@ -1415,7 +1565,17 @@ export const STORIES_CATALOG: StoryDefinition[] = [
       {
         id: 'bkk_1',
         url: '/src/assets/images/cover_bhoot_khajana_1795460852621.jpg',
-        caption: 'The cursed ironbound chest bathed in green flame',
+        caption: 'Haree bhootiya roshni mein chamakta sadiyon purana sandook... aur ek shart jo jaan le sakti hai!',
+      },
+      {
+        id: 'bkk_2',
+        url: '/src/assets/images/bunty_hunter_portrait_1795516092568.jpg',
+        caption: 'Laalchi yaar Bunty Mishra crorepati banne ke chakkar mein shraapit khajane ko haath lagane ja raha hai!',
+      },
+      {
+        id: 'bkk_3',
+        url: '/src/assets/images/preta_guardian_portrait_1795516146713.jpg',
+        caption: 'Vault Guardian Kaal-Setu ki aankhon se bachna namumkin hai — sona chahiye ya apni jaan?',
       },
     ],
     setting: 'Moss-covered cellar steps outside the haunted ruins at midnight',
@@ -1428,7 +1588,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
         personality: 'Greed meets comedy panic; talks big until the ghost whispers.',
         speakingStyle: 'Chaotic witty street Hinglish.',
         relationshipToUser: 'The friend who dragged you here',
-        portrait: '/src/assets/images/cover_bhoot_khajana_1795460852621.jpg',
+        portrait: '/src/assets/images/bunty_hunter_portrait_1795516092568.jpg',
       },
       {
         id: 'preta_guardian',
@@ -1438,7 +1598,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
         personality: 'Cunning, tests human greed with riddles and illusions.',
         speakingStyle: 'Echoing resonant voice from the emerald mist.',
         relationshipToUser: 'Judges whether you leave rich or stay trapped',
-        portrait: '/src/assets/images/cover_bhoot_khajana_1795460852621.jpg',
+        portrait: '/src/assets/images/preta_guardian_portrait_1795516146713.jpg',
       },
     ],
     relationshipMeters: [
@@ -1446,6 +1606,11 @@ export const STORIES_CATALOG: StoryDefinition[] = [
       { id: 'fear', label: 'Spirit Wrath', emoji: '💚', initialValue: 45, min: 0, max: 100, tone: 'fear' },
     ],
     openingScene: 'Emerald Vault Steps — The Ironbound Chest',
+    playGuide: {
+      hinglish: 'Sone ka sandook khul raha hai — laalach karoge 🪙 ya bhoot ko maat doge? 💚',
+      hindi: 'सोने का संदूक खुल रहा है — लालच करोगे 🪙 या प्रेत को मात दोगे? 💚',
+      english: 'Gold gleams inside the cursed vault — risk greed 🪙 or outwit the guardian? 💚',
+    },
     openingBeats: {
       hinglish: [
         {
@@ -1536,7 +1701,17 @@ export const STORIES_CATALOG: StoryDefinition[] = [
       {
         id: 'svt_1',
         url: '/src/assets/images/cover_anime_shadow_vow_1795460771521.jpg',
-        caption: 'Rooftop stand beneath the Crimson Eclipse Moon',
+        caption: 'Tokyo ke aasmaan par Crimson Eclipse chha chuka hai — ab sirf tumhari talwar aur ek twin vow is shaher ko bacha sakte hain!',
+      },
+      {
+        id: 'svt_2',
+        url: '/src/assets/images/rei_anime_portrait_1795516147055.jpg',
+        caption: 'Silver-haired Spirit Keeper Rei apna ruby talisman lekar khadi hai — kya tum uske saath Shadow Vow loge?',
+      },
+      {
+        id: 'svt_3',
+        url: '/src/assets/images/renji_anime_portrait_1795516147077.jpg',
+        caption: 'Rival hunter Renji Kurosawa tumhari himmat aazmane rooftop par utar aaya hai!',
       },
     ],
     setting: 'Rain-soaked Shinjuku high-rise rooftop under a blazing red eclipse moon',
@@ -1549,7 +1724,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
         personality: 'Stoic, fiercely dutiful, secretly fears losing another partner to the Eclipse curse.',
         speakingStyle: 'Calm, sharp anime warrior cadence.',
         relationshipToUser: 'Bound spirit partner guarding the ruby seal',
-        portrait: '/src/assets/images/cover_anime_shadow_vow_1795460771521.jpg',
+        portrait: '/src/assets/images/rei_anime_portrait_1795516147055.jpg',
       },
       {
         id: 'kuro_blade',
@@ -1559,7 +1734,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
         personality: 'Sarcastic, lethal, testing if you are worthy of wielding the Eclipse Katana.',
         speakingStyle: 'Cool, mocking confidence.',
         relationshipToUser: 'Rival hunter watching from the spire',
-        portrait: '/src/assets/images/cover_anime_shadow_vow_1795460771521.jpg',
+        portrait: '/src/assets/images/renji_anime_portrait_1795516147077.jpg',
       },
     ],
     relationshipMeters: [
@@ -1567,6 +1742,11 @@ export const STORIES_CATALOG: StoryDefinition[] = [
       { id: 'bond', label: 'Rei Bond', emoji: '🌙', initialValue: 30, min: 0, max: 100, tone: 'love' },
     ],
     openingScene: 'Shinjuku Spire — Crimson Moon Awakening',
+    playGuide: {
+      hinglish: 'Crimson moon ug chuka hai — Rei ka haath thaamoge 🌙 ya akela ladoge? ⚔️',
+      hindi: 'रक्त चंद्र उग चुका है — रेई का हाथ थामोगे 🌙 या अकेले लड़ोगे? ⚔️',
+      english: 'The Crimson Eclipse begins — seal your vow with Rei 🌙 or fight solo? ⚔️',
+    },
     openingBeats: {
       hinglish: [
         {
@@ -1656,7 +1836,17 @@ export const STORIES_CATALOG: StoryDefinition[] = [
       {
         id: 'crf_1',
         url: '/src/assets/images/cover_crime_red_file_1795460853294.jpg',
-        caption: 'Midnight glass evidence board at Special Cell',
+        caption: 'Special Crime Cell ke glass board par teen gayab gawahon ke taar seedha headquarters ke andar jud rahe hain!',
+      },
+      {
+        id: 'crf_2',
+        url: '/src/assets/images/vikram_cop_portrait_1795516148481.jpg',
+        caption: 'Inspector Vikram Rathore ko kisi par bharosa nahi — aaj raat tumhe apni tej nazar se unka bharosa jeetna hoga!',
+      },
+      {
+        id: 'crf_3',
+        url: '/src/assets/images/shinde_officer_portrait_1795516149253.jpg',
+        caption: 'Sub-Inspector Shinde CCTV logs chhupane ki koshish kar raha hai... kya wahi asli gaddar hai?',
       },
     ],
     setting: 'Special Crime Cell briefing room during a midnight thunderstorm',
@@ -1669,7 +1859,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
         personality: 'Cynical, razor-sharp detective mind, trusts evidence over rank, fiercely protective of honest rookies.',
         speakingStyle: 'Measured, gruff, piercing questions.',
         relationshipToUser: 'Your hardened senior partner',
-        portrait: '/src/assets/images/cover_crime_red_file_1795460853294.jpg',
+        portrait: '/src/assets/images/vikram_cop_portrait_1795516148481.jpg',
       },
       {
         id: 'constable_shinde',
@@ -1679,7 +1869,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
         personality: 'Nervous, helpful, seems eager to keep certain CCTV timestamps hidden.',
         speakingStyle: 'Quick, slightly defensive.',
         relationshipToUser: 'Colleague who might be hiding a leak',
-        portrait: '/src/assets/images/cover_crime_red_file_1795460853294.jpg',
+        portrait: '/src/assets/images/shinde_officer_portrait_1795516149253.jpg',
       },
     ],
     relationshipMeters: [
@@ -1687,6 +1877,11 @@ export const STORIES_CATALOG: StoryDefinition[] = [
       { id: 'case', label: 'Case Lead', emoji: '📁', initialValue: 20, min: 0, max: 100, tone: 'respect' },
     ],
     openingScene: 'Evidence Board — The Missing Timestamp',
+    playGuide: {
+      hinglish: 'Department ke andar koi gaddar hai — saboot dhoondoge 🔍 ya jaal mein phasoge? 🕵️',
+      hindi: 'विभाग के भीतर कोई गद्दार है — सुराग ढूँढोगे 🔍 या जाल में फँसोगे? 🕵️',
+      english: 'A mole hides inside Special Cell — crack the Red File 🔍 before dawn? 🕵️',
+    },
     openingBeats: {
       hinglish: [
         {
@@ -1777,7 +1972,17 @@ export const STORIES_CATALOG: StoryDefinition[] = [
       {
         id: 'fhrf_1',
         url: '/src/assets/images/cover_fake_husband_1795504259434.jpg',
-        caption: 'First reception night under the palace chandeliers',
+        caption: 'Udaipur ke shahi mahal mein 6 mahine ki contract shaadi... par mehmaano ke beech sab kuch asli lag raha hai!',
+      },
+      {
+        id: 'fhrf_2',
+        url: '/src/assets/images/kiara_bride_portrait_1795516146637.jpg',
+        caption: 'Kya tum patthar-dil heiress Kiara Singhania ki barf jaisi deewarein pighla kar unka saccha pyaar ban paoge?',
+      },
+      {
+        id: 'fhrf_3',
+        url: '/src/assets/images/raghav_rival_portrait_1795516146457.jpg',
+        caption: 'Chalaak stepbrother Raghav tumhara jhooth pakadne ko taiyaar khada hai — ek galti aur contract toot jayega!',
       },
     ],
     setting: 'Udaipur Heritage Palace reception courtyard, cameras flashing as guests whisper',
@@ -1790,7 +1995,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
         personality: 'Guarded, composed, sharp-tongued in public yet silently carrying immense family pressure.',
         speakingStyle: 'Poised, crisp Hinglish/English with sudden vulnerable pauses.',
         relationshipToUser: 'Your fake wife hiding real heartbreak',
-        portrait: '/src/assets/images/cover_fake_husband_1795504259434.jpg',
+        portrait: '/src/assets/images/kiara_bride_portrait_1795516146637.jpg',
       },
       {
         id: 'raghav_singhania',
@@ -1800,7 +2005,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
         personality: 'Charming on the surface, ruthless beneath, obsessed with proving the marriage is staged.',
         speakingStyle: 'Smooth, mocking corporate politeness with veiled threats.',
         relationshipToUser: 'Hostile rival watching every move',
-        portrait: '/src/assets/images/cover_fake_husband_1795504259434.jpg',
+        portrait: '/src/assets/images/raghav_rival_portrait_1795516146457.jpg',
       },
     ],
     relationshipMeters: [
@@ -1809,6 +2014,11 @@ export const STORIES_CATALOG: StoryDefinition[] = [
       { id: 'suspicion', label: 'Family Suspicion', emoji: '👀', initialValue: 55, min: 0, max: 100, tone: 'fear' },
     ],
     openingScene: 'Udaipur Reception — The First Public Test',
+    playGuide: {
+      hinglish: 'Shaadi contract ki hai par nazrein asli — Kiara ko bachaoge 💍 ya dil haaroge? ❤️',
+      hindi: 'शादी अनुबंध की है पर एहसास सच्चे — कियारा का साथ दोगे 💍 या दिल हारोगे? ❤️',
+      english: 'Only a paper marriage — convince the family 💍 or fall for real? ❤️',
+    },
     openingBeats: {
       hinglish: [
         {
@@ -1899,7 +2109,17 @@ export const STORIES_CATALOG: StoryDefinition[] = [
       {
         id: 'sarz_1',
         url: '/src/assets/images/cover_rank_zero_1795504259085.jpg',
-        caption: 'Awakening the Crimson Dragon Core inside the Obsidian Gate',
+        caption: 'Obsidian Gate ke andar ek Rank-Zero porter ke haath mein Dragon Sovereign ki taqat jag uthi hai!',
+      },
+      {
+        id: 'sarz_2',
+        url: '/src/assets/images/yuki_empress_portrait_1795516149372.jpg',
+        caption: 'S-Rank Ice Empress Yuki Takahashi hairaan hain — kya wo tumhe apni guild mein lenge ya tumse takrayengi?',
+      },
+      {
+        id: 'sarz_3',
+        url: '/src/assets/images/daksh_vanguard_portrait_1795516146776.jpg',
+        caption: 'Ghamandi Captain Daksh Verma tumhari nayi taqat dekh kar jal bhun gaya hai — ab duel hokar rahega!',
       },
     ],
     setting: 'Shattered Obsidian Crystal Dungeon Gate crackling with crimson and frost mana',
@@ -1912,7 +2132,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
         personality: 'Cool, calculating, legendary S-Rank swordswoman who respects only fearless strength.',
         speakingStyle: 'Crisp, commanding, observant.',
         relationshipToUser: 'Powerful guild leader testing your awakening',
-        portrait: '/src/assets/images/cover_rank_zero_1795504259085.jpg',
+        portrait: '/src/assets/images/yuki_empress_portrait_1795516149372.jpg',
       },
       {
         id: 'daksh_verma',
@@ -1922,7 +2142,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
         personality: 'Arrogant, battle-hungry, infuriated that a former Rank-Zero outshines him.',
         speakingStyle: 'Provocative, boastful, eager for a duel.',
         relationshipToUser: 'Jealous S-Rank rival',
-        portrait: '/src/assets/images/cover_rank_zero_1795504259085.jpg',
+        portrait: '/src/assets/images/daksh_vanguard_portrait_1795516146776.jpg',
       },
     ],
     relationshipMeters: [
@@ -1931,6 +2151,11 @@ export const STORIES_CATALOG: StoryDefinition[] = [
       { id: 'rivalry', label: 'Guild Rivalry', emoji: '⚔️', initialValue: 70, min: 0, max: 100, tone: 'jealousy' },
     ],
     openingScene: 'Obsidian Gate Floor 7 — The Crimson Awakening',
+    playGuide: {
+      hinglish: 'Dragon power jag chuki hai — Guild ke aage jhukoge ❄️ ya naya raaj shuru karoge? 🐉',
+      hindi: 'ड्रैगन शक्ति जाग चुकी है — गिल्ड के आगे झुकोगे ❄️ या नया राज शुरू करोगे? 🐉',
+      english: 'Your Dragon Core awakened — ally with Yuki ❄️ or dominate the S-Rank guild? 🐉',
+    },
     openingBeats: {
       hinglish: [
         {
@@ -2021,7 +2246,17 @@ export const STORIES_CATALOG: StoryDefinition[] = [
       {
         id: 'lbc_1',
         url: '/src/assets/images/cover_last_bench_1795504260323.jpg',
-        caption: 'After-school classroom confrontation over the torn letter',
+        caption: 'Farewell se ek hafta pehle notice board par chipka tumhara secret love letter poori class ne padh liya!',
+      },
+      {
+        id: 'lbc_2',
+        url: '/src/assets/images/riya_school_portrait_1795516147210.jpg',
+        caption: 'Strict topper Riya Malhotra phata hua khat lekar khadi hain — kya tum aaj apna pehla pyaar qubool karoge?',
+      },
+      {
+        id: 'lbc_3',
+        url: '/src/assets/images/kabir_school_portrait_1795516205977.jpg',
+        caption: 'Last bench ka yaar Kabir Sethi tumhe bachane ko taiyaar hai... bas ab sach bolne ka waqt aa gaya hai!',
       },
     ],
     setting: 'Sunlit senior classroom after the final bell, desks empty except for you three',
@@ -2034,7 +2269,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
         personality: 'Disciplined, sensitive beneath her strict rules, hurt because she thinks the letter mocks her.',
         speakingStyle: 'Quick, emotional, tries to sound strict when flustered.',
         relationshipToUser: 'The girl the unspoken letter was written for',
-        portrait: '/src/assets/images/cover_last_bench_1795504260323.jpg',
+        portrait: '/src/assets/images/riya_school_portrait_1795516147210.jpg',
       },
       {
         id: 'kabir_sethi',
@@ -2044,7 +2279,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
         personality: 'Loyal, loud, dramatic, ready to take the blame if it saves your farewell.',
         speakingStyle: 'Playful Hindi-English slang, protective bro energy.',
         relationshipToUser: 'Your ride-or-die benchmate',
-        portrait: '/src/assets/images/cover_last_bench_1795504260323.jpg',
+        portrait: '/src/assets/images/kabir_school_portrait_1795516205977.jpg',
       },
     ],
     relationshipMeters: [
@@ -2053,6 +2288,11 @@ export const STORIES_CATALOG: StoryDefinition[] = [
       { id: 'friendship', label: 'Dostana', emoji: '🎒', initialValue: 82, min: 0, max: 100, tone: 'friendship' },
     ],
     openingScene: 'Empty Classroom — The Torn Letter',
+    playGuide: {
+      hinglish: 'Farewell se pehle sach saamne hai — bahaana karoge 😅 ya pyaar qubool karoge? 💌',
+      hindi: 'विदाई से पहले सच सामने है — बहाना करोगे 😅 या पहला प्यार स्वीकार करोगे? 💌',
+      english: 'Everyone saw the letter — dodge the truth 😅 or confess to Riya right now? 💌',
+    },
     openingBeats: {
       hinglish: [
         {
@@ -2142,7 +2382,17 @@ export const STORIES_CATALOG: StoryDefinition[] = [
       {
         id: 'shs_1',
         url: '/src/assets/images/cover_sultana_spy_1795504260398.jpg',
-        caption: 'Torchlit encounter beneath the Red Sandstone archways',
+        caption: 'Mashaalon ke ujaale mein shahi mahal ka gupt farmaan... aur ek saazish jo saltanat hila sakti hai!',
+      },
+      {
+        id: 'shs_2',
+        url: '/src/assets/images/mehr_princess_portrait_1795516145467.jpg',
+        caption: 'Rajkumari Mehr-un-Nisa ne tumhe chori ka farmaan padhte pakad liya — kya tum unka bharosa jeet paoge?',
+      },
+      {
+        id: 'shs_3',
+        url: '/src/assets/images/zafar_wazir_portrait_1795516148205.jpg',
+        caption: 'Khatarnaak Wazir Zafar Khan ke pahredaar galiyare mein aa rahe hain — kaun hai mahal ka asli gaddar?',
       },
     ],
     setting: 'Torchlit Red Sandstone Citadel archive corridor at midnight',
@@ -2155,7 +2405,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
         personality: 'Regal, observant, mistrusts courtiers, willing to play deadly chess for peace.',
         speakingStyle: 'Poetic Urdu-Hindi elegance with royal authority.',
         relationshipToUser: 'Princess who caught you holding the cipher',
-        portrait: '/src/assets/images/cover_sultana_spy_1795504260398.jpg',
+        portrait: '/src/assets/images/mehr_princess_portrait_1795516145467.jpg',
       },
       {
         id: 'wazir_zafar',
@@ -2165,7 +2415,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
         personality: 'Cold, suspicious, commands the palace spies and trusts no outsider.',
         speakingStyle: 'Silky, intimidating courtly cadence.',
         relationshipToUser: 'Ruthless minister patrolling the halls',
-        portrait: '/src/assets/images/cover_sultana_spy_1795504260398.jpg',
+        portrait: '/src/assets/images/zafar_wazir_portrait_1795516148205.jpg',
       },
     ],
     relationshipMeters: [
@@ -2174,6 +2424,11 @@ export const STORIES_CATALOG: StoryDefinition[] = [
       { id: 'danger', label: 'Wazir Suspicion', emoji: '🗡️', initialValue: 60, min: 0, max: 100, tone: 'fear' },
     ],
     openingScene: 'Sandstone Archway — The Stolen Cipher',
+    playGuide: {
+      hinglish: 'Mahal mein pahredaar ghoom rahe hain — Mehr ka saath doge 👑 ya raat mein ghoom jaoge? 🗡️',
+      hindi: 'महल में पहरेदार घूम रहे हैं — मेहर का साथ दोगे 👑 या रात में गुम हो जाओगे? 🗡️',
+      english: 'Guards close in down the sandstone hall — protect the Princess 👑 or flee? 🗡️',
+    },
     openingBeats: {
       hinglish: [
         {
@@ -2264,7 +2519,17 @@ export const STORIES_CATALOG: StoryDefinition[] = [
       {
         id: 'mmd_1',
         url: '/src/assets/images/cover_mumbai_drift_1795504260937.jpg',
-        caption: 'Marine Drive wet-asphalt drift pickup at 2 AM',
+        caption: 'Raat 2 baje bheegi Marine Drive par roaring coupe aur underworld se aakhiri bhagdaud!',
+      },
+      {
+        id: 'mmd_2',
+        url: '/src/assets/images/zoya_drift_portrait_1795516300100.jpg',
+        caption: 'Street Drift Queen Zoya Fernandes ne tumhare liye passenger door khola hai — 10 second mein faisla karo!',
+      },
+      {
+        id: 'mmd_3',
+        url: '/src/assets/images/vikrant_dock_portrait_1795516097665.jpg',
+        caption: 'Syndicate Enforcer Vikrant Shetty ne Bandra Sea Link seal kar diya hai — kya tum dono nikal paoge?',
       },
     ],
     setting: 'Rain-soaked Marine Drive under neon billboards and distant police/syndicate sirens',
@@ -2277,7 +2542,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
         personality: 'Fearless, sarcastic under pressure, fiercely loyal once you sit in her passenger seat.',
         speakingStyle: 'Fast, witty Mumbaiya Hinglish/English.',
         relationshipToUser: 'Former racing partner pulling you into one last heist',
-        portrait: '/src/assets/images/cover_mumbai_drift_1795504260937.jpg',
+        portrait: '/src/assets/images/zoya_drift_portrait_1795516300100.jpg',
       },
       {
         id: 'vikrant_shetty',
@@ -2287,7 +2552,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
         personality: 'Ice-cold, relentless, tracks every vehicle moving through Colaba and Bandra.',
         speakingStyle: 'Calm, menacing radio voice.',
         relationshipToUser: 'Crime boss hunting the stolen drive',
-        portrait: '/src/assets/images/cover_mumbai_drift_1795504260937.jpg',
+        portrait: '/src/assets/images/vikrant_dock_portrait_1795516097665.jpg',
       },
     ],
     relationshipMeters: [
@@ -2295,6 +2560,11 @@ export const STORIES_CATALOG: StoryDefinition[] = [
       { id: 'heat', label: 'Syndicate Heat', emoji: '🚨', initialValue: 74, min: 0, max: 100, tone: 'fear' },
     ],
     openingScene: 'Marine Drive — Tires Smoking at 2 AM',
+    playGuide: {
+      hinglish: '10 second hain — Zoya ki drift car mein koodoge 🏎️ ya syndicate ka saamna karoge? 🚨',
+      hindi: 'दस सेकंड हैं — ज़ोया की गाड़ी में बैठोगे 🏎️ या सिंडिकेट से टकराओगे? 🚨',
+      english: 'Ten seconds before the blockade closes — jump in with Zoya 🏎️ or bluff Shetty? 🚨',
+    },
     openingBeats: {
       hinglish: [
         {
@@ -2385,7 +2655,17 @@ export const STORIES_CATALOG: StoryDefinition[] = [
       {
         id: 'r404_1',
         url: '/src/assets/images/cover_room_404_1795504261141.jpg',
-        caption: 'Midnight encounter beneath the crimson stained-glass arch',
+        caption: 'Pahadon ke purane hostel mein raat 12 baje ke baad Room 404 ka dark secret jaag uthta hai...',
+      },
+      {
+        id: 'r404_2',
+        url: '/src/assets/images/alina_vampire_portrait_1795516147518.jpg',
+        caption: 'Sunahri aankhon wali roommate Alina D’Souza insaan nahi hai — par kya wo tumhari dushman hai ya rakshak?',
+      },
+      {
+        id: 'r404_3',
+        url: '/src/assets/images/aryan_hunter_portrait_1795516146597.jpg',
+        caption: 'Occult hunter Aryan Sen silver dagger lekar upar aa raha hai! Tum kiska saath doge?',
       },
     ],
     setting: 'Foggy Victorian hill-station college hostel corridor lit by a flickering oil lamp',
@@ -2398,7 +2678,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
         personality: 'Aloof, hauntingly gentle, cursed with immortal hunger yet desperate not to hurt you.',
         speakingStyle: 'Soft, poetic, eerily calm whispers.',
         relationshipToUser: 'Your mysterious supernatural roommate',
-        portrait: '/src/assets/images/cover_room_404_1795504261141.jpg',
+        portrait: '/src/assets/images/alina_vampire_portrait_1795516147518.jpg',
       },
       {
         id: 'aryan_sen',
@@ -2408,7 +2688,7 @@ export const STORIES_CATALOG: StoryDefinition[] = [
         personality: 'Intense, scarred, believes every supernatural creature in the hostel must be purged.',
         speakingStyle: 'Urgent, sharp warnings.',
         relationshipToUser: 'Hunter tracking Alina',
-        portrait: '/src/assets/images/cover_room_404_1795504261141.jpg',
+        portrait: '/src/assets/images/aryan_hunter_portrait_1795516146597.jpg',
       },
     ],
     relationshipMeters: [
@@ -2417,6 +2697,11 @@ export const STORIES_CATALOG: StoryDefinition[] = [
       { id: 'danger', label: 'Hunter Threat', emoji: '🐺', initialValue: 64, min: 0, max: 100, tone: 'fear' },
     ],
     openingScene: 'North Wing Corridor — Midnight Red Glass',
+    playGuide: {
+      hinglish: 'Room 404 ka raaz khul raha hai — Alina ko bachaoge 🩸 ya hunter ka saath doge? 🐺',
+      hindi: 'कमरा 404 का राज़ खुल रहा है — अलीना को बचाओगे 🩸 या शिकारी का साथ दोगे? 🐺',
+      english: 'Midnight strikes outside Room 404 — shield Alina 🩸 or trust the hunter? 🐺',
+    },
     openingBeats: {
       hinglish: [
         {
