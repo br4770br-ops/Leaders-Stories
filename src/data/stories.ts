@@ -1750,4 +1750,730 @@ export const STORIES_CATALOG: StoryDefinition[] = [
       'Burned Notice at Midnight',
     ],
   },
+  {
+    id: 'fake_husband_real_feelings',
+    title: 'Fake Husband, Real Feelings',
+    tagline: '6 mahine ki contract shaadi... par kya yeh jhooth dil se sach ban jayega?',
+    about:
+      'To save her late father’s heritage hotel group from a hostile board takeover, fiercely proud heiress Kiara Singhania hires you—a sharp, grounded architect—for a six-month contract marriage. Amid glittering Udaipur palace chandeliers, jealous stepbrother Raghav waits for one slip to expose your secret deal while Kiara’s icy walls slowly start melting.',
+    primaryCategory: 'Romance',
+    categories: ['For You', 'New', 'Top 50', 'Romance', 'Drama'],
+    tags: ['Roleplay', 'Romance', 'Contract Marriage'],
+    visualStyle: 'Cinematic Royal Wedding DSLR',
+    rating: 4.9,
+    chatCountLabel: '188.4K',
+    chatCountNumeric: 188400,
+    rank: 6,
+    isNew: true,
+    isTrending: true,
+    coverImage: '/src/assets/images/cover_fake_husband_1795504259434.jpg',
+    mediaGallery: [
+      {
+        id: 'fhrf_1',
+        url: '/src/assets/images/cover_fake_husband_1795504259434.jpg',
+        caption: 'First reception night under the palace chandeliers',
+      },
+    ],
+    setting: 'Udaipur Heritage Palace reception courtyard, cameras flashing as guests whisper',
+    characters: [
+      {
+        id: 'kiara_singhania',
+        name: 'Kiara Singhania',
+        age: '25',
+        role: 'Contract Bride & Hotel Heiress',
+        personality: 'Guarded, composed, sharp-tongued in public yet silently carrying immense family pressure.',
+        speakingStyle: 'Poised, crisp Hinglish/English with sudden vulnerable pauses.',
+        relationshipToUser: 'Your fake wife hiding real heartbreak',
+        portrait: '/src/assets/images/cover_fake_husband_1795504259434.jpg',
+      },
+      {
+        id: 'raghav_singhania',
+        name: 'Raghav Singhania',
+        age: '28',
+        role: 'Scheming Stepbrother',
+        personality: 'Charming on the surface, ruthless beneath, obsessed with proving the marriage is staged.',
+        speakingStyle: 'Smooth, mocking corporate politeness with veiled threats.',
+        relationshipToUser: 'Hostile rival watching every move',
+        portrait: '/src/assets/images/cover_fake_husband_1795504259434.jpg',
+      },
+    ],
+    relationshipMeters: [
+      { id: 'love', label: 'Real Feelings', emoji: '💍', initialValue: 18, min: 0, max: 100, tone: 'love' },
+      { id: 'trust', label: 'Secret Pact', emoji: '🤝', initialValue: 40, min: 0, max: 100, tone: 'trust' },
+      { id: 'suspicion', label: 'Family Suspicion', emoji: '👀', initialValue: 55, min: 0, max: 100, tone: 'fear' },
+    ],
+    openingScene: 'Udaipur Reception — The First Public Test',
+    openingBeats: {
+      hinglish: [
+        {
+          type: 'narration',
+          text: 'Chandeliers ki roshni mein mehmaano ki nazrein tum dono par tiki hain. Kiara apna haath tumhare haath mein rakhti hai—uskee ungliyan thandi hain, par chehre par royal muskaan hai. Saamne se Raghav champagne glass lekar muskurata hua aata hai.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Kiara Singhania',
+          text: 'Dheere se suno... Raghav humari har harkat notice kar raha hai. Aaj raat duniya ko lagna chahiye ki hum ek doosre se behad pyaar karte hain—bas boundary mat bhoolna.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Raghav Singhania',
+          text: 'Congratulations, newlyweds! Itni achanak love marriage dekh kar sab hairaan hain. Waise, tum dono pehli baar kahan mile the?',
+        },
+      ],
+      hindi: [
+        {
+          type: 'narration',
+          text: 'झूमरों की सुनहरी रोशनी में मेहमानों की निगाहें तुम दोनों पर टिकी हैं। कियारा अपना हाथ तुम्हारे हाथ में रखती है—उसकी उँगलियाँ ठंडी हैं, पर चेहरे पर सधी हुई मुस्कान है। तभी राघव हाथ में गिलास लिए पास आता है।',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Kiara Singhania',
+          text: 'धीमे सुनो... राघव हमारी हर बात पर नज़र रखे हुए है। आज रात सबको लगना चाहिए कि यह रिश्ता बिल्कुल सच्चा है—बस हमारी शर्त मत भूलना।',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Raghav Singhania',
+          text: 'बधाई हो नवविवाहित जोड़े! इतनी अचानक हुई इस शादी ने सबको चौंका दिया। वैसे, पहली बार तुम दोनों की मुलाक़ात कहाँ हुई थी?',
+        },
+      ],
+      english: [
+        {
+          type: 'narration',
+          text: 'Beneath glowing sandstone arches and rose petals, Kiara slips her cold fingers into yours, flashing a poised smile for the cameras as Raghav strolls over with a knowing smirk.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Kiara Singhania',
+          text: 'Keep smiling and stay close—Raghav is testing us. Convince everyone this marriage is real, just remember it is strictly on paper.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Raghav Singhania',
+          text: 'What a whirlwind romance! Tell us, brother-in-law—where did you and Kiara first fall in love?',
+        },
+      ],
+    },
+    initialChoices: {
+      hinglish: [
+        'Kiara ki kamar par haath rakh kar ek romantic aur believable kahani banao',
+        'Raghav ko sharp jawab do aur Kiara ki aankhon mein dekh kar muskuraho',
+      ],
+      hindi: [
+        'कियारा के पास आकर एक बेहद विश्वसनीय और दिल छूने वाली कहानी सुनाओ',
+        'राघव को सधा हुआ जवाब दो और कियारा की आँखों में देखकर मुस्कुराओ',
+      ],
+      english: [
+        'Pull Kiara slightly closer and improvise a tender, unforgettable story',
+        'Turn the question back on Raghav with calm confidence',
+      ],
+    },
+    possibleEndings: [
+      'Tore the Contract for True Love',
+      'Saved the Empire & Won Her Heart',
+    ],
+  },
+  {
+    id: 'solo_awakening_rank_zero',
+    title: 'Solo Awakening: Rank Zero',
+    tagline: 'Kamzor porter se S-Class Dragon Sovereign banne ki kahani!',
+    about:
+      'Mocked as a powerless Rank-Zero porter inside collapsing dungeon gates, you sacrifice yourself to shield your party—only to awaken an ancient Crimson Dragon Core inside your veins. Now Ice Empress Guild Master Yuki Takahashi wants to recruit—or eliminate—you before rival S-Rank Captain Daksh Verma claims your secret.',
+    primaryCategory: 'Fantasy',
+    categories: ['For You', 'New', 'Top 50', 'Fantasy', 'Anime', 'Adventure'],
+    tags: ['Roleplay', 'Fantasy', 'Awakening'],
+    visualStyle: 'Dark Fantasy Anime Cel-Art',
+    rating: 4.9,
+    chatCountLabel: '142.8K',
+    chatCountNumeric: 142800,
+    rank: 7,
+    isNew: true,
+    isTrending: true,
+    coverImage: '/src/assets/images/cover_rank_zero_1795504259085.jpg',
+    mediaGallery: [
+      {
+        id: 'sarz_1',
+        url: '/src/assets/images/cover_rank_zero_1795504259085.jpg',
+        caption: 'Awakening the Crimson Dragon Core inside the Obsidian Gate',
+      },
+    ],
+    setting: 'Shattered Obsidian Crystal Dungeon Gate crackling with crimson and frost mana',
+    characters: [
+      {
+        id: 'yuki_takahashi',
+        name: 'Yuki Takahashi',
+        age: '22',
+        role: 'Ice Empress Guild Master',
+        personality: 'Cool, calculating, legendary S-Rank swordswoman who respects only fearless strength.',
+        speakingStyle: 'Crisp, commanding, observant.',
+        relationshipToUser: 'Powerful guild leader testing your awakening',
+        portrait: '/src/assets/images/cover_rank_zero_1795504259085.jpg',
+      },
+      {
+        id: 'daksh_verma',
+        name: 'Daksh Verma',
+        age: '24',
+        role: 'Rival Vanguard Captain',
+        personality: 'Arrogant, battle-hungry, infuriated that a former Rank-Zero outshines him.',
+        speakingStyle: 'Provocative, boastful, eager for a duel.',
+        relationshipToUser: 'Jealous S-Rank rival',
+        portrait: '/src/assets/images/cover_rank_zero_1795504259085.jpg',
+      },
+    ],
+    relationshipMeters: [
+      { id: 'power', label: 'Dragon Sync', emoji: '🐉', initialValue: 35, min: 0, max: 100, tone: 'respect' },
+      { id: 'trust', label: 'Yuki Respect', emoji: '❄️', initialValue: 25, min: 0, max: 100, tone: 'trust' },
+      { id: 'rivalry', label: 'Guild Rivalry', emoji: '⚔️', initialValue: 70, min: 0, max: 100, tone: 'jealousy' },
+    ],
+    openingScene: 'Obsidian Gate Floor 7 — The Crimson Awakening',
+    openingBeats: {
+      hinglish: [
+        {
+          type: 'narration',
+          text: 'Dungeon ki zameen kaamp rahi hai. Tumhari mutthi ke chaaron taraf laal-violet dragon aura bhadak uthta hai. Frost katana haath mein liye Yuki hairaani se piche rukti hai, jabki Daksh ka chehra gusse se laal ho jata hai.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Yuki Takahashi',
+          text: 'Ek Rank-Zero porter ke paas itni pure S-Class dragon energy kaise aa sakti hai? Apni power control karo, warna mujhe khud tumhe freeze karna padega.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Daksh Verma',
+          text: 'Impossible! Yeh koi cursed artifact chura kar laya hai. Yuki, ise peeche hatao—main iska tamasha abhi khatam karta hoon!',
+        },
+      ],
+      hindi: [
+        {
+          type: 'narration',
+          text: 'अंधेरी गुफा की ज़मीन काँप रही है। तुम्हारी मुट्ठी के चारों ओर लाल-बैंगनी ड्रैगन ऊर्जा भड़क उठती है। बर्फीली तलवार थामे युकी चौंककर थम जाती है, जबकि दक्ष का चेहरा क्रोध से तमतमा उठता है।',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Yuki Takahashi',
+          text: 'एक रैंक-ज़ीरो योद्धा के भीतर इतनी प्रचंड शक्ति कैसे जाग सकती है? अपनी ऊर्जा पर काबू पाओ, वरना मुझे तुम्हें यहीं रोकना होगा।',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Daksh Verma',
+          text: 'असंभव! इसने कोई शापित रत्न चुराया है। युकी, रास्ता दो—मैं अभी इसका घमंड चूर करता हूँ!',
+        },
+      ],
+      english: [
+        {
+          type: 'narration',
+          text: 'Obsidian crystals shatter as violet-crimson dragon fire coils around your fist. Ice Empress Yuki lowers her frost blade half an inch in shock while Daksh snarls beside her.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Yuki Takahashi',
+          text: 'An S-Class dragon aura—from a Rank-Zero porter? Rein it in right now, or I will freeze this chamber solid.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Daksh Verma',
+          text: 'He’s a fraud using stolen dungeon tech! Step aside, Yuki—I’ll crush him myself.',
+        },
+      ],
+    },
+    initialChoices: {
+      hinglish: [
+        'Dragon aura ko shant karke Yuki se seedhe guild contract ki shart rakho',
+        'Daksh ke hamle ko ek hi hath se rok kar apni asli power dikhao',
+      ],
+      hindi: [
+        'अपनी शक्ति को शांत करके युकी के सामने बराबरी की संधि का प्रस्ताव रखो',
+        'दक्ष के वार को एक ही झटके में रोककर अपनी नई ताकत साबित करो',
+      ],
+      english: [
+        'Contain the dragon flame and offer Yuki an equal alliance',
+        'Meet Daksh’s challenge head-on to prove your awakening is real',
+      ],
+    },
+    possibleEndings: [
+      'Crowned the Crimson Dragon Sovereign',
+      'Founded the Twin-Element Vanguard Guild',
+    ],
+  },
+  {
+    id: 'last_bench_confession',
+    title: 'Last Bench Confession',
+    tagline: 'Farewell se pehle notice board par chipka ek adhoora khat... aur poori class ki nazar!',
+    about:
+      'One week before Class 12 farewell, someone steals the private letter hidden inside your notebook and pins it onto the main corridor notice board. Now strict topper Class Monitor Riya Malhotra suspects a prank—even though half the letter was meant for her—while chaotic best friend Kabir Sethi scrambles to track down the real culprit before teachers see it.',
+    primaryCategory: 'School',
+    categories: ['For You', 'New', 'By Fans', 'School', 'College', 'Romance', 'Drama'],
+    tags: ['Roleplay', 'School', 'First Love'],
+    visualStyle: 'Golden-Hour School Film DSLR',
+    rating: 4.8,
+    chatCountLabel: '95.6K',
+    chatCountNumeric: 95600,
+    isNew: true,
+    isByFans: true,
+    coverImage: '/src/assets/images/cover_last_bench_1795504260323.jpg',
+    mediaGallery: [
+      {
+        id: 'lbc_1',
+        url: '/src/assets/images/cover_last_bench_1795504260323.jpg',
+        caption: 'After-school classroom confrontation over the torn letter',
+      },
+    ],
+    setting: 'Sunlit senior classroom after the final bell, desks empty except for you three',
+    characters: [
+      {
+        id: 'riya_malhotra',
+        name: 'Riya Malhotra',
+        age: '18',
+        role: 'Class Monitor & Your Secret Crush',
+        personality: 'Disciplined, sensitive beneath her strict rules, hurt because she thinks the letter mocks her.',
+        speakingStyle: 'Quick, emotional, tries to sound strict when flustered.',
+        relationshipToUser: 'The girl the unspoken letter was written for',
+        portrait: '/src/assets/images/cover_last_bench_1795504260323.jpg',
+      },
+      {
+        id: 'kabir_sethi',
+        name: 'Kabir Sethi',
+        age: '18',
+        role: 'Last-Bench Best Friend',
+        personality: 'Loyal, loud, dramatic, ready to take the blame if it saves your farewell.',
+        speakingStyle: 'Playful Hindi-English slang, protective bro energy.',
+        relationshipToUser: 'Your ride-or-die benchmate',
+        portrait: '/src/assets/images/cover_last_bench_1795504260323.jpg',
+      },
+    ],
+    relationshipMeters: [
+      { id: 'love', label: 'Crush Spark', emoji: '💌', initialValue: 46, min: 0, max: 100, tone: 'love' },
+      { id: 'trust', label: 'Riya Trust', emoji: '🤝', initialValue: 35, min: 0, max: 100, tone: 'trust' },
+      { id: 'friendship', label: 'Dostana', emoji: '🎒', initialValue: 82, min: 0, max: 100, tone: 'friendship' },
+    ],
+    openingScene: 'Empty Classroom — The Torn Letter',
+    openingBeats: {
+      hinglish: [
+        {
+          type: 'narration',
+          text: 'Shaam ki dhoop khidkiyon se classroom ke wooden desks par pad rahi hai. Riya phata hua kagaz haath mein pakde peeche mudti hai, uski aankhon mein narazgi aur hairaani dono hain. Kabir dabe paon aakar tumhare bagal mein khada hota hai.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Riya Malhotra',
+          text: 'Yeh handwriting tumhari hai na? Notice board par sab padh rahe the! Agar yeh koi farewell prank tha, to bilkul funny nahi tha... sach batao, yeh kiske liye likha tha?',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Kabir Sethi',
+          text: 'Oye Riya, isne kuch nahi lagaya board par! Kisi ne iski copy se page faad ke chipkaya hai—par bhai, ab bol bhi de warna principal office bula lenge.',
+        },
+      ],
+      hindi: [
+        {
+          type: 'narration',
+          text: 'शाम की सुनहरी धूप खिड़कियों से कक्षा की मेज़ों पर पड़ रही है। रिया फटा हुआ कागज़ हाथ में लिए पीछे मुड़ती है, उसकी आँखों में गुस्सा और उलझन दोनों हैं। कबीर चुपचाप तुम्हारे पास आकर खड़ा हो जाता है।',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Riya Malhotra',
+          text: 'यह लिखावट तुम्हारी ही है न? नोटिस बोर्ड पर सब इसे पढ़ रहे थे! अगर यह कोई मज़ाक था तो बिल्कुल अच्छा नहीं था... सच बताओ, यह किसके लिए लिखा था?',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Kabir Sethi',
+          text: 'अरे रिया, इसने बोर्ड पर कुछ नहीं लगाया! किसी ने इसकी कॉपी से पन्ना फाड़कर चिपकाया है—पर दोस्त, अब सच बोल दे वरना प्रिंसिपल तक बात पहुँच जाएगी।',
+        },
+      ],
+      english: [
+        {
+          type: 'narration',
+          text: 'Golden afternoon light cuts across empty wooden desks. Riya turns around clutching the torn notice-board letter, hurt flickering behind her strict gaze while Kabir whispers urgently beside you.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Riya Malhotra',
+          text: 'This is your handwriting. Everyone in the hallway saw it before I pulled it down. Tell me honestly—was this a cruel dare, or who was it really written for?',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Kabir Sethi',
+          text: 'Hey, someone stole that page out of his bag! Wait—bro, just tell her the truth before the vice principal checks the cameras.',
+        },
+      ],
+    },
+    initialChoices: {
+      hinglish: [
+        'Himmat karke Riya ke saamne maan lo ki khat usi ke liye tha',
+        'Pehle Kabir ke saath milkar notice board par lagane wale ka naam pata karo',
+      ],
+      hindi: [
+        'हिम्मत करके रिया के सामने स्वीकार कर लो कि वह पत्र उसी के लिए था',
+        'पहले कबीर के साथ मिलकर पता लगाओ कि पन्ना किसने चुराया था',
+      ],
+      english: [
+        'Take a breath and admit to Riya that every word was meant for her',
+        'Focus on finding who stole the letter from your locker first',
+      ],
+    },
+    possibleEndings: [
+      'A Slow-Dance Confession on Farewell Night',
+      'Caught the Rival & Unforgettable Senior Year',
+    ],
+  },
+  {
+    id: 'sultanas_hidden_spy',
+    title: "Sultana's Hidden Spy",
+    tagline: 'Shahi mahal ke har parde ke peeche ek gaddar... aur ek rajkumari ka raaz.',
+    about:
+      'Serving undercover as the Imperial Calligrapher inside the 17th-century Red Sandstone Citadel, you are caught translating a stolen war cipher by razor-sharp Princess Mehr-un-Nisa. With scheming Grand Wazir Zafar Khan hunting traitors before the royal banquet, Mehr offers you a dangerous bargain: protect her throne from within—or face the dungeon.',
+    primaryCategory: 'Historical',
+    categories: ['For You', 'New', 'Historical', 'Drama', 'Thriller', 'Romance'],
+    tags: ['Roleplay', 'Historical', 'Palace Intrigue'],
+    visualStyle: 'Epic Period Palace Cinema',
+    rating: 4.8,
+    chatCountLabel: '54.3K',
+    chatCountNumeric: 54300,
+    isNew: true,
+    coverImage: '/src/assets/images/cover_sultana_spy_1795504260398.jpg',
+    mediaGallery: [
+      {
+        id: 'shs_1',
+        url: '/src/assets/images/cover_sultana_spy_1795504260398.jpg',
+        caption: 'Torchlit encounter beneath the Red Sandstone archways',
+      },
+    ],
+    setting: 'Torchlit Red Sandstone Citadel archive corridor at midnight',
+    characters: [
+      {
+        id: 'mehr_un_nisa',
+        name: 'Princess Mehr-un-Nisa',
+        age: '22',
+        role: 'Crown Princess & Strategist',
+        personality: 'Regal, observant, mistrusts courtiers, willing to play deadly chess for peace.',
+        speakingStyle: 'Poetic Urdu-Hindi elegance with royal authority.',
+        relationshipToUser: 'Princess who caught you holding the cipher',
+        portrait: '/src/assets/images/cover_sultana_spy_1795504260398.jpg',
+      },
+      {
+        id: 'wazir_zafar',
+        name: 'Wazir Zafar Khan',
+        age: '44',
+        role: 'Grand Minister of Intelligence',
+        personality: 'Cold, suspicious, commands the palace spies and trusts no outsider.',
+        speakingStyle: 'Silky, intimidating courtly cadence.',
+        relationshipToUser: 'Ruthless minister patrolling the halls',
+        portrait: '/src/assets/images/cover_sultana_spy_1795504260398.jpg',
+      },
+    ],
+    relationshipMeters: [
+      { id: 'trust', label: 'Royal Trust', emoji: '👑', initialValue: 28, min: 0, max: 100, tone: 'trust' },
+      { id: 'love', label: 'Forbidden Bond', emoji: '🌹', initialValue: 16, min: 0, max: 100, tone: 'love' },
+      { id: 'danger', label: 'Wazir Suspicion', emoji: '🗡️', initialValue: 60, min: 0, max: 100, tone: 'fear' },
+    ],
+    openingScene: 'Sandstone Archway — The Stolen Cipher',
+    openingBeats: {
+      hinglish: [
+        {
+          type: 'narration',
+          text: 'Mashaalon ki roshni mein laal patthar ke mehraab chamak rahe hain. Rajkumari Mehr-un-Nisa tumhare haath ka gupt farmaan pakad leti hain, jabki door stambhon ke peeche Wazir Zafar ke pahredaron ke qadmon ki aahat sunai deti hai.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Princess Mehr-un-Nisa',
+          text: 'Ek aam shahi lekhak ko gupt yuddh-sanket padhne ki kya zaroorat padi? Sach kaho—tum kis sultanat ke jasoos ho, ya meri jaan bachane aaye ho?',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Wazir Zafar Khan',
+          text: 'Rajkumari ji? Aadhi raat ko is galiyare mein kaun khada hai? Pahredaron, aage badho!',
+        },
+      ],
+      hindi: [
+        {
+          type: 'narration',
+          text: 'मशालों की लौ में लाल बलुआ पत्थर के मेहराब दमक रहे हैं। राजकुमारी मेहर-उन-निसा तुम्हारे हाथ का गुप्त फरमान थाम लेती हैं, तभी दूर स्तंभों के पीछे वज़ीर ज़फ़र के पहरेदारों की आहट गूँजती है।',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Princess Mehr-un-Nisa',
+          text: 'एक शाही सुलेखक को गुप्त युद्ध-संकेत पढ़ने का साहस कैसे हुआ? सच कहो—तुम किस सल्तनत के गुप्तचर हो?',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Wazir Zafar Khan',
+          text: 'शहज़ादी साहिबा? आधी रात को इस गलियारे में किसकी परछाई है? सिपाहियों, जाँच करो!',
+        },
+      ],
+      english: [
+        {
+          type: 'narration',
+          text: 'Torchlight flickers across carved red sandstone pillars as Princess Mehr-un-Nisa intercepts the wax-sealed cipher in your hand—right as Wazir Zafar’s boots echo down the hall.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Princess Mehr-un-Nisa',
+          text: 'A simple court calligrapher does not decode treason ciphers by moonlight. Speak quickly—whose spy are you?',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Wazir Zafar Khan',
+          text: 'Your Highness? Who lingers in the archive archways at this hour? Guards, raise your torches!',
+        },
+      ],
+    },
+    initialChoices: {
+      hinglish: [
+        'Farmaan chhupa kar Mehr ko ishara karo ki Wazir khud gaddar hai',
+        'Chhayao mein chhip jao aur Wazir ki nazar bacha kar raaz suno',
+      ],
+      hindi: [
+        'फरमान छुपाकर राजकुमारी को संकेत दो कि असली गद्दार वज़ीर ही है',
+        'स्तंभ की छाया में छिपकर वज़ीर की अगली चाल सुनो',
+      ],
+      english: [
+        'Conceal the scroll and whisper proof that Wazir Zafar forged the seal',
+        'Slip behind the sandstone pillar to avoid being seen with the Princess',
+      ],
+    },
+    possibleEndings: [
+      'Saved the Citadel & Stood Beside the Crown',
+      'Vanished Into the Silk Road Night',
+    ],
+  },
+  {
+    id: 'mumbai_midnight_drift',
+    title: 'Underground Drift: Mumbai 2AM',
+    tagline: 'Bheegi sadak, roaring twin-turbo, aur underworld ke sabse khatarnak syndicate se bhaag!',
+    about:
+      'Once Mumbai’s fastest street navigator before walking away, you are pulled back for one rain-slicked midnight run when fearless underground racer Zoya Fernandes drifts up beside you with a stolen encrypted hard drive—and mafia syndicate enforcer Vikrant Shetty blocking every bridge out of South Mumbai.',
+    primaryCategory: 'Mafia',
+    categories: ['For You', 'New', 'Mafia', 'Crime', 'Adventure', 'Thriller'],
+    tags: ['Roleplay', 'Street Racing', 'Underworld'],
+    visualStyle: 'Neon Rain Mumbai Thriller DSLR',
+    rating: 4.8,
+    chatCountLabel: '77.2K',
+    chatCountNumeric: 77200,
+    isNew: true,
+    isTrending: true,
+    coverImage: '/src/assets/images/cover_mumbai_drift_1795504260937.jpg',
+    mediaGallery: [
+      {
+        id: 'mmd_1',
+        url: '/src/assets/images/cover_mumbai_drift_1795504260937.jpg',
+        caption: 'Marine Drive wet-asphalt drift pickup at 2 AM',
+      },
+    ],
+    setting: 'Rain-soaked Marine Drive under neon billboards and distant police/syndicate sirens',
+    characters: [
+      {
+        id: 'zoya_fernandes',
+        name: 'Zoya Fernandes',
+        age: '24',
+        role: 'Underground Drift Queen',
+        personality: 'Fearless, sarcastic under pressure, fiercely loyal once you sit in her passenger seat.',
+        speakingStyle: 'Fast, witty Mumbaiya Hinglish/English.',
+        relationshipToUser: 'Former racing partner pulling you into one last heist',
+        portrait: '/src/assets/images/cover_mumbai_drift_1795504260937.jpg',
+      },
+      {
+        id: 'vikrant_shetty',
+        name: 'Vikrant Shetty',
+        age: '37',
+        role: 'Dockyard Syndicate Enforcer',
+        personality: 'Ice-cold, relentless, tracks every vehicle moving through Colaba and Bandra.',
+        speakingStyle: 'Calm, menacing radio voice.',
+        relationshipToUser: 'Crime boss hunting the stolen drive',
+        portrait: '/src/assets/images/cover_mumbai_drift_1795504260937.jpg',
+      },
+    ],
+    relationshipMeters: [
+      { id: 'chemistry', label: 'Crew Sync', emoji: '🏎️', initialValue: 48, min: 0, max: 100, tone: 'friendship' },
+      { id: 'heat', label: 'Syndicate Heat', emoji: '🚨', initialValue: 74, min: 0, max: 100, tone: 'fear' },
+    ],
+    openingScene: 'Marine Drive — Tires Smoking at 2 AM',
+    openingBeats: {
+      hinglish: [
+        {
+          type: 'narration',
+          text: 'Baarish se bheegi Marine Drive par kaali coupe 180° drift maarkar tumhare saamne rukti hai. Darwaza khulta hai aur Zoya muskurakar seat ki taraf ishara karti hai, tabhi car ke radio par Vikrant ki thandi aawaz goonjti hai.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Zoya Fernandes',
+          text: 'Miss me, partner? Passenger seat khali hai aur mere paas Shetty ke dockyard ka poora black ledger hai. 10 second hain—ander baitho ya akela bhaago!',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Vikrant Shetty',
+          text: '*(Radio par)* Zoya, Bandra Sea Link seal ho chuka hai. Drive waapas rakh kar gaadi chhod do... warna aaj raat samundar mein sirf tumhara bumper milega.',
+        },
+      ],
+      hindi: [
+        {
+          type: 'narration',
+          text: 'बारिश से भीगी मरीन ड्राइव पर काली स्पोर्ट्स कार फिसलती हुई तुम्हारे सामने आकर रुकती है। दरवाज़ा खुलता है और ज़ोया मुस्कुराकर अंदर आने का इशारा करती है, तभी रेडियो पर विक्रांत की ठंडी आवाज़ गूँजती है।',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Zoya Fernandes',
+          text: 'मुझे याद किया, पार्टनर? मेरे पास शेट्टी के सिंडिकेट की पूरी गुप्त फाइल है। दस सेकंड हैं—गाड़ी में बैठो या यहीं रह जाओ!',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Vikrant Shetty',
+          text: '*(रेडियो पर)* ज़ोया, हर रास्ता बंद हो चुका है। ड्राइव वापस दे दो, वरना आज रात मुंबई की सड़कें तुम्हारा आख़िरी सफर बनेंगी।',
+        },
+      ],
+      english: [
+        {
+          type: 'narration',
+          text: 'Red taillights streak across rain-slick Marine Drive as a matte-black coupe whips into a tight drift right beside you. Zoya kicks open the door while Vikrant’s voice crackles over the scanner.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Zoya Fernandes',
+          text: 'Miss the rush, navigator? I’ve got Shetty’s encrypted ledger in the glovebox and six SUVs on my tail. Hop in—now!',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Vikrant Shetty',
+          text: '*(Over radio)* Sea Link is blocked, Zoya. Hand over the drive, or neither of you sees sunrise.',
+        },
+      ],
+    },
+    initialChoices: {
+      hinglish: [
+        'Gaadi mein kood jao aur Zoya ko Worli ke secret tunnel route ki taraf guide karo',
+        'Radio mic utha kar Vikrant Shetty ko seedha bluff call do',
+      ],
+      hindi: [
+        'गाड़ी में बैठकर ज़ोया को वर्ली की गुप्त सुरंग वाले रास्ते की ओर मोड़ने को कहो',
+        'रेडियो माइक उठाकर विक्रांत शेट्टी को चकमा देने की चाल चलो',
+      ],
+      english: [
+        'Jump in and call out a shortcut through the old Worli dock tunnels',
+        'Grab the radio mic and bluff Vikrant while Zoya hits the throttle',
+      ],
+    },
+    possibleEndings: [
+      'Broke the Blockade & Exposed the Syndicate',
+      'Vanished Across the Sea Link Before Dawn',
+    ],
+  },
+  {
+    id: 'room_404_blood_pact',
+    title: 'Room 404: Midnight Blood Pact',
+    tagline: 'Pahadon ke purane hostel mein raat 12 baje ke baad kamra #404 ki asliyat khulti hai...',
+    about:
+      'Assigned to the misty North Wing of St. Jude’s Hill University, you notice your quiet, enigmatic roommate Alina D’Souza never sleeps, vanishes past midnight, and leaves frost on every windowpane. When rogue occult hunter Aryan Sen corners you with silver stakes, you must decide whether Alina is a predator—or the only guardian keeping something far darker locked behind Door 404.',
+    primaryCategory: 'Supernatural',
+    categories: ['For You', 'New', 'By Fans', 'Supernatural', 'Horror', 'College', 'Romance'],
+    tags: ['Roleplay', 'Supernatural', 'Gothic Mystery'],
+    visualStyle: 'Dark Gothic Realism',
+    rating: 4.9,
+    chatCountLabel: '118.5K',
+    chatCountNumeric: 118500,
+    isNew: true,
+    isByFans: true,
+    coverImage: '/src/assets/images/cover_room_404_1795504261141.jpg',
+    mediaGallery: [
+      {
+        id: 'r404_1',
+        url: '/src/assets/images/cover_room_404_1795504261141.jpg',
+        caption: 'Midnight encounter beneath the crimson stained-glass arch',
+      },
+    ],
+    setting: 'Foggy Victorian hill-station college hostel corridor lit by a flickering oil lamp',
+    characters: [
+      {
+        id: 'alina_dsouza',
+        name: "Alina D'Souza",
+        age: '20',
+        role: 'Nocturnal Roommate & Ancient Bloodline',
+        personality: 'Aloof, hauntingly gentle, cursed with immortal hunger yet desperate not to hurt you.',
+        speakingStyle: 'Soft, poetic, eerily calm whispers.',
+        relationshipToUser: 'Your mysterious supernatural roommate',
+        portrait: '/src/assets/images/cover_room_404_1795504261141.jpg',
+      },
+      {
+        id: 'aryan_sen',
+        name: 'Aryan Sen',
+        age: '23',
+        role: 'Occult Order Hunter',
+        personality: 'Intense, scarred, believes every supernatural creature in the hostel must be purged.',
+        speakingStyle: 'Urgent, sharp warnings.',
+        relationshipToUser: 'Hunter tracking Alina',
+        portrait: '/src/assets/images/cover_room_404_1795504261141.jpg',
+      },
+    ],
+    relationshipMeters: [
+      { id: 'bond', label: 'Blood Bond', emoji: '🩸', initialValue: 32, min: 0, max: 100, tone: 'love' },
+      { id: 'trust', label: 'Alina Trust', emoji: '🕯️', initialValue: 40, min: 0, max: 100, tone: 'trust' },
+      { id: 'danger', label: 'Hunter Threat', emoji: '🐺', initialValue: 64, min: 0, max: 100, tone: 'fear' },
+    ],
+    openingScene: 'North Wing Corridor — Midnight Red Glass',
+    openingBeats: {
+      hinglish: [
+        {
+          type: 'narration',
+          text: 'Hostel ke sunsaan corridor mein kohra chhaya hai. Laal stained-glass khidki ke neeche Alina khadi hai—uski aankhein andhere mein halki sunahri chamak rahi hain. Peeche seedhiyon se Aryan silver dagger nikal kar upar aata dikhta hai.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: "Alina D'Souza",
+          text: 'Tumhe is waqt kamre ke bahar nahi aana chahiye tha. Agar Aryan ne mujhe tumhare saath dekh liya, to wo sochega maine tumhe kaat liya hai... jaldi bolo, kya tum mujhse darte ho?',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Aryan Sen',
+          text: 'Kamra 404 se peeche hato! Wo ladki insaan nahi hai—aaj grahan ki raat uska shikaar shuru hone wala hai!',
+        },
+      ],
+      hindi: [
+        {
+          type: 'narration',
+          text: 'हॉस्टल के सुनसान गलियारे में कोहरा फैला है। लाल काँच की खिड़की के नीचे अलीना खड़ी है—उसकी आँखें अंधेरे में हल्की सुनहरी चमक रही हैं। तभी सीढ़ियों से आर्यन चाँदी का खंजर लिए ऊपर आता दिखता है।',
+        },
+        {
+          type: 'dialogue',
+          speakerName: "Alina D'Souza",
+          text: 'तुम्हें इस वक्त कमरे से बाहर नहीं आना चाहिए था। अगर आर्यन ने तुम्हें मेरे पास देख लिया तो अनर्थ हो जाएगा... सच बताओ, क्या तुम्हें मुझसे डर लग रहा है?',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Aryan Sen',
+          text: 'कमरा 404 से दूर हट जाओ! वह इंसान नहीं है—आज रात उसका श्राप फिर से जागने वाला है!',
+        },
+      ],
+      english: [
+        {
+          type: 'narration',
+          text: 'Mist curls along the creaking timber floorboards of North Wing. Beneath crimson moonlight, Alina’s amber eyes glow softly as Aryan climbs the staircase clutching a silver blade.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: "Alina D'Souza",
+          text: 'You shouldn’t have come out after midnight. If Aryan sees you near me, he won’t hesitate. Tell me quickly—are you afraid of what I am?',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Aryan Sen',
+          text: 'Step away from Room 404! She isn’t human—and the blood moon rises in ten minutes!',
+        },
+      ],
+    },
+    initialChoices: {
+      hinglish: [
+        'Alina ke saamne khade ho jao aur Aryan ko roko',
+        'Aryan se poochho ki Room 404 ke peeche kaunsa purana raaz chhipa hai',
+      ],
+      hindi: [
+        'अलीना के सामने ढाल बनकर खड़े हो जाओ और आर्यन को रोको',
+        'आर्यन से पूछो कि कमरा 404 के पीछे कौन-सा पुराना रहस्य छिपा है',
+      ],
+      english: [
+        'Step between them and protect Alina until she explains the truth',
+        'Demand Aryan show you the ancient seal hidden inside Room 404',
+      ],
+    },
+    possibleEndings: [
+      'Sealed the Dark Crypt & Forged an Eternal Pact',
+      'Broke the Bloodline Curse Before Sunrise',
+    ],
+  },
 ];

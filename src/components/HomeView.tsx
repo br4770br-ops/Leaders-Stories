@@ -75,12 +75,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
   );
 
   const recentlyAdded = useMemo(
-    () => stories.filter((s) => s.isNew).slice(0, 6),
+    () => [...stories].filter((s) => s.isNew).reverse().slice(0, 10),
     [stories]
   );
 
   const popularCharacters = useMemo(() => {
-    return stories.slice(0, 8).map((story) => ({
+    return stories.slice(0, 14).map((story) => ({
       character: story.characters[0],
       story,
     })).filter((entry) => Boolean(entry.character));
@@ -260,7 +260,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 </button>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                {stories.slice(0, 10).map((story) => (
+                {stories.slice(0, 15).map((story) => (
                   <StoryCard
                     key={story.id}
                     story={story}
