@@ -101,7 +101,31 @@ function LeadersStoriesShell() {
   }, [adminDashboardOpen, activeChatStory, selectedStory, authModalOpen]);
 
   useEffect(() => {
-    registerSW({ immediate: true });
+    if (import.meta.env.PROD) {
+      registerSW({ immediate: true });
+      return;
+    }
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker
+        .getRegistrations()
+        .then((registrations) => {
+          registrations.forEach((reg) => {
+            void reg.unregister();
+          });
+        })
+        .catch(() => {});
+    }
+    if ('caches' in window) {
+      caches
+        .keys()
+        .then((keys) => {
+          keys.forEach((k) => {
+            void caches.delete(k);
+          });
+        })
+        .catch(() => {});
+    }
   }, []);
 
   const refreshAppConfig = useCallback(async () => {
@@ -537,6 +561,7 @@ function LeadersStoriesShell() {
   if (activeChatStory && user && user.emailVerified) {
     return (
       <StoryChatScreen
+        key={activeChatStory.id}
         story={activeChatStory}
         user={user}
         preferredLanguage={preferredLanguage}

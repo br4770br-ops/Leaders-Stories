@@ -116,6 +116,99 @@ const LANGUAGE_LABELS: Record<LanguageCode, string> = {
   english: 'English',
 };
 
+function isTransientStoryErrorText(text: string): boolean {
+  const lower = (text || '').toLowerCase();
+  return (
+    lower.includes('busy') ||
+    lower.includes('503') ||
+    lower.includes('unavailable') ||
+    lower.includes('high demand') ||
+    lower.includes('overloaded') ||
+    lower.includes('429') ||
+    lower.includes('too many requests') ||
+    lower.includes('resource_exhausted')
+  );
+}
+
+function isPlaceholderStoryMessage(msg: ChatTurnMessage): boolean {
+  if (msg.role !== 'story') return false;
+  if (!Array.isArray(msg.beats) || msg.beats.length === 0) return true;
+  return msg.beats.every((b) => {
+    const t = (b?.text || '').trim();
+    return !t || t === '...';
+  });
+}
+
+function extractValidStoryBeats(rawBeats: unknown): StoryBeat[] {
+  if (!Array.isArray(rawBeats)) return [];
+  return rawBeats
+    .map((b) => {
+      if (!b || typeof b !== 'object') return null;
+      const item = b as { type?: unknown; speakerName?: unknown; text?: unknown };
+      const text = typeof item.text === 'string' ? item.text.trim() : '';
+      if (!text || text === '...') return null;
+      const type: StoryBeat['type'] = item.type === 'narration' ? 'narration' : 'dialogue';
+      const speakerName =
+        typeof item.speakerName === 'string' && item.speakerName.trim()
+          ? item.speakerName.trim()
+          : undefined;
+      return {
+        type,
+        ...(type === 'dialogue' && speakerName ? { speakerName } : {}),
+        text,
+      };
+    })
+    .filter((b): b is StoryBeat => Boolean(b));
+}
+
+function formatReadableError(err: unknown, fallback = 'Something went wrong. Please try again.'): string {
+  let msg = err instanceof Error ? err.message : typeof err === 'string' ? err : fallback;
+  for (let depth = 0; depth < 4; depth++) {
+    const trimmed = (msg || '').trim();
+    const jsonStart = trimmed.indexOf('{');
+    const jsonEnd = trimmed.lastIndexOf('}');
+    if (jsonStart === -1 || jsonEnd <= jsonStart) break;
+    try {
+      const parsed = JSON.parse(trimmed.slice(jsonStart, jsonEnd + 1)) as {
+        error?: { message?: string } | string;
+        message?: string;
+      };
+      if (typeof parsed.error === 'string') {
+        msg = parsed.error;
+      } else if (parsed.error && typeof parsed.error === 'object' && typeof parsed.error.message === 'string') {
+        msg = parsed.error.message;
+      } else if (typeof parsed.message === 'string') {
+        msg = parsed.message;
+      } else {
+        break;
+      }
+    } catch {
+      break;
+    }
+  }
+  const clean = (msg || '').trim();
+  const lower = clean.toLowerCase();
+  if (
+    lower.includes('503') ||
+    lower.includes('unavailable') ||
+    lower.includes('service unavailable') ||
+    lower.includes('high demand') ||
+    lower.includes('overloaded')
+  ) {
+    return 'Story AI servers are busy right now. Please tap Retry in a second.';
+  }
+  if (lower.includes('429') || lower.includes('resource_exhausted') || lower.includes('quota')) {
+    return 'Too many requests right now. Please wait a couple seconds and tap Retry.';
+  }
+  if (lower.includes('offline') || lower.includes('failed to get document')) {
+    return 'Connection interrupted. Your local story progress is safe.';
+  }
+  if (lower.includes('no document to update') || lower.includes('not-found')) {
+    return 'Syncing story session in the background. Please try again.';
+  }
+  return clean.slice(0, 220) || fallback;
+}
+
 interface ChatMessageListProps {
   messages: ChatTurnMessage[];
   meters: RelationshipMeterValue[];
@@ -359,6 +452,12 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
   const [sending, setSending] = useState(false);
   const [streamingBeats, setStreamingBeats] = useState<StoryBeat[]>([]);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
+  const [retryAction, setRetryAction] = useState<
+    | { type: 'send'; text: string; isChoice: boolean }
+    | { type: 'continue' }
+    | { type: 'regenerate' }
+    | null
+  >(null);
 
   // Lightbulb AI Suggested Replies + turn-keyed instant cache
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
@@ -371,6 +470,7 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
   const inFlightRef = useRef(false);
   const streamAbortRef = useRef<AbortController | null>(null);
   const cloudWriteQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const maxSequenceRef = useRef<number>(0);
   const mountedRef = useRef(true);
 
   const enqueueCloudWrite = (task: () => Promise<void>) => {
@@ -379,14 +479,7 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
       .catch((err) => {
         console.error('Background cloud save failed:', err);
         if (mountedRef.current) {
-          let readable = err instanceof Error ? err.message : 'Unable to sync turn to cloud.';
-          try {
-            const parsed = JSON.parse(readable) as { error?: string };
-            if (parsed.error) readable = parsed.error;
-          } catch {
-            // keep readable error string
-          }
-          setErrorBanner(`Sync warning: ${readable}`);
+          setErrorBanner(`Sync warning: ${formatReadableError(err, 'Unable to sync turn to cloud.')}`);
         }
       });
   };
@@ -517,26 +610,57 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
 
   useEffect(() => {
     let active = true;
+
+    const syncDerivedSessionState = (msgs: ChatTurnMessage[]) => {
+      const lastStoryMsg = [...msgs].reverse().find((m) => m.role === 'story');
+      if (lastStoryMsg?.sceneSummary && !existingProgress?.currentScene) {
+        setCurrentScene(lastStoryMsg.sceneSummary);
+      }
+      const inferredSceneIdx = Math.max(
+        existingProgress?.sceneIndex || 0,
+        Math.floor(Math.max(0, msgs.length - 1) / 2)
+      );
+      setSceneIndex((prev) => Math.max(prev, inferredSceneIdx));
+      if (existingMeters && existingMeters.length > 0) {
+        setMeters(existingMeters);
+      } else if (lastStoryMsg?.metersSnapshot && lastStoryMsg.metersSnapshot.length > 0) {
+        setMeters((prev) =>
+          prev.map((m) => {
+            const snap = lastStoryMsg.metersSnapshot?.find((s) => s.id === m.id);
+            return snap ? { ...m, value: snap.value } : m;
+          })
+        );
+      }
+      if (msgs.length <= 1) {
+        setActiveChoices(story.initialChoices[preferredLanguage] || story.initialChoices.hinglish);
+      }
+    };
+
+    const applySanitizedMessages = (rawMsgs: ChatTurnMessage[]) => {
+      const maxSeq = rawMsgs.reduce((acc, m) => Math.max(acc, m.sequence || 0), 0);
+      maxSequenceRef.current = Math.max(maxSequenceRef.current, maxSeq);
+      const cleanMsgs = rawMsgs.filter((m) => !isPlaceholderStoryMessage(m));
+      const finalMsgs = cleanMsgs.length > 0 ? cleanMsgs : rawMsgs.slice(0, 1);
+      setMessages(finalMsgs);
+      syncDerivedSessionState(finalMsgs);
+      return finalMsgs;
+    };
+
     async function bootSession() {
       setLoadingInit(true);
       setErrorBanner(null);
       setStreamingBeats([]);
+      maxSequenceRef.current = 0;
       try {
         // 1. Instant cache-first hydration (renders in <10ms for resumed chats)
         const cached = await loadConversationMessagesFromCache(user.uid, story.id, 100);
         if (!active) return;
 
         if (cached.length > 0) {
-          setMessages(cached);
-          if (existingMeters && existingMeters.length > 0) {
-            setMeters(existingMeters);
-          }
-          if (cached.length <= 1) {
-            setActiveChoices(story.initialChoices[preferredLanguage] || story.initialChoices.hinglish);
-          }
+          const cleanCached = applySanitizedMessages(cached);
           setLoadingInit(false);
           setTimeout(() => {
-            if (cached.length > 1) {
+            if (cleanCached.length > 1) {
               scrollToBottom(false);
             } else {
               scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'auto' });
@@ -547,15 +671,16 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
           void loadConversationMessages(user.uid, story.id, 100)
             .then((fresh) => {
               if (!active || inFlightRef.current || fresh.length === 0) return;
-              const lastFresh = fresh[fresh.length - 1];
-              const lastCached = cached[cached.length - 1];
+              const cleanFresh = fresh.filter((m) => !isPlaceholderStoryMessage(m));
+              const lastFresh = cleanFresh[cleanFresh.length - 1];
+              const lastCached = cleanCached[cleanCached.length - 1];
               if (
-                fresh.length !== cached.length ||
+                cleanFresh.length !== cleanCached.length ||
                 lastFresh?.id !== lastCached?.id ||
                 lastFresh?.sequence !== lastCached?.sequence
               ) {
-                setMessages(fresh);
-                if (fresh.length > 1) {
+                const applied = applySanitizedMessages(fresh);
+                if (applied.length > 1) {
                   setTimeout(() => scrollToBottom(false), 30);
                 }
               }
@@ -569,16 +694,10 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
         if (!active) return;
 
         if (loaded.length > 0) {
-          setMessages(loaded);
-          if (existingMeters && existingMeters.length > 0) {
-            setMeters(existingMeters);
-          }
-          if (loaded.length <= 1) {
-            setActiveChoices(story.initialChoices[preferredLanguage] || story.initialChoices.hinglish);
-          }
+          const cleanLoaded = applySanitizedMessages(loaded);
           setLoadingInit(false);
           setTimeout(() => {
-            if (loaded.length > 1) {
+            if (cleanLoaded.length > 1) {
               scrollToBottom(false);
             } else {
               scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'auto' });
@@ -614,7 +733,7 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
       } catch (err) {
         if (!active) return;
         setLoadingInit(false);
-        setErrorBanner(err instanceof Error ? err.message : 'Unable to load story conversation.');
+        setErrorBanner(formatReadableError(err, 'Unable to load story conversation.'));
       }
     }
     void bootSession();
@@ -658,6 +777,41 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
     const controller = new AbortController();
     streamAbortRef.current = controller;
 
+    const requestJsonFallback = async (): Promise<StoryTurnApiResponse> => {
+      let lastFallbackErr: Error = new Error('Failed to generate next story scene.');
+      for (let attempt = 0; attempt < 2; attempt++) {
+        if (controller.signal.aborted) {
+          throw new DOMException('Aborted', 'AbortError');
+        }
+        if (attempt > 0) {
+          await new Promise((r) => setTimeout(r, 1200));
+          if (controller.signal.aborted) {
+            throw new DOMException('Aborted', 'AbortError');
+          }
+        }
+        const fallbackResp = await fetch('/api/story/turn', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${idToken}`,
+          },
+          body: JSON.stringify(payloadBody),
+          signal: controller.signal,
+        });
+        const fallbackData = (await fallbackResp.json().catch(() => ({}))) as StoryTurnApiResponse;
+        const validBeats = extractValidStoryBeats(fallbackData.beats);
+        if (fallbackResp.ok && validBeats.length > 0) {
+          return { ...fallbackData, beats: validBeats };
+        }
+        const rawErr = fallbackData.error || (fallbackResp.ok ? 'Empty story response' : 'Failed to generate next story scene.');
+        lastFallbackErr = new Error(formatReadableError(rawErr, 'Failed to generate next story scene.'));
+        if (!isTransientStoryErrorText(rawErr) && !rawErr.toLowerCase().includes('empty')) {
+          throw lastFallbackErr;
+        }
+      }
+      throw lastFallbackErr;
+    };
+
     const response = await fetch('/api/story/turn-stream', {
       method: 'POST',
       headers: {
@@ -673,22 +827,9 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
       // Clean fallback if SSE isn't active or non-stream JSON error was returned
       if (!response.ok && !contentType.includes('text/event-stream')) {
         const errJson = (await response.json().catch(() => ({}))) as { error?: string };
-        throw new Error(errJson.error || 'Failed to generate next story scene.');
+        throw new Error(formatReadableError(errJson.error, 'Failed to generate next story scene.'));
       }
-      const fallbackResp = await fetch('/api/story/turn', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${idToken}`,
-        },
-        body: JSON.stringify(payloadBody),
-        signal: controller.signal,
-      });
-      const fallbackData = (await fallbackResp.json()) as StoryTurnApiResponse;
-      if (!fallbackResp.ok) {
-        throw new Error(fallbackData.error || 'Failed to generate next story scene.');
-      }
-      return fallbackData;
+      return requestJsonFallback();
     }
 
     const reader = response.body.getReader();
@@ -727,32 +868,55 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
       }
     };
 
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      let separatorIdx = buffer.indexOf('\n\n');
-      while (separatorIdx !== -1) {
-        const block = buffer.slice(0, separatorIdx);
-        buffer = buffer.slice(separatorIdx + 2);
-        processEventBlock(block);
-        separatorIdx = buffer.indexOf('\n\n');
+    try {
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        let separatorIdx = buffer.indexOf('\n\n');
+        while (separatorIdx !== -1) {
+          const block = buffer.slice(0, separatorIdx);
+          buffer = buffer.slice(separatorIdx + 2);
+          processEventBlock(block);
+          separatorIdx = buffer.indexOf('\n\n');
+        }
       }
-    }
-    if (buffer.trim()) {
-      processEventBlock(buffer);
+      if (buffer.trim()) {
+        processEventBlock(buffer);
+      }
+    } catch (readErr) {
+      if ((readErr as { name?: string })?.name === 'AbortError') {
+        throw readErr;
+      }
+      if (receivedBeats.length > 0) {
+        return { beats: receivedBeats };
+      }
+      return requestJsonFallback();
     }
 
-    if (streamError) {
-      throw new Error(streamError);
-    }
     if (finalPayload) {
-      return finalPayload;
+      const resolved = finalPayload as StoryTurnApiResponse;
+      return {
+        ...resolved,
+        beats: resolved.beats && resolved.beats.length > 0 ? resolved.beats : receivedBeats,
+      };
+    }
+    if (streamError) {
+      if (receivedBeats.length > 0) {
+        return { beats: receivedBeats };
+      }
+      if (isTransientStoryErrorText(streamError) && !controller.signal.aborted) {
+        await new Promise((r) => setTimeout(r, 1100));
+        if (!controller.signal.aborted) {
+          return requestJsonFallback();
+        }
+      }
+      throw new Error(formatReadableError(streamError, 'Unable to continue story right now.'));
     }
     if (receivedBeats.length > 0) {
       return { beats: receivedBeats };
     }
-    throw new Error('Incomplete story response. Please try again.');
+    return requestJsonFallback();
   };
 
   const handleSend = async (overrideText?: string, isChoiceSelection = false) => {
@@ -762,6 +926,7 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
     inFlightRef.current = true;
     suggestionsAbortRef.current?.abort();
     setErrorBanner(null);
+    setRetryAction(null);
     setSuggestionsOpen(false);
     setSending(true);
     setStreamingBeats([]);
@@ -771,11 +936,13 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
     }
 
     const baseMessages = [...messages];
-    const nextUserSeq = baseMessages.length > 0 ? baseMessages[baseMessages.length - 1].sequence + 1 : 1;
+    const baseMaxSeq = baseMessages.reduce((acc, m) => Math.max(acc, m.sequence || 0), maxSequenceRef.current);
+    const nextUserSeq = baseMaxSeq + 1;
     const now = Date.now();
     const userMsgId = `msg_${nextUserSeq}_${now}`;
     const storySeq = nextUserSeq + 1;
     const storyMsgId = `msg_${storySeq}_${now + 1}`;
+    maxSequenceRef.current = storySeq;
 
     const optimisticUserMsg: ChatTurnMessage = {
       id: userMsgId,
@@ -808,7 +975,7 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
           language: preferredLanguage,
           currentScene,
           sceneIndex,
-          recentMessages: baseMessages.slice(-7).map((m) => ({
+          recentMessages: baseMessages.filter((m) => !isPlaceholderStoryMessage(m)).slice(-7).map((m) => ({
             role: m.role,
             userText: m.userText,
             beats: m.beats,
@@ -823,6 +990,11 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
         }
       );
 
+      const storyBeats = extractValidStoryBeats(data.beats);
+      if (storyBeats.length === 0) {
+        throw new Error('Characters are taking a moment to respond. Please tap Retry.');
+      }
+
       const deltaMap = new Map<string, number>();
       (data.meterChanges || []).forEach((mc) => {
         const clamped = Math.max(-15, Math.min(15, Math.round(mc.delta || 0)));
@@ -834,11 +1006,6 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
         const nextVal = Math.max(m.min, Math.min(m.max, m.value + delta));
         return { ...m, value: nextVal };
       });
-
-      const storyBeats: StoryBeat[] =
-        Array.isArray(data.beats) && data.beats.length > 0
-          ? data.beats
-          : [{ type: 'narration', text: '...' }];
 
       const nextSceneStr = (data.newScene || currentScene).slice(0, 500);
       const nextSceneIdx = sceneIndex + 1;
@@ -943,8 +1110,9 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
       if ((err as { name?: string })?.name !== 'AbortError') {
         setMessages((prev) => prev.filter((m) => m.id !== userMsgId));
         if (!overrideText) setInput(textToSend);
+        setRetryAction({ type: 'send', text: textToSend, isChoice: isChoiceSelection });
         setErrorBanner(
-          err instanceof Error ? err.message : 'Network error. Your previous conversation is safe.'
+          formatReadableError(err, 'Network error. Your previous conversation is safe.')
         );
       }
     } finally {
@@ -962,16 +1130,20 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
     inFlightRef.current = true;
     suggestionsAbortRef.current?.abort();
     setMsgMenuOpen(false);
+    setPlayGuideChoicesOpen(false);
     setSuggestionsOpen(false);
     setErrorBanner(null);
+    setRetryAction(null);
     setSending(true);
     setStreamingBeats([]);
     setTimeout(() => scrollToBottom(true), 25);
 
     const baseMessages = [...messages];
-    const nextSeq = baseMessages.length > 0 ? baseMessages[baseMessages.length - 1].sequence + 1 : 1;
+    const baseMaxSeq = baseMessages.reduce((acc, m) => Math.max(acc, m.sequence || 0), maxSequenceRef.current);
+    const nextSeq = baseMaxSeq + 1;
     const now = Date.now();
     const storyMsgId = `msg_${nextSeq}_${now}`;
+    maxSequenceRef.current = nextSeq;
 
     try {
       const idToken = await user.getIdToken();
@@ -992,7 +1164,7 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
           language: preferredLanguage,
           currentScene,
           sceneIndex,
-          recentMessages: baseMessages.slice(-7).map((m) => ({
+          recentMessages: baseMessages.filter((m) => !isPlaceholderStoryMessage(m)).slice(-7).map((m) => ({
             role: m.role,
             userText: m.userText,
             beats: m.beats,
@@ -1006,6 +1178,11 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
         }
       );
 
+      const storyBeats = extractValidStoryBeats(data.beats);
+      if (storyBeats.length === 0) {
+        throw new Error('Characters are taking a moment to respond. Please tap Retry.');
+      }
+
       const deltaMap = new Map<string, number>();
       (data.meterChanges || []).forEach((mc) => {
         const clamped = Math.max(-15, Math.min(15, Math.round(mc.delta || 0)));
@@ -1017,11 +1194,6 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
         const nextVal = Math.max(m.min, Math.min(m.max, m.value + delta));
         return { ...m, value: nextVal };
       });
-
-      const storyBeats: StoryBeat[] =
-        Array.isArray(data.beats) && data.beats.length > 0
-          ? data.beats
-          : [{ type: 'narration', text: '...' }];
 
       const nextSceneStr = (data.newScene || currentScene).slice(0, 500);
       const nextSceneIdx = sceneIndex + 1;
@@ -1110,8 +1282,9 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
       });
     } catch (err) {
       if ((err as { name?: string })?.name !== 'AbortError') {
+        setRetryAction({ type: 'continue' });
         setErrorBanner(
-          err instanceof Error ? err.message : 'Unable to advance story right now.'
+          formatReadableError(err, 'Unable to advance story right now.')
         );
       }
     } finally {
@@ -1128,6 +1301,7 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
     if (inFlightRef.current || loadingInit || messages.length === 0) return;
     setMsgMenuOpen(false);
     setErrorBanner(null);
+    setRetryAction(null);
 
     const baseMessages = [...messages];
     const lastStoryIdx = baseMessages.reduce((acc, m, i) => (m.role === 'story' ? i : acc), -1);
@@ -1182,11 +1356,14 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
           language: preferredLanguage,
           currentScene,
           sceneIndex: Math.max(0, sceneIndex - 1),
-          recentMessages: priorMessages.slice(-7).map((m) => ({
-            role: m.role,
-            userText: m.userText,
-            beats: m.beats,
-          })),
+          recentMessages: priorMessages
+            .filter((m) => !isPlaceholderStoryMessage(m))
+            .slice(-7)
+            .map((m) => ({
+              role: m.role,
+              userText: m.userText,
+              beats: m.beats,
+            })),
           memories: memories.slice(-5).map((m) => ({ summary: m.summary, importance: m.importance })),
           relationshipMeters: baseMeters,
           userMessage: prevUserMsg || undefined,
@@ -1196,6 +1373,11 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
           scrollToBottom(true);
         }
       );
+
+      const storyBeats = extractValidStoryBeats(data.beats);
+      if (storyBeats.length === 0) {
+        throw new Error('Characters are taking a moment to respond. Please tap Retry.');
+      }
 
       const deltaMap = new Map<string, number>();
       (data.meterChanges || []).forEach((mc) => {
@@ -1208,11 +1390,6 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
         const nextVal = Math.max(m.min, Math.min(m.max, m.value + delta));
         return { ...m, value: nextVal };
       });
-
-      const storyBeats: StoryBeat[] =
-        Array.isArray(data.beats) && data.beats.length > 0
-          ? data.beats
-          : [{ type: 'narration', text: '...' }];
 
       const nextSceneStr = (data.newScene || currentScene).slice(0, 500);
       const replacedMsg: ChatTurnMessage = {
@@ -1276,8 +1453,9 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
       });
     } catch (err) {
       if ((err as { name?: string })?.name !== 'AbortError') {
+        setRetryAction({ type: 'regenerate' });
         setErrorBanner(
-          err instanceof Error ? err.message : 'Unable to regenerate response right now.'
+          formatReadableError(err, 'Unable to regenerate response right now.')
         );
       }
     } finally {
@@ -1427,11 +1605,14 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
           language: preferredLanguage,
           currentScene,
           relationshipMeters: meters,
-          recentMessages: messages.slice(-4).map((m) => ({
-            role: m.role,
-            userText: m.userText,
-            beats: m.beats,
-          })),
+          recentMessages: messages
+            .filter((m) => !isPlaceholderStoryMessage(m))
+            .slice(-4)
+            .map((m) => ({
+              role: m.role,
+              userText: m.userText,
+              beats: m.beats,
+            })),
         }),
         signal: controller.signal,
       });
@@ -1450,7 +1631,7 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
     } catch (err) {
       if ((err as { name?: string })?.name === 'AbortError') return;
       setSuggestionsOpen(false);
-      setErrorBanner(err instanceof Error ? err.message : 'Unable to fetch AI reply ideas.');
+      setErrorBanner(formatReadableError(err, 'Unable to fetch AI reply ideas.'));
     } finally {
       if (mountedRef.current && suggestionsAbortRef.current === controller) {
         setSuggestionsLoading(false);
@@ -1560,7 +1741,7 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
         scrollToSlide(initialSlideIndex, true);
       }, 40);
     } catch (err) {
-      setErrorBanner(err instanceof Error ? err.message : 'Unable to restart story.');
+      setErrorBanner(formatReadableError(err, 'Unable to restart story.'));
     } finally {
       setLoadingInit(false);
       inFlightRef.current = false;
@@ -1882,9 +2063,38 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
       <div className="relative z-20 bg-gradient-to-t from-[#09090C] via-[#1A090E]/95 to-transparent pt-3 pb-3 pb-safe px-3">
         <div className="max-w-3xl mx-auto space-y-2.5">
           {errorBanner && (
-            <div className="rounded-xl bg-red-500/15 border border-red-500/30 px-3.5 py-2 text-xs text-red-200 flex items-center justify-between gap-2">
-              <span>{errorBanner}</span>
-              <button type="button" onClick={() => setErrorBanner(null)}>
+            <div className="rounded-xl bg-red-500/15 border border-red-500/30 px-3.5 py-2.5 text-xs text-red-200 flex items-center justify-between gap-2.5">
+              <span className="flex-1 leading-snug">{errorBanner}</span>
+              {retryAction && !sending && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const pending = retryAction;
+                    setRetryAction(null);
+                    setErrorBanner(null);
+                    if (pending.type === 'send') {
+                      void handleSend(pending.text, pending.isChoice);
+                    } else if (pending.type === 'continue') {
+                      void handleContinueScene();
+                    } else if (pending.type === 'regenerate') {
+                      void handleRegenerateLatest();
+                    }
+                  }}
+                  className="px-3 py-1.5 rounded-lg bg-[#E5233D] hover:bg-[#cc1e35] text-white font-semibold flex items-center gap-1 shrink-0 transition"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                  <span>Retry</span>
+                </button>
+              )}
+              <button
+                type="button"
+                aria-label="Dismiss error"
+                onClick={() => {
+                  setErrorBanner(null);
+                  setRetryAction(null);
+                }}
+                className="p-0.5 text-red-200/80 hover:text-white shrink-0"
+              >
                 <X className="w-4 h-4" />
               </button>
             </div>

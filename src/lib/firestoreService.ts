@@ -121,6 +121,45 @@ function isOfflineOrUnavailableError(err: unknown): boolean {
   );
 }
 
+function isNotFoundError(err: unknown): boolean {
+  const code = (err as { code?: string })?.code || '';
+  const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
+  return (
+    code === 'not-found' ||
+    msg.includes('no document to update') ||
+    msg.includes('not_found') ||
+    msg.includes('not found')
+  );
+}
+
+async function commitStoryBatchWithRecovery(
+  refs: {
+    convRef: DocumentReference<DocumentData>;
+    progRef: DocumentReference<DocumentData>;
+    relRef: DocumentReference<DocumentData>;
+  },
+  initialExists: { convExists: boolean; progExists: boolean; relExists: boolean },
+  buildBatch: (exists: { convExists: boolean; progExists: boolean; relExists: boolean }) => ReturnType<typeof writeBatch>
+): Promise<void> {
+  try {
+    await buildBatch(initialExists).commit();
+  } catch (err) {
+    if (!isNotFoundError(err)) {
+      throw err;
+    }
+    const [convSnap, progSnap, relSnap] = await Promise.all([
+      getDocResilient(refs.convRef).then((r) => r.snap),
+      getDocResilient(refs.progRef).then((r) => r.snap),
+      getDocResilient(refs.relRef).then((r) => r.snap),
+    ]);
+    await buildBatch({
+      convExists: Boolean(convSnap?.exists()),
+      progExists: Boolean(progSnap?.exists()),
+      relExists: Boolean(relSnap?.exists()),
+    }).commit();
+  }
+}
+
 async function getDocResilient(
   ref: DocumentReference<DocumentData>
 ): Promise<{ snap: DocumentSnapshot<DocumentData> | null; offline: boolean }> {
@@ -739,41 +778,19 @@ export async function saveTurnToCloud(params: {
   const path = `users/${uid}/conversations/${conversationId}/messages`;
 
   try {
-    const batch = writeBatch(db);
     const now = Date.now();
     const userMsgId = params.userMessageId || `msg_${userSequence}_${now}`;
     const storySeq = userSequence + 1;
     const storyMsgId = params.storyMessageId || `msg_${storySeq}_${now + 1}`;
+    const safeScene = (newScene || story.openingScene || 'Scene continues').slice(0, 500);
 
     const lastBeat = storyBeats[storyBeats.length - 1];
     const lastSpeaker = lastBeat?.speakerName || story.characters[0]?.name || 'Story';
-    const lastPreview = (lastBeat?.text || newScene).slice(0, 1000);
+    const lastPreview = (lastBeat?.text || safeScene).slice(0, 1000);
 
     const convRef = doc(db, 'users', uid, 'conversations', conversationId);
     const progRef = doc(db, 'users', uid, 'storyProgress', story.id);
     const relRef = doc(db, 'users', uid, 'relationships', story.id);
-
-    if (params.conversationExists) {
-      batch.update(convRef, {
-        lastMessage: lastPreview,
-        lastSpeaker: lastSpeaker.slice(0, 100),
-        messageCount: storySeq + 1,
-        updatedAt: serverTimestamp(),
-      });
-    } else {
-      batch.set(convRef, {
-        uid,
-        conversationId,
-        storyId: story.id,
-        storyTitle: story.title.slice(0, 140),
-        coverImage: story.coverImage.slice(0, 512),
-        lastMessage: lastPreview,
-        lastSpeaker: lastSpeaker.slice(0, 100),
-        messageCount: storySeq + 1,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-    }
 
     const userMsgPayload = {
       uid,
@@ -783,13 +800,12 @@ export async function saveTurnToCloud(params: {
       sequence: userSequence,
       createdAt: serverTimestamp(),
     };
-    batch.set(doc(db, 'users', uid, 'conversations', conversationId, 'messages', userMsgId), userMsgPayload);
 
     const storyMsgPayload = {
       uid,
       conversationId,
       role: 'story' as const,
-      sceneSummary: newScene.slice(0, 500),
+      sceneSummary: safeScene,
       beats: storyBeats.slice(0, 12),
       metersSnapshot: updatedMeters.map((m) => ({
         id: m.id,
@@ -800,10 +816,9 @@ export async function saveTurnToCloud(params: {
       sequence: storySeq,
       createdAt: serverTimestamp(),
     };
-    batch.set(doc(db, 'users', uid, 'conversations', conversationId, 'messages', storyMsgId), storyMsgPayload);
 
-    const progUpdate: Record<string, unknown> = {
-      currentScene: newScene.slice(0, 500),
+    const progFields: Record<string, unknown> = {
+      currentScene: safeScene,
       sceneIndex,
       status: endingTriggered ? 'completed' : 'active',
       choicesMade: choicesMade.slice(-50),
@@ -811,43 +826,93 @@ export async function saveTurnToCloud(params: {
       updatedAt: serverTimestamp(),
     };
     if (endingTriggered) {
-      progUpdate.endingReached = endingTriggered.slice(0, 200);
+      progFields.endingReached = endingTriggered.slice(0, 200);
     }
 
-    if (params.conversationExists) {
-      batch.update(progRef, progUpdate);
-      batch.update(relRef, {
-        meters: updatedMeters,
-        updatedAt: serverTimestamp(),
-      });
-    } else {
-      batch.set(progRef, {
-        uid,
-        storyId: story.id,
-        ...progUpdate,
-        startedAt: serverTimestamp(),
-      });
-      batch.set(relRef, {
-        uid,
-        storyId: story.id,
-        meters: updatedMeters,
-        updatedAt: serverTimestamp(),
-      });
-    }
+    const memId =
+      newMemory && newMemory.summary
+        ? `mem_${story.id}_${now}`.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 128)
+        : '';
 
-    if (newMemory && newMemory.summary) {
-      const memId = `mem_${story.id}_${now}`.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 128);
-      batch.set(doc(db, 'users', uid, 'memories', memId), {
-        uid,
-        storyId: story.id,
-        summary: newMemory.summary.slice(0, 600),
-        importance: Math.min(10, Math.max(1, Math.round(newMemory.importance || 6))),
-        charactersInvolved: (newMemory.charactersInvolved || []).slice(0, 10),
-        createdAt: serverTimestamp(),
-      });
-    }
+    await commitStoryBatchWithRecovery(
+      { convRef, progRef, relRef },
+      {
+        convExists: params.conversationExists,
+        progExists: params.conversationExists,
+        relExists: params.conversationExists,
+      },
+      ({ convExists, progExists, relExists }) => {
+        const batch = writeBatch(db);
+        if (convExists) {
+          batch.update(convRef, {
+            lastMessage: lastPreview,
+            lastSpeaker: lastSpeaker.slice(0, 100),
+            messageCount: storySeq + 1,
+            updatedAt: serverTimestamp(),
+          });
+        } else {
+          batch.set(convRef, {
+            uid,
+            conversationId,
+            storyId: story.id,
+            storyTitle: story.title.slice(0, 140),
+            coverImage: story.coverImage.slice(0, 512),
+            lastMessage: lastPreview,
+            lastSpeaker: lastSpeaker.slice(0, 100),
+            messageCount: storySeq + 1,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          });
+        }
 
-    await batch.commit();
+        batch.set(
+          doc(db, 'users', uid, 'conversations', conversationId, 'messages', userMsgId),
+          userMsgPayload
+        );
+        batch.set(
+          doc(db, 'users', uid, 'conversations', conversationId, 'messages', storyMsgId),
+          storyMsgPayload
+        );
+
+        if (progExists) {
+          batch.update(progRef, progFields);
+        } else {
+          batch.set(progRef, {
+            uid,
+            storyId: story.id,
+            ...progFields,
+            startedAt: serverTimestamp(),
+          });
+        }
+
+        if (relExists) {
+          batch.update(relRef, {
+            meters: updatedMeters,
+            updatedAt: serverTimestamp(),
+          });
+        } else {
+          batch.set(relRef, {
+            uid,
+            storyId: story.id,
+            meters: updatedMeters,
+            updatedAt: serverTimestamp(),
+          });
+        }
+
+        if (memId && newMemory?.summary) {
+          batch.set(doc(db, 'users', uid, 'memories', memId), {
+            uid,
+            storyId: story.id,
+            summary: newMemory.summary.slice(0, 600),
+            importance: Math.min(10, Math.max(1, Math.round(newMemory.importance || 6))),
+            charactersInvolved: (newMemory.charactersInvolved || []).slice(0, 10),
+            createdAt: serverTimestamp(),
+          });
+        }
+
+        return batch;
+      }
+    );
 
     return {
       userMessage: { ...userMsgPayload, id: userMsgId, localTimestamp: now },
@@ -887,25 +952,22 @@ export async function saveStoryContinueToCloud(params: {
   const path = `users/${uid}/conversations/${conversationId}/messages`;
 
   try {
-    const batch = writeBatch(db);
     const now = Date.now();
     const storyMsgId = params.storyMessageId || `msg_${storySequence}_${now}`;
+    const safeScene = (newScene || story.openingScene || 'Scene continues').slice(0, 500);
     const lastBeat = storyBeats[storyBeats.length - 1];
     const lastSpeaker = lastBeat?.speakerName || story.characters[0]?.name || 'Story';
-    const lastPreview = (lastBeat?.text || newScene).slice(0, 1000);
+    const lastPreview = (lastBeat?.text || safeScene).slice(0, 1000);
 
-    batch.update(doc(db, 'users', uid, 'conversations', conversationId), {
-      lastMessage: lastPreview,
-      lastSpeaker: lastSpeaker.slice(0, 100),
-      messageCount: totalMessageCount,
-      updatedAt: serverTimestamp(),
-    });
+    const convRef = doc(db, 'users', uid, 'conversations', conversationId);
+    const progRef = doc(db, 'users', uid, 'storyProgress', story.id);
+    const relRef = doc(db, 'users', uid, 'relationships', story.id);
 
     const storyMsgPayload = {
       uid,
       conversationId,
       role: 'story' as const,
-      sceneSummary: newScene.slice(0, 500),
+      sceneSummary: safeScene,
       beats: storyBeats.slice(0, 12),
       metersSnapshot: updatedMeters.map((m) => ({
         id: m.id,
@@ -916,10 +978,9 @@ export async function saveStoryContinueToCloud(params: {
       sequence: storySequence,
       createdAt: serverTimestamp(),
     };
-    batch.set(doc(db, 'users', uid, 'conversations', conversationId, 'messages', storyMsgId), storyMsgPayload);
 
     const progUpdate: Record<string, unknown> = {
-      currentScene: newScene.slice(0, 500),
+      currentScene: safeScene,
       sceneIndex,
       status: endingTriggered ? 'completed' : 'active',
       updatedAt: serverTimestamp(),
@@ -927,26 +988,87 @@ export async function saveStoryContinueToCloud(params: {
     if (endingTriggered) {
       progUpdate.endingReached = endingTriggered.slice(0, 200);
     }
-    batch.update(doc(db, 'users', uid, 'storyProgress', story.id), progUpdate);
 
-    batch.update(doc(db, 'users', uid, 'relationships', story.id), {
-      meters: updatedMeters,
-      updatedAt: serverTimestamp(),
-    });
+    const memId =
+      newMemory && newMemory.summary
+        ? `mem_${story.id}_${now}`.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 128)
+        : '';
 
-    if (newMemory && newMemory.summary) {
-      const memId = `mem_${story.id}_${now}`.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 128);
-      batch.set(doc(db, 'users', uid, 'memories', memId), {
-        uid,
-        storyId: story.id,
-        summary: newMemory.summary.slice(0, 600),
-        importance: Math.min(10, Math.max(1, Math.round(newMemory.importance || 6))),
-        charactersInvolved: (newMemory.charactersInvolved || []).slice(0, 10),
-        createdAt: serverTimestamp(),
-      });
-    }
+    await commitStoryBatchWithRecovery(
+      { convRef, progRef, relRef },
+      { convExists: true, progExists: true, relExists: true },
+      ({ convExists, progExists, relExists }) => {
+        const batch = writeBatch(db);
 
-    await batch.commit();
+        if (convExists) {
+          batch.update(convRef, {
+            lastMessage: lastPreview,
+            lastSpeaker: lastSpeaker.slice(0, 100),
+            messageCount: totalMessageCount,
+            updatedAt: serverTimestamp(),
+          });
+        } else {
+          batch.set(convRef, {
+            uid,
+            conversationId,
+            storyId: story.id,
+            storyTitle: story.title.slice(0, 140),
+            coverImage: story.coverImage.slice(0, 512),
+            lastMessage: lastPreview,
+            lastSpeaker: lastSpeaker.slice(0, 100),
+            messageCount: totalMessageCount,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          });
+        }
+
+        batch.set(
+          doc(db, 'users', uid, 'conversations', conversationId, 'messages', storyMsgId),
+          storyMsgPayload
+        );
+
+        if (progExists) {
+          batch.update(progRef, progUpdate);
+        } else {
+          batch.set(progRef, {
+            uid,
+            storyId: story.id,
+            ...progUpdate,
+            choicesMade: [],
+            savedCharacterIds: story.characters.map((c) => c.id).slice(0, 30),
+            startedAt: serverTimestamp(),
+          });
+        }
+
+        if (relExists) {
+          batch.update(relRef, {
+            meters: updatedMeters,
+            updatedAt: serverTimestamp(),
+          });
+        } else {
+          batch.set(relRef, {
+            uid,
+            storyId: story.id,
+            meters: updatedMeters,
+            updatedAt: serverTimestamp(),
+          });
+        }
+
+        if (memId && newMemory?.summary) {
+          batch.set(doc(db, 'users', uid, 'memories', memId), {
+            uid,
+            storyId: story.id,
+            summary: newMemory.summary.slice(0, 600),
+            importance: Math.min(10, Math.max(1, Math.round(newMemory.importance || 6))),
+            charactersInvolved: (newMemory.charactersInvolved || []).slice(0, 10),
+            createdAt: serverTimestamp(),
+          });
+        }
+
+        return batch;
+      }
+    );
+
     return { ...storyMsgPayload, id: storyMsgId, localTimestamp: now };
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, path);
@@ -982,22 +1104,22 @@ export async function replaceLatestStoryMessageInCloud(params: {
   const path = `users/${uid}/conversations/${conversationId}/messages`;
 
   try {
-    const batch = writeBatch(db);
     const now = Date.now();
     const newMsgId = params.storyMessageId || `msg_${storySequence}_${now}`;
+    const safeScene = (newScene || story.openingScene || 'Scene continues').slice(0, 500);
     const lastBeat = storyBeats[storyBeats.length - 1];
     const lastSpeaker = lastBeat?.speakerName || story.characters[0]?.name || 'Story';
-    const lastPreview = (lastBeat?.text || newScene).slice(0, 1000);
+    const lastPreview = (lastBeat?.text || safeScene).slice(0, 1000);
 
-    if (oldMessageId && !oldMessageId.startsWith('temp_')) {
-      batch.delete(doc(db, 'users', uid, 'conversations', conversationId, 'messages', oldMessageId));
-    }
+    const convRef = doc(db, 'users', uid, 'conversations', conversationId);
+    const progRef = doc(db, 'users', uid, 'storyProgress', story.id);
+    const relRef = doc(db, 'users', uid, 'relationships', story.id);
 
     const storyMsgPayload = {
       uid,
       conversationId,
       role: 'story' as const,
-      sceneSummary: newScene.slice(0, 500),
+      sceneSummary: safeScene,
       beats: storyBeats.slice(0, 12),
       metersSnapshot: updatedMeters.map((m) => ({
         id: m.id,
@@ -1008,17 +1130,9 @@ export async function replaceLatestStoryMessageInCloud(params: {
       sequence: storySequence,
       createdAt: serverTimestamp(),
     };
-    batch.set(doc(db, 'users', uid, 'conversations', conversationId, 'messages', newMsgId), storyMsgPayload);
-
-    batch.update(doc(db, 'users', uid, 'conversations', conversationId), {
-      lastMessage: lastPreview,
-      lastSpeaker: lastSpeaker.slice(0, 100),
-      messageCount: totalMessageCount,
-      updatedAt: serverTimestamp(),
-    });
 
     const progUpdate: Record<string, unknown> = {
-      currentScene: newScene.slice(0, 500),
+      currentScene: safeScene,
       sceneIndex,
       status: endingTriggered ? 'completed' : 'active',
       updatedAt: serverTimestamp(),
@@ -1026,14 +1140,77 @@ export async function replaceLatestStoryMessageInCloud(params: {
     if (endingTriggered) {
       progUpdate.endingReached = endingTriggered.slice(0, 200);
     }
-    batch.update(doc(db, 'users', uid, 'storyProgress', story.id), progUpdate);
 
-    batch.update(doc(db, 'users', uid, 'relationships', story.id), {
-      meters: updatedMeters,
-      updatedAt: serverTimestamp(),
-    });
+    await commitStoryBatchWithRecovery(
+      { convRef, progRef, relRef },
+      { convExists: true, progExists: true, relExists: true },
+      ({ convExists, progExists, relExists }) => {
+        const batch = writeBatch(db);
 
-    await batch.commit();
+        if (oldMessageId && !oldMessageId.startsWith('temp_')) {
+          batch.delete(
+            doc(db, 'users', uid, 'conversations', conversationId, 'messages', oldMessageId)
+          );
+        }
+
+        if (convExists) {
+          batch.update(convRef, {
+            lastMessage: lastPreview,
+            lastSpeaker: lastSpeaker.slice(0, 100),
+            messageCount: totalMessageCount,
+            updatedAt: serverTimestamp(),
+          });
+        } else {
+          batch.set(convRef, {
+            uid,
+            conversationId,
+            storyId: story.id,
+            storyTitle: story.title.slice(0, 140),
+            coverImage: story.coverImage.slice(0, 512),
+            lastMessage: lastPreview,
+            lastSpeaker: lastSpeaker.slice(0, 100),
+            messageCount: totalMessageCount,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          });
+        }
+
+        batch.set(
+          doc(db, 'users', uid, 'conversations', conversationId, 'messages', newMsgId),
+          storyMsgPayload
+        );
+
+        if (progExists) {
+          batch.update(progRef, progUpdate);
+        } else {
+          batch.set(progRef, {
+            uid,
+            storyId: story.id,
+            ...progUpdate,
+            choicesMade: [],
+            savedCharacterIds: story.characters.map((c) => c.id).slice(0, 30),
+            startedAt: serverTimestamp(),
+          });
+        }
+
+        if (relExists) {
+          batch.update(relRef, {
+            meters: updatedMeters,
+            updatedAt: serverTimestamp(),
+          });
+        } else {
+          batch.set(relRef, {
+            uid,
+            storyId: story.id,
+            meters: updatedMeters,
+            updatedAt: serverTimestamp(),
+          });
+        }
+
+        return batch;
+      }
+    );
+
     return { ...storyMsgPayload, id: newMsgId, localTimestamp: now };
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, path);
@@ -1064,13 +1241,7 @@ export async function rewindLastTurnInCloud(params: {
   const path = `users/${uid}/conversations/${conversationId}/messages`;
 
   try {
-    const batch = writeBatch(db);
-    deleteMessageIds.forEach((id) => {
-      if (id && !id.startsWith('temp_')) {
-        batch.delete(doc(db, 'users', uid, 'conversations', conversationId, 'messages', id));
-      }
-    });
-
+    const safeScene = (restoredScene || story.openingScene || 'Scene continues').slice(0, 500);
     const lastBeat = remainingLastMessage?.beats?.[remainingLastMessage.beats.length - 1];
     const lastSpeaker =
       remainingLastMessage?.role === 'user'
@@ -1079,30 +1250,84 @@ export async function rewindLastTurnInCloud(params: {
     const lastPreview = (
       remainingLastMessage?.userText ||
       lastBeat?.text ||
-      restoredScene
+      safeScene
     ).slice(0, 1000);
 
-    batch.update(doc(db, 'users', uid, 'conversations', conversationId), {
-      lastMessage: lastPreview,
-      lastSpeaker: lastSpeaker.slice(0, 100),
-      messageCount: remainingCount,
-      updatedAt: serverTimestamp(),
-    });
+    const convRef = doc(db, 'users', uid, 'conversations', conversationId);
+    const progRef = doc(db, 'users', uid, 'storyProgress', story.id);
+    const relRef = doc(db, 'users', uid, 'relationships', story.id);
 
-    batch.update(doc(db, 'users', uid, 'storyProgress', story.id), {
-      currentScene: restoredScene.slice(0, 500),
-      sceneIndex: Math.max(0, restoredSceneIndex),
-      status: 'active',
-      endingReached: '',
-      updatedAt: serverTimestamp(),
-    });
+    await commitStoryBatchWithRecovery(
+      { convRef, progRef, relRef },
+      { convExists: true, progExists: true, relExists: true },
+      ({ convExists, progExists, relExists }) => {
+        const batch = writeBatch(db);
+        deleteMessageIds.forEach((id) => {
+          if (id && !id.startsWith('temp_')) {
+            batch.delete(doc(db, 'users', uid, 'conversations', conversationId, 'messages', id));
+          }
+        });
 
-    batch.update(doc(db, 'users', uid, 'relationships', story.id), {
-      meters: restoredMeters,
-      updatedAt: serverTimestamp(),
-    });
+        if (convExists) {
+          batch.update(convRef, {
+            lastMessage: lastPreview,
+            lastSpeaker: lastSpeaker.slice(0, 100),
+            messageCount: remainingCount,
+            updatedAt: serverTimestamp(),
+          });
+        } else {
+          batch.set(convRef, {
+            uid,
+            conversationId,
+            storyId: story.id,
+            storyTitle: story.title.slice(0, 140),
+            coverImage: story.coverImage.slice(0, 512),
+            lastMessage: lastPreview,
+            lastSpeaker: lastSpeaker.slice(0, 100),
+            messageCount: remainingCount,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          });
+        }
 
-    await batch.commit();
+        const progUpdate = {
+          currentScene: safeScene,
+          sceneIndex: Math.max(0, restoredSceneIndex),
+          status: 'active' as const,
+          endingReached: '',
+          updatedAt: serverTimestamp(),
+        };
+
+        if (progExists) {
+          batch.update(progRef, progUpdate);
+        } else {
+          batch.set(progRef, {
+            uid,
+            storyId: story.id,
+            ...progUpdate,
+            choicesMade: [],
+            savedCharacterIds: story.characters.map((c) => c.id).slice(0, 30),
+            startedAt: serverTimestamp(),
+          });
+        }
+
+        if (relExists) {
+          batch.update(relRef, {
+            meters: restoredMeters,
+            updatedAt: serverTimestamp(),
+          });
+        } else {
+          batch.set(relRef, {
+            uid,
+            storyId: story.id,
+            meters: restoredMeters,
+            updatedAt: serverTimestamp(),
+          });
+        }
+
+        return batch;
+      }
+    );
   } catch (err) {
     handleFirestoreError(err, OperationType.DELETE, path);
   }
