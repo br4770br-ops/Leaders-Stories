@@ -409,18 +409,148 @@ interface CleanStoryBeat {
   text: string;
 }
 
-function normalizeBeat(raw: unknown): CleanStoryBeat | null {
+function escapeRegExp(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function matchCastMember(rawName: string | undefined, castNames: string[]): string | undefined {
+  const cleaned = (rawName || '').trim();
+  if (!cleaned) return undefined;
+  const lower = cleaned.toLowerCase();
+  if (lower === 'narrator' || lower === 'story' || lower === 'user' || lower === 'you') {
+    return undefined;
+  }
+
+  const exact = castNames.find((c) => c.toLowerCase() === lower);
+  if (exact) return exact;
+
+  const firstToken = lower.split(/\s+/)[0];
+  if (firstToken && firstToken.length >= 2) {
+    const partial = castNames.find((c) => {
+      const cLower = c.toLowerCase();
+      return cLower === firstToken || cLower.startsWith(`${firstToken} `) || cLower.includes(lower);
+    });
+    if (partial) return partial;
+  }
+  return cleaned;
+}
+
+function detectSpeakerPrefixInText(
+  text: string,
+  castNames: string[]
+): { speaker?: string; strippedText: string } {
+  const trimmed = (text || '').trim();
+  const unquoted = trimmed.replace(/^["“']\s*/, '');
+  for (const fullName of castNames) {
+    const firstName = fullName.split(/\s+/)[0] || '';
+    const candidates =
+      firstName && firstName.toLowerCase() !== fullName.toLowerCase()
+        ? [fullName, firstName]
+        : [fullName];
+    for (const candidate of candidates) {
+      const match = new RegExp(`^${escapeRegExp(candidate)}\\s*:\\s*([\\s\\S]+)$`, 'i').exec(unquoted);
+      if (match) {
+        return {
+          speaker: fullName,
+          strippedText: match[1].trim(),
+        };
+      }
+    }
+  }
+  return { strippedText: trimmed };
+}
+
+function cleanDialogueText(text: string, speakerName?: string, castNames: string[] = []): string {
+  let cleaned = (text || '').trim();
+  const namesToStrip = Array.from(new Set([...(speakerName ? [speakerName] : []), ...castNames]));
+  for (const name of namesToStrip) {
+    const firstName = name.split(/\s+/)[0] || '';
+    const prefixRegex = firstName
+      ? new RegExp(`^(?:${escapeRegExp(name)}|${escapeRegExp(firstName)})\\s*:\\s*`, 'i')
+      : new RegExp(`^${escapeRegExp(name)}\\s*:\\s*`, 'i');
+    cleaned = cleaned.replace(prefixRegex, '').trim();
+  }
+  if (
+    (cleaned.startsWith('"') && cleaned.endsWith('"') && cleaned.length >= 2) ||
+    (cleaned.startsWith('“') && cleaned.endsWith('”') && cleaned.length >= 2)
+  ) {
+    cleaned = cleaned.slice(1, -1).trim();
+  }
+  return cleaned;
+}
+
+function normalizeBeat(raw: unknown, castNames: string[] = []): CleanStoryBeat | null {
   if (!raw || typeof raw !== 'object') return null;
   const b = raw as { type?: unknown; speakerName?: unknown; text?: unknown };
-  const text = sanitizeText(b.text, 800);
-  if (!text) return null;
   const type = b.type === 'narration' ? 'narration' : 'dialogue';
-  const speakerName = b.speakerName ? sanitizeText(b.speakerName, 60) : undefined;
+  let text = sanitizeText(b.text, 800);
+  if (!text) return null;
+
+  let resolvedSpeaker =
+    type === 'dialogue'
+      ? matchCastMember(typeof b.speakerName === 'string' ? b.speakerName : '', castNames)
+      : undefined;
+
+  if (type === 'dialogue') {
+    const detected = detectSpeakerPrefixInText(text, castNames);
+    if (detected.speaker) {
+      resolvedSpeaker = detected.speaker;
+      text = detected.strippedText;
+    }
+    text = cleanDialogueText(text, resolvedSpeaker, castNames);
+  }
+  if (!text) return null;
+
   return {
     type,
-    ...(type === 'dialogue' && speakerName ? { speakerName } : {}),
+    ...(type === 'dialogue' && resolvedSpeaker ? { speakerName: resolvedSpeaker } : {}),
     text,
   };
+}
+
+function enforceTurnSpeakerRules(beats: CleanStoryBeat[], castNames: string[]): CleanStoryBeat[] {
+  const result: CleanStoryBeat[] = [];
+  const seenSpeakers = new Set<string>();
+  let dialogueCount = 0;
+  let pendingNarration: CleanStoryBeat | null = null;
+
+  for (const beat of beats) {
+    if (beat.type === 'narration') {
+      pendingNarration = beat;
+      continue;
+    }
+
+    let speaker = beat.speakerName ? matchCastMember(beat.speakerName, castNames) : undefined;
+    if (!speaker) {
+      speaker =
+        castNames.find((c) => !seenSpeakers.has(c.toLowerCase())) ||
+        castNames[0] ||
+        'Character';
+    }
+
+    const key = speaker.toLowerCase();
+    if (seenSpeakers.has(key) || dialogueCount >= 2) {
+      pendingNarration = null;
+      continue;
+    }
+
+    seenSpeakers.add(key);
+    dialogueCount += 1;
+    if (pendingNarration) {
+      result.push(pendingNarration);
+      pendingNarration = null;
+    }
+    result.push({
+      type: 'dialogue',
+      speakerName: speaker,
+      text: beat.text,
+    });
+  }
+
+  if (result.length === 0 && pendingNarration) {
+    result.push(pendingNarration);
+  }
+  return result;
 }
 
 function buildStoryPromptParts(body: StoryTurnBody) {
@@ -465,23 +595,26 @@ function buildStoryPromptParts(body: StoryTurnBody) {
       ? memories.map((mem) => `- ${sanitizeText(mem.summary, 160)}`).join('\n')
       : 'None yet.';
 
+  const castNames = characters.map((c) => sanitizeText(c.name, 60)).filter(Boolean);
+  const turnNumber = Math.max(1, sceneIndex + 1);
+
   const systemInstruction = [
     `Interactive multi-character roleplay director for "${story?.title}" (${(story?.tags || []).slice(0, 4).join(', ')}).`,
     `Setting: ${sanitizeText(story?.setting, 240)}. Premise: ${sanitizeText(story?.about, 480)}`,
     `CAST:\n${characterBlock}`,
-    `RULES:\n1. Stay strictly in-character; never act like an AI assistant or repeat the opening.\n2. ALWAYS write 2-3 crisp, gripping non-empty beats in "beats" (never return an empty beats array; mix 1-sentence 'narration' and punchy 'dialogue' with exact speakerName).\n3. Let characters react to the user AND each other naturally.\n4. Adjust meterChanges (-12..+12) only when earned.\n5. Set newMemory.shouldSave=true only for major reveals/promises.\n6. Return 2-3 storyChoices only at major turning points, else [].\n7. Set endingTriggered ONLY at a genuine climax from: ${(story?.possibleEndings || []).join(' | ') || 'True Ending'}.`,
+    `RULES:\n1. Stay strictly in-character; never act like an AI assistant or repeat the opening.\n2. ONE SPEAKER BY DEFAULT: Normally ONLY ONE character speaks this turn (1 short 'narration' beat + 1 'dialogue' beat for that character). Only add a 2nd character's dialogue beat if another cast member genuinely MUST react too (separate card). NEVER let the same character have 2 dialogue beats in one turn!\n3. SPEAKER ACCURACY: On every 'dialogue' beat, "speakerName" MUST be the exact full name from CAST (${castNames.join(', ') || 'Character'}) of the person actually speaking that line (on 'narration' beats set speakerName to "Narrator"). NEVER put "Name:" inside dialogue "text".\n4. Let characters react to the user AND each other naturally without confusing who is speaking vs who is being addressed.\n5. Adjust meterChanges (-8..+8) gradually so feelings keep shifting naturally.\n6. Set newMemory.shouldSave=true only for major reveals/promises; return 2-3 storyChoices only at major turning points, else [].\n7. UNLIMITED ONGOING STORY (Turn ${turnNumber}): NEVER end, conclude, or wrap up the story. Keep the roleplay running endlessly with fresh twists, evolving locations, secrets, rivalries, and drama.`,
     getLanguageInstruction(language),
   ].join('\n\n');
 
   const actionPrompt =
     mode === 'continue'
-      ? `ACTION: Auto-advance (Fast-Forward). User stayed silent—continue immediately from the last beat with fresh character dialogue, tension, or movement without speaking for the user.`
+      ? `ACTION: Auto-advance (Fast-Forward). User stayed silent—continue immediately from the last beat with 1 natural character reaction (or 2 distinct characters only if urgently needed), without speaking for the user.`
       : mode === 'regenerate'
         ? `${userMessage ? `USER: "${userMessage}"\n` : ''}ACTION: Regenerate a distinctly different reaction, dialogue twist, or dramatic angle for this moment.`
         : `USER: "${userMessage}"`;
 
   const prompt = [
-    `SCENE (Turn ${sceneIndex + 1}): ${currentScene} | METERS: ${meterBlock || 'None'}`,
+    `SCENE (Turn ${turnNumber}): ${currentScene} | METERS: ${meterBlock || 'None'}`,
     `MEMORIES:\n${memoryBlock}`,
     `RECENT:\n${historyBlock || '(Opening scene)'}`,
     actionPrompt,
@@ -491,69 +624,69 @@ function buildStoryPromptParts(body: StoryTurnBody) {
     mode,
     userMessage,
     currentScene,
+    castNames,
+    allowEnding: false,
     systemInstruction,
     prompt,
   };
 }
 
-const STORY_TURN_RESPONSE_SCHEMA = {
-  type: Type.OBJECT,
-  properties: {
-    beats: {
-      type: Type.ARRAY,
-      minItems: '1',
-      items: {
+function buildStoryTurnSchema(castNames: string[]) {
+  const speakerEnum = Array.from(new Set(['Narrator', ...castNames]));
+  return {
+    type: Type.OBJECT,
+    properties: {
+      beats: {
+        type: Type.ARRAY,
+        minItems: '1',
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            type: { type: Type.STRING, format: 'enum', enum: ['narration', 'dialogue'] },
+            speakerName:
+              castNames.length > 0
+                ? { type: Type.STRING, format: 'enum', enum: speakerEnum }
+                : { type: Type.STRING },
+            text: { type: Type.STRING },
+          },
+          required: ['type', 'speakerName', 'text'],
+        },
+      },
+      meterChanges: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            id: { type: Type.STRING },
+            delta: { type: Type.INTEGER },
+            reason: { type: Type.STRING },
+          },
+          required: ['id', 'delta'],
+        },
+      },
+      newScene: { type: Type.STRING },
+      newMemory: {
         type: Type.OBJECT,
         properties: {
-          type: { type: Type.STRING, format: 'enum', enum: ['narration', 'dialogue'] },
-          speakerName: { type: Type.STRING },
-          text: { type: Type.STRING },
+          shouldSave: { type: Type.BOOLEAN },
+          summary: { type: Type.STRING },
+          importance: { type: Type.INTEGER },
+          charactersInvolved: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING },
+          },
         },
-        required: ['type', 'text'],
+        required: ['shouldSave'],
+      },
+      storyChoices: {
+        type: Type.ARRAY,
+        items: { type: Type.STRING },
       },
     },
-    meterChanges: {
-      type: Type.ARRAY,
-      items: {
-        type: Type.OBJECT,
-        properties: {
-          id: { type: Type.STRING },
-          delta: { type: Type.INTEGER },
-          reason: { type: Type.STRING },
-        },
-        required: ['id', 'delta'],
-      },
-    },
-    newScene: { type: Type.STRING },
-    newMemory: {
-      type: Type.OBJECT,
-      properties: {
-        shouldSave: { type: Type.BOOLEAN },
-        summary: { type: Type.STRING },
-        importance: { type: Type.INTEGER },
-        charactersInvolved: {
-          type: Type.ARRAY,
-          items: { type: Type.STRING },
-        },
-      },
-      required: ['shouldSave'],
-    },
-    storyChoices: {
-      type: Type.ARRAY,
-      items: { type: Type.STRING },
-    },
-    endingTriggered: { type: Type.STRING },
-  },
-  propertyOrdering: [
-    'beats',
-    'meterChanges',
-    'newScene',
-    'newMemory',
-    'storyChoices',
-    'endingTriggered',
-  ],
-  required: ['beats', 'meterChanges', 'newScene', 'storyChoices', 'endingTriggered'],
-};
+    propertyOrdering: ['beats', 'meterChanges', 'newScene', 'newMemory', 'storyChoices'],
+    required: ['beats', 'meterChanges', 'newScene', 'storyChoices'],
+  };
+}
 
 function extractJsonObject(rawText: string): Record<string, unknown> {
   const trimmed = (rawText || '').trim();
@@ -695,23 +828,29 @@ function markModelCooldownIfTransient(model: string, err: unknown) {
 function normalizeStoryTurnPayload(
   rawText: string,
   fallbackScene: string,
-  salvagedBeats: CleanStoryBeat[] = []
+  salvagedBeats: CleanStoryBeat[] = [],
+  options?: { allowEnding?: boolean; castNames?: string[] }
 ) {
+  const castNames = options?.castNames || [];
   const parsed = extractJsonObject(rawText);
   let safeBeats = Array.isArray(parsed.beats)
-    ? parsed.beats.map(normalizeBeat).filter((b): b is CleanStoryBeat => Boolean(b))
+    ? parsed.beats
+        .map((b) => normalizeBeat(b, castNames))
+        .filter((b): b is CleanStoryBeat => Boolean(b))
     : [];
 
   if (safeBeats.length === 0 && salvagedBeats.length > 0) {
     safeBeats = salvagedBeats;
   }
   if (safeBeats.length === 0 && rawText) {
-    const recoveryExtractor = new IncrementalBeatsExtractor();
+    const recoveryExtractor = new IncrementalBeatsExtractor(castNames);
     const extracted = recoveryExtractor.push(rawText);
     if (extracted.length > 0) {
       safeBeats = extracted;
     }
   }
+
+  safeBeats = enforceTurnSpeakerRules(safeBeats, castNames);
 
   return {
     beats: safeBeats,
@@ -724,7 +863,7 @@ function normalizeStoryTurnPayload(
     storyChoices: Array.isArray(parsed.storyChoices)
       ? parsed.storyChoices.filter((c): c is string => typeof c === 'string' && c.trim().length > 0).slice(0, 3)
       : [],
-    endingTriggered: sanitizeText(parsed.endingTriggered, 180),
+    endingTriggered: '',
   };
 }
 
@@ -742,6 +881,13 @@ class IncrementalBeatsExtractor {
   private braceDepth = 0;
   private objectStart = -1;
   private extractedBeats: CleanStoryBeat[] = [];
+  private seenSpeakers = new Set<string>();
+  private dialogueCount = 0;
+  private readonly castNames: string[];
+
+  constructor(castNames: string[] = []) {
+    this.castNames = castNames;
+  }
 
   push(chunk: string): CleanStoryBeat[] {
     if (!chunk || this.arrayEnded) {
@@ -789,10 +935,31 @@ class IncrementalBeatsExtractor {
             this.objectStart = -1;
             try {
               const parsed = JSON.parse(objSlice);
-              const beat = normalizeBeat(parsed);
+              const beat = normalizeBeat(parsed, this.castNames);
               if (beat) {
-                extracted.push(beat);
-                this.extractedBeats.push(beat);
+                if (beat.type === 'dialogue') {
+                  const speaker =
+                    beat.speakerName ||
+                    this.castNames.find((c) => !this.seenSpeakers.has(c.toLowerCase())) ||
+                    this.castNames[0] ||
+                    'Character';
+                  const key = speaker.toLowerCase();
+                  if (this.seenSpeakers.has(key) || this.dialogueCount >= 2) {
+                    continue;
+                  }
+                  this.seenSpeakers.add(key);
+                  this.dialogueCount += 1;
+                  const cleanBeat: CleanStoryBeat = {
+                    type: 'dialogue',
+                    speakerName: speaker,
+                    text: beat.text,
+                  };
+                  extracted.push(cleanBeat);
+                  this.extractedBeats.push(cleanBeat);
+                } else {
+                  extracted.push(beat);
+                  this.extractedBeats.push(beat);
+                }
               }
             } catch {
               // Ignore malformed partial object; full payload at end handles recovery
@@ -868,7 +1035,9 @@ async function startServer() {
 
   app.post('/api/story/turn-stream', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
     const body = req.body as StoryTurnBody;
-    const { mode, userMessage, currentScene, systemInstruction, prompt } = buildStoryPromptParts(body);
+    const { mode, userMessage, currentScene, castNames, allowEnding, systemInstruction, prompt } =
+      buildStoryPromptParts(body);
+    const responseSchema = buildStoryTurnSchema(castNames);
 
     if (!body?.story?.title || (mode === 'reply' && !userMessage)) {
       res.status(400).json({ error: 'Story context and user message are required.' });
@@ -905,12 +1074,12 @@ async function startServer() {
           if (clientClosed || res.writableEnded) return;
         }
 
-        const extractor = new IncrementalBeatsExtractor();
+        const extractor = new IncrementalBeatsExtractor(castNames);
         try {
           const config: Record<string, unknown> = {
             systemInstruction,
             responseMimeType: 'application/json',
-            responseSchema: STORY_TURN_RESPONSE_SCHEMA,
+            responseSchema,
           };
           if (candidate.thinkingLevel) {
             config.thinkingConfig = { thinkingLevel: candidate.thinkingLevel };
@@ -937,7 +1106,8 @@ async function startServer() {
             const payload = normalizeStoryTurnPayload(
               extractor.getFullText(),
               currentScene,
-              extractor.getExtractedBeats()
+              extractor.getExtractedBeats(),
+              { allowEnding, castNames }
             );
             if (payload.beats.length === 0) {
               throw new Error('Empty story response from model.');
@@ -953,7 +1123,10 @@ async function startServer() {
             contents: prompt,
             config,
           });
-          const payload = normalizeStoryTurnPayload(response.text || '{}', currentScene);
+          const payload = normalizeStoryTurnPayload(response.text || '{}', currentScene, [], {
+            allowEnding,
+            castNames,
+          });
           if (payload.beats.length === 0) {
             throw new Error('Empty story response from model.');
           }
@@ -973,7 +1146,8 @@ async function startServer() {
             const partialPayload = normalizeStoryTurnPayload(
               extractor.getFullText(),
               currentScene,
-              salvaged
+              salvaged,
+              { allowEnding, castNames }
             );
             if (partialPayload.beats.length > 0) {
               writeEvent('done', partialPayload);
@@ -1000,7 +1174,9 @@ async function startServer() {
   app.post('/api/story/turn', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
     try {
       const body = req.body as StoryTurnBody;
-      const { mode, userMessage, currentScene, systemInstruction, prompt } = buildStoryPromptParts(body);
+      const { mode, userMessage, currentScene, castNames, allowEnding, systemInstruction, prompt } =
+        buildStoryPromptParts(body);
+      const responseSchema = buildStoryTurnSchema(castNames);
 
       if (!body?.story?.title || (mode === 'reply' && !userMessage)) {
         res.status(400).json({ error: 'Story context and user message are required.' });
@@ -1020,7 +1196,7 @@ async function startServer() {
           const config: Record<string, unknown> = {
             systemInstruction,
             responseMimeType: 'application/json',
-            responseSchema: STORY_TURN_RESPONSE_SCHEMA,
+            responseSchema,
           };
           if (candidate.thinkingLevel) {
             config.thinkingConfig = { thinkingLevel: candidate.thinkingLevel };
@@ -1030,7 +1206,10 @@ async function startServer() {
             contents: prompt,
             config,
           });
-          const payload = normalizeStoryTurnPayload(response.text || '{}', currentScene);
+          const payload = normalizeStoryTurnPayload(response.text || '{}', currentScene, [], {
+            allowEnding,
+            castNames,
+          });
           if (payload.beats.length === 0) {
             throw new Error('Empty story response from model.');
           }

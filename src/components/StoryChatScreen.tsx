@@ -30,6 +30,7 @@ import {
   loadConversationMessagesFromCache,
   replaceLatestStoryMessageInCloud,
   restartStoryInCloud,
+  resumeStoryEndingInCloud,
   rewindLastTurnInCloud,
   saveStoryContinueToCloud,
   saveTurnToCloud,
@@ -139,26 +140,191 @@ function isPlaceholderStoryMessage(msg: ChatTurnMessage): boolean {
   });
 }
 
-function extractValidStoryBeats(rawBeats: unknown): StoryBeat[] {
+function escapeBeatRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function resolveCastSpeakerName(
+  rawSpeaker: string | undefined,
+  cast: StoryDefinition['characters']
+): string | undefined {
+  const cleaned = (rawSpeaker || '').trim();
+  if (!cleaned) return undefined;
+  const lower = cleaned.toLowerCase();
+  if (lower === 'narrator' || lower === 'story' || lower === 'user' || lower === 'you') {
+    return undefined;
+  }
+
+  const exact = cast.find((c) => c.name.toLowerCase() === lower);
+  if (exact) return exact.name;
+
+  const firstToken = lower.split(/\s+/)[0];
+  if (firstToken && firstToken.length >= 2) {
+    const partial = cast.find((c) => {
+      const cLower = c.name.toLowerCase();
+      return cLower === firstToken || cLower.startsWith(`${firstToken} `) || cLower.includes(lower);
+    });
+    if (partial) return partial.name;
+  }
+  return cleaned;
+}
+
+function detectSpeakerFromPrefix(
+  text: string,
+  cast: StoryDefinition['characters']
+): { speaker?: string; strippedText: string } {
+  const trimmed = (text || '').trim();
+  const unquoted = trimmed.replace(/^["“']\s*/, '');
+  for (const ch of cast) {
+    const fullName = ch.name.trim();
+    const firstName = fullName.split(/\s+/)[0] || '';
+    const candidates =
+      firstName && firstName.toLowerCase() !== fullName.toLowerCase()
+        ? [fullName, firstName]
+        : [fullName];
+    for (const candidate of candidates) {
+      const match = new RegExp(`^${escapeBeatRegex(candidate)}\\s*:\\s*([\\s\\S]+)$`, 'i').exec(unquoted);
+      if (match) {
+        return {
+          speaker: fullName,
+          strippedText: match[1].trim(),
+        };
+      }
+    }
+  }
+  return { strippedText: trimmed };
+}
+
+function cleanDialogueBeatText(
+  text: string,
+  speakerName?: string,
+  cast: StoryDefinition['characters'] = []
+): string {
+  let cleaned = (text || '').trim();
+  const namesToStrip = Array.from(
+    new Set([...(speakerName ? [speakerName] : []), ...cast.map((c) => c.name)])
+  );
+  for (const name of namesToStrip) {
+    const firstName = name.split(/\s+/)[0] || '';
+    const prefixRegex = firstName
+      ? new RegExp(`^(?:${escapeBeatRegex(name)}|${escapeBeatRegex(firstName)})\\s*:\\s*`, 'i')
+      : new RegExp(`^${escapeBeatRegex(name)}\\s*:\\s*`, 'i');
+    cleaned = cleaned.replace(prefixRegex, '').trim();
+  }
+  if (
+    (cleaned.startsWith('"') && cleaned.endsWith('"') && cleaned.length >= 2) ||
+    (cleaned.startsWith('“') && cleaned.endsWith('”') && cleaned.length >= 2)
+  ) {
+    cleaned = cleaned.slice(1, -1).trim();
+  }
+  return cleaned;
+}
+
+function groupBeatsIntoCharacterCards(
+  rawBeats: StoryBeat[],
+  cast: StoryDefinition['characters']
+): StoryBeat[][] {
+  const cards: StoryBeat[][] = [];
+  const seenSpeakers = new Set<string>();
+  let pendingNarrations: StoryBeat[] = [];
+
+  for (const raw of rawBeats) {
+    if (!raw || typeof raw !== 'object') continue;
+    const rawText = (raw.text || '').trim();
+    if (!rawText || rawText === '...') continue;
+
+    if (raw.type === 'narration') {
+      pendingNarrations.push({ type: 'narration', text: rawText });
+      continue;
+    }
+
+    let resolvedSpeaker = resolveCastSpeakerName(raw.speakerName, cast);
+    const detected = detectSpeakerFromPrefix(rawText, cast);
+    if (detected.speaker) {
+      resolvedSpeaker = detected.speaker;
+    }
+    const cleanSpeech = cleanDialogueBeatText(
+      detected.speaker ? detected.strippedText : rawText,
+      resolvedSpeaker,
+      cast
+    );
+    if (!cleanSpeech || cleanSpeech === '...') continue;
+
+    if (!resolvedSpeaker) {
+      resolvedSpeaker =
+        cast.find((c) => !seenSpeakers.has(c.name.toLowerCase()))?.name ||
+        cast[0]?.name ||
+        'Character';
+    }
+
+    const speakerKey = resolvedSpeaker.toLowerCase();
+    // Never let the same character speak twice inside the same turn/message
+    if (seenSpeakers.has(speakerKey)) {
+      pendingNarrations = [];
+      continue;
+    }
+
+    seenSpeakers.add(speakerKey);
+    const dialogueBeat: StoryBeat = {
+      type: 'dialogue',
+      speakerName: resolvedSpeaker,
+      text: cleanSpeech,
+    };
+    cards.push([...pendingNarrations, dialogueBeat]);
+    pendingNarrations = [];
+  }
+
+  if (cards.length === 0 && pendingNarrations.length > 0) {
+    cards.push(pendingNarrations);
+  } else if (pendingNarrations.length > 0 && cards.length > 0) {
+    cards[cards.length - 1] = [...cards[cards.length - 1], ...pendingNarrations];
+  }
+
+  return cards;
+}
+
+function extractValidStoryBeats(
+  rawBeats: unknown,
+  cast: StoryDefinition['characters'] = []
+): StoryBeat[] {
   if (!Array.isArray(rawBeats)) return [];
-  return rawBeats
+  const initialBeats: StoryBeat[] = rawBeats
     .map((b) => {
       if (!b || typeof b !== 'object') return null;
       const item = b as { type?: unknown; speakerName?: unknown; text?: unknown };
-      const text = typeof item.text === 'string' ? item.text.trim() : '';
-      if (!text || text === '...') return null;
       const type: StoryBeat['type'] = item.type === 'narration' ? 'narration' : 'dialogue';
-      const speakerName =
-        typeof item.speakerName === 'string' && item.speakerName.trim()
-          ? item.speakerName.trim()
-          : undefined;
+      const rawText = typeof item.text === 'string' ? item.text.trim() : '';
+      if (!rawText || rawText === '...') return null;
+
+      if (type === 'narration') {
+        return { type: 'narration' as const, text: rawText };
+      }
+
+      let resolvedSpeaker = resolveCastSpeakerName(
+        typeof item.speakerName === 'string' ? item.speakerName : '',
+        cast
+      );
+      const detected = detectSpeakerFromPrefix(rawText, cast);
+      if (detected.speaker) {
+        resolvedSpeaker = detected.speaker;
+      }
+      const text = cleanDialogueBeatText(
+        detected.speaker ? detected.strippedText : rawText,
+        resolvedSpeaker,
+        cast
+      );
+      if (!text || text === '...') return null;
+
       return {
-        type,
-        ...(type === 'dialogue' && speakerName ? { speakerName } : {}),
+        type: 'dialogue' as const,
+        ...(resolvedSpeaker ? { speakerName: resolvedSpeaker } : {}),
         text,
       };
     })
     .filter((b): b is StoryBeat => Boolean(b));
+
+  if (cast.length === 0) return initialBeats;
+  return groupBeatsIntoCharacterCards(initialBeats, cast).flat();
 }
 
 function formatReadableError(err: unknown, fallback = 'Something went wrong. Please try again.'): string {
@@ -271,61 +437,72 @@ const ChatMessageList: React.FC<ChatMessageListProps> = React.memo(
           }
 
           const metersToDisplay = isLatestStoryMsg ? meters : msg.metersSnapshot || [];
+          const characterCards = groupBeatsIntoCharacterCards(msg.beats || [], story.characters);
 
           return (
-            <div key={msg.id} className="flex flex-col items-start">
-              <div className="w-full max-w-[92%] sm:max-w-[85%] rounded-2xl rounded-bl-sm bg-[#1C1D22] border border-white/[0.06] px-4 py-3.5 space-y-3 shadow-lg">
-                {isLatestStoryMsg && metersToDisplay.length > 0 && (
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pb-2 border-b border-white/[0.07] text-[13px] font-semibold tabular-nums">
-                    {metersToDisplay.map((m) => (
-                      <div key={m.id} className="flex items-center gap-1.5 text-zinc-100">
-                        <span>{m.emoji}</span>
-                        <span className="text-zinc-300">{m.label}:</span>
-                        <span className="text-white">
-                          {m.value}/
-                          {story.relationshipMeters.find((d) => d.id === m.id)?.max ?? 100}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
+            <div key={msg.id} className="flex flex-col items-start space-y-2.5">
+              {characterCards.map((cardBeats, cardIdx) => (
+                <div
+                  key={`${msg.id}_card_${cardIdx}`}
+                  className="w-full max-w-[92%] sm:max-w-[85%] rounded-2xl rounded-bl-sm bg-[#1C1D22] border border-white/[0.06] px-4 py-3.5 space-y-3 shadow-lg"
+                >
+                  {isLatestStoryMsg && cardIdx === 0 && metersToDisplay.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pb-2 border-b border-white/[0.07] text-[13px] font-semibold tabular-nums">
+                      {metersToDisplay.map((m) => (
+                        <div key={m.id} className="flex items-center gap-1.5 text-zinc-100">
+                          <span>{m.emoji}</span>
+                          <span className="text-zinc-300">{m.label}:</span>
+                          <span className="text-white">
+                            {m.value}/
+                            {story.relationshipMeters.find((d) => d.id === m.id)?.max ?? 100}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
-                <div className="space-y-3">
-                  {(msg.beats || []).map((beat, bIdx) => {
-                    if (beat.type === 'narration') {
-                      return (
-                        <p
-                          key={bIdx}
-                          className="text-[14.5px] italic text-[#A1A3AD] leading-relaxed"
-                        >
-                          *{beat.text}*
-                        </p>
+                  <div className="space-y-3">
+                    {cardBeats.map((beat, bIdx) => {
+                      if (beat.type === 'narration') {
+                        return (
+                          <p
+                            key={bIdx}
+                            className="text-[14.5px] italic text-[#A1A3AD] leading-relaxed"
+                          >
+                            *{beat.text}*
+                          </p>
+                        );
+                      }
+                      const speaker =
+                        beat.speakerName || story.characters[0]?.name || 'Character';
+                      const cleanSpeech = cleanDialogueBeatText(
+                        beat.text,
+                        speaker,
+                        story.characters
                       );
-                    }
-                    const speaker =
-                      beat.speakerName || story.characters[0]?.name || 'Character';
-                    const portrait =
-                      characterPortraitMap.get(speaker.toLowerCase()) ||
-                      characterPortraitMap.get(speaker.split(' ')[0]?.toLowerCase() || '');
+                      const portrait =
+                        characterPortraitMap.get(speaker.toLowerCase()) ||
+                        characterPortraitMap.get(speaker.split(' ')[0]?.toLowerCase() || '');
 
-                    return (
-                      <div key={bIdx} className="flex items-start gap-2.5">
-                        {portrait && (
-                          <StoryImage
-                            src={portrait}
-                            alt={speaker}
-                            className="w-6 h-6 rounded-full object-cover object-top mt-0.5 shrink-0 ring-1 ring-white/15"
-                          />
-                        )}
-                        <p className="text-[15px] text-white leading-relaxed">
-                          <span className="font-semibold text-zinc-100">{speaker}: </span>
-                          <span className="text-zinc-100">"{beat.text}"</span>
-                        </p>
-                      </div>
-                    );
-                  })}
+                      return (
+                        <div key={bIdx} className="flex items-start gap-2.5">
+                          {portrait && (
+                            <StoryImage
+                              src={portrait}
+                              alt={speaker}
+                              className="w-6 h-6 rounded-full object-cover object-top mt-0.5 shrink-0 ring-1 ring-white/15"
+                            />
+                          )}
+                          <p className="text-[15px] text-white leading-relaxed">
+                            <span className="font-semibold text-zinc-100">{speaker}: </span>
+                            <span className="text-zinc-100">"{cleanSpeech}"</span>
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+              ))}
 
               {/* Kavana-style Fast-Forward (>>) and More (...) actions below latest story message */}
               {isLatestStoryMsg && !sending && !endingReached && (
@@ -442,7 +619,7 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
   );
   const [sceneIndex, setSceneIndex] = useState<number>(existingProgress?.sceneIndex || 0);
   const [choicesMade, setChoicesMade] = useState<string[]>(existingProgress?.choicesMade || []);
-  const [endingReached, setEndingReached] = useState<string>(existingProgress?.endingReached || '');
+  const [endingReached, setEndingReached] = useState<string>('');
   const [activeChoices, setActiveChoices] = useState<string[]>(
     !existingProgress ? story.initialChoices[preferredLanguage] || story.initialChoices.hinglish : []
   );
@@ -621,6 +798,12 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
         Math.floor(Math.max(0, msgs.length - 1) / 2)
       );
       setSceneIndex((prev) => Math.max(prev, inferredSceneIdx));
+      if (existingProgress?.endingReached || existingProgress?.status === 'completed') {
+        setEndingReached('');
+        enqueueCloudWrite(async () => {
+          await resumeStoryEndingInCloud(user.uid, story.id);
+        });
+      }
       if (existingMeters && existingMeters.length > 0) {
         setMeters(existingMeters);
       } else if (lastStoryMsg?.metersSnapshot && lastStoryMsg.metersSnapshot.length > 0) {
@@ -990,7 +1173,7 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
         }
       );
 
-      const storyBeats = extractValidStoryBeats(data.beats);
+      const storyBeats = extractValidStoryBeats(data.beats, story.characters);
       if (storyBeats.length === 0) {
         throw new Error('Characters are taking a moment to respond. Please tap Retry.');
       }
@@ -1052,8 +1235,8 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
       setChoicesMade(updatedChoicesMade);
       setActiveChoices(Array.isArray(data.storyChoices) ? data.storyChoices.slice(0, 3) : []);
 
-      if (data.endingTriggered?.trim()) {
-        setEndingReached(data.endingTriggered.trim());
+      if (endingReached) {
+        setEndingReached('');
       }
 
       const newMemRecord: StoryMemoryRecord | undefined = memoryToSave
@@ -1178,7 +1361,7 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
         }
       );
 
-      const storyBeats = extractValidStoryBeats(data.beats);
+      const storyBeats = extractValidStoryBeats(data.beats, story.characters);
       if (storyBeats.length === 0) {
         throw new Error('Characters are taking a moment to respond. Please tap Retry.');
       }
@@ -1231,8 +1414,8 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
       setSceneIndex(nextSceneIdx);
       setActiveChoices(Array.isArray(data.storyChoices) ? data.storyChoices.slice(0, 3) : []);
 
-      if (data.endingTriggered?.trim()) {
-        setEndingReached(data.endingTriggered.trim());
+      if (endingReached) {
+        setEndingReached('');
       }
 
       const newMemRecord: StoryMemoryRecord | undefined = memoryToSave
@@ -1374,7 +1557,7 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
         }
       );
 
-      const storyBeats = extractValidStoryBeats(data.beats);
+      const storyBeats = extractValidStoryBeats(data.beats, story.characters);
       if (storyBeats.length === 0) {
         throw new Error('Characters are taking a moment to respond. Please tap Retry.');
       }
@@ -1418,8 +1601,8 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
       if (Array.isArray(data.storyChoices)) {
         setActiveChoices(data.storyChoices.slice(0, 3));
       }
-      if (data.endingTriggered?.trim()) {
-        setEndingReached(data.endingTriggered.trim());
+      if (endingReached) {
+        setEndingReached('');
       }
 
       const lastBeat = storyBeats[storyBeats.length - 1];
@@ -1549,12 +1732,13 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
   // Copy latest story message text cleanly (...)
   const handleCopyLatest = async (msg: ChatTurnMessage) => {
     setMsgMenuOpen(false);
-    const formatted = (msg.beats || [])
-      .map((b) =>
-        b.type === 'narration'
-          ? `*${b.text}*`
-          : `${b.speakerName || story.characters[0]?.name || 'Character'}: "${b.text}"`
-      )
+    const formatted = groupBeatsIntoCharacterCards(msg.beats || [], story.characters)
+      .flat()
+      .map((b) => {
+        if (b.type === 'narration') return `*${b.text}*`;
+        const speaker = b.speakerName || story.characters[0]?.name || 'Character';
+        return `${speaker}: "${cleanDialogueBeatText(b.text, speaker, story.characters)}"`;
+      })
       .join('\n\n');
     try {
       if (navigator.clipboard && formatted) {
@@ -1971,14 +2155,41 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
 
           {/* Ending Reached Banner */}
           {endingReached && (
-            <div className="rounded-2xl bg-gradient-to-r from-[#231217] to-[#17171D] border border-[#E5233D]/40 p-4 text-center space-y-2">
+            <div className="rounded-2xl bg-gradient-to-r from-[#231217] to-[#17171D] border border-[#E5233D]/40 p-4 text-center space-y-2.5">
               <div className="text-xs font-semibold text-[#F43F5E]">Story Ending Reached</div>
               <div className="font-display text-base font-bold text-white">{endingReached}</div>
-              <div className="flex items-center justify-center gap-3 pt-1">
+              <div className="flex flex-wrap items-center justify-center gap-2.5 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEndingReached('');
+                    const lastMsg = messages[messages.length - 1];
+                    const lastBeat = lastMsg?.beats?.[lastMsg.beats.length - 1];
+                    onLocalTurnSync?.({
+                      story,
+                      lastMessage: (lastMsg?.userText || lastBeat?.text || currentScene).slice(0, 1000),
+                      lastSpeaker:
+                        lastMsg?.role === 'user'
+                          ? 'You'
+                          : lastBeat?.speakerName || story.characters[0]?.name || 'Story',
+                      messageCount: messages.length,
+                      currentScene,
+                      sceneIndex,
+                      meters,
+                      endingReached: undefined,
+                    });
+                    enqueueCloudWrite(async () => {
+                      await resumeStoryEndingInCloud(user.uid, story.id);
+                    });
+                  }}
+                  className="px-4 py-2 rounded-full bg-white/10 hover:bg-white/15 border border-white/15 text-xs font-semibold text-white transition"
+                >
+                  Continue Story
+                </button>
                 <button
                   type="button"
                   onClick={() => setRestartConfirmOpen(true)}
-                  className="px-4 py-2 rounded-full bg-[#E5233D] text-xs font-semibold text-white"
+                  className="px-4 py-2 rounded-full bg-[#E5233D] hover:bg-[#cc1e35] text-xs font-semibold text-white transition"
                 >
                   Play Another Path
                 </button>
@@ -1988,47 +2199,61 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
 
           {/* Live Streaming Story Bubble or Snappy Typing Indicator */}
           {sending && streamingBeats.length > 0 ? (
-            <div className="flex flex-col items-start">
-              <div className="w-full max-w-[92%] sm:max-w-[85%] rounded-2xl rounded-bl-sm bg-[#1C1D22] border border-white/[0.08] px-4 py-3.5 space-y-3 shadow-lg">
-                <div className="space-y-3">
-                  {streamingBeats.map((beat, bIdx) => {
-                    if (beat.type === 'narration') {
-                      return (
-                        <p
-                          key={bIdx}
-                          className="text-[14.5px] italic text-[#A1A3AD] leading-relaxed"
-                        >
-                          *{beat.text}*
-                        </p>
-                      );
-                    }
-                    const speaker =
-                      beat.speakerName || story.characters[0]?.name || 'Character';
-                    const portrait =
-                      characterPortraitMap.get(speaker.toLowerCase()) ||
-                      characterPortraitMap.get(speaker.split(' ')[0]?.toLowerCase() || '');
-                    return (
-                      <div key={bIdx} className="flex items-start gap-2.5">
-                        {portrait && (
-                          <StoryImage
-                            src={portrait}
-                            alt={speaker}
-                            className="w-6 h-6 rounded-full object-cover object-top mt-0.5 shrink-0 ring-1 ring-white/15"
-                          />
-                        )}
-                        <p className="text-[15px] text-white leading-relaxed">
-                          <span className="font-semibold text-zinc-100">{speaker}: </span>
-                          <span className="text-zinc-100">"{beat.text}"</span>
-                        </p>
+            <div className="flex flex-col items-start space-y-2.5">
+              {groupBeatsIntoCharacterCards(streamingBeats, story.characters).map(
+                (cardBeats, cardIdx, allCards) => (
+                  <div
+                    key={`stream_card_${cardIdx}`}
+                    className="w-full max-w-[92%] sm:max-w-[85%] rounded-2xl rounded-bl-sm bg-[#1C1D22] border border-white/[0.08] px-4 py-3.5 space-y-3 shadow-lg"
+                  >
+                    <div className="space-y-3">
+                      {cardBeats.map((beat, bIdx) => {
+                        if (beat.type === 'narration') {
+                          return (
+                            <p
+                              key={bIdx}
+                              className="text-[14.5px] italic text-[#A1A3AD] leading-relaxed"
+                            >
+                              *{beat.text}*
+                            </p>
+                          );
+                        }
+                        const speaker =
+                          beat.speakerName || story.characters[0]?.name || 'Character';
+                        const cleanSpeech = cleanDialogueBeatText(
+                          beat.text,
+                          speaker,
+                          story.characters
+                        );
+                        const portrait =
+                          characterPortraitMap.get(speaker.toLowerCase()) ||
+                          characterPortraitMap.get(speaker.split(' ')[0]?.toLowerCase() || '');
+                        return (
+                          <div key={bIdx} className="flex items-start gap-2.5">
+                            {portrait && (
+                              <StoryImage
+                                src={portrait}
+                                alt={speaker}
+                                className="w-6 h-6 rounded-full object-cover object-top mt-0.5 shrink-0 ring-1 ring-white/15"
+                              />
+                            )}
+                            <p className="text-[15px] text-white leading-relaxed">
+                              <span className="font-semibold text-zinc-100">{speaker}: </span>
+                              <span className="text-zinc-100">"{cleanSpeech}"</span>
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {cardIdx === allCards.length - 1 && (
+                      <div className="flex items-center gap-1.5 pt-0.5 text-[11px] text-zinc-400">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#E5233D] animate-pulse" />
+                        <span>Scene unfolding...</span>
                       </div>
-                    );
-                  })}
-                </div>
-                <div className="flex items-center gap-1.5 pt-0.5 text-[11px] text-zinc-400">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#E5233D] animate-pulse" />
-                  <span>Scene unfolding...</span>
-                </div>
-              </div>
+                    )}
+                  </div>
+                )
+              )}
             </div>
           ) : sending ? (
             <div className="flex justify-start">

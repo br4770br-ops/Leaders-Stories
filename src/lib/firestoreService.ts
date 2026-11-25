@@ -821,13 +821,11 @@ export async function saveTurnToCloud(params: {
       currentScene: safeScene,
       sceneIndex,
       status: endingTriggered ? 'completed' : 'active',
+      endingReached: endingTriggered ? endingTriggered.slice(0, 200) : '',
       choicesMade: choicesMade.slice(-50),
       savedCharacterIds: story.characters.map((c) => c.id).slice(0, 30),
       updatedAt: serverTimestamp(),
     };
-    if (endingTriggered) {
-      progFields.endingReached = endingTriggered.slice(0, 200);
-    }
 
     const memId =
       newMemory && newMemory.summary
@@ -983,11 +981,9 @@ export async function saveStoryContinueToCloud(params: {
       currentScene: safeScene,
       sceneIndex,
       status: endingTriggered ? 'completed' : 'active',
+      endingReached: endingTriggered ? endingTriggered.slice(0, 200) : '',
       updatedAt: serverTimestamp(),
     };
-    if (endingTriggered) {
-      progUpdate.endingReached = endingTriggered.slice(0, 200);
-    }
 
     const memId =
       newMemory && newMemory.summary
@@ -1135,11 +1131,9 @@ export async function replaceLatestStoryMessageInCloud(params: {
       currentScene: safeScene,
       sceneIndex,
       status: endingTriggered ? 'completed' : 'active',
+      endingReached: endingTriggered ? endingTriggered.slice(0, 200) : '',
       updatedAt: serverTimestamp(),
     };
-    if (endingTriggered) {
-      progUpdate.endingReached = endingTriggered.slice(0, 200);
-    }
 
     await commitStoryBatchWithRecovery(
       { convRef, progRef, relRef },
@@ -1330,6 +1324,22 @@ export async function rewindLastTurnInCloud(params: {
     );
   } catch (err) {
     handleFirestoreError(err, OperationType.DELETE, path);
+  }
+}
+
+export async function resumeStoryEndingInCloud(uid: string, storyId: string): Promise<void> {
+  const path = `users/${uid}/storyProgress/${storyId}`;
+  try {
+    await updateDoc(doc(db, 'users', uid, 'storyProgress', storyId), {
+      status: 'active',
+      endingReached: '',
+      updatedAt: serverTimestamp(),
+    });
+  } catch (err) {
+    if ((err as { code?: string })?.code === 'not-found') {
+      return;
+    }
+    handleFirestoreError(err, OperationType.UPDATE, path);
   }
 }
 

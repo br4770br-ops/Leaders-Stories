@@ -104,8 +104,7 @@ export const ChatsView: React.FC<ChatsViewProps> = ({
             {conversations.map((conv) => {
               const story = storyMap.get(conv.storyId);
               if (!story) return null;
-              const progress = progressMap[story.id];
-              const isCompleted = progress?.status === 'completed';
+              const sceneCount = progressMap[story.id]?.sceneIndex;
 
               return (
                 <button
@@ -134,14 +133,8 @@ export const ChatsView: React.FC<ChatsViewProps> = ({
                       </span>
                       <span aria-hidden="true" className="text-zinc-400 dark:text-zinc-600">·</span>
                       <span className="text-zinc-600 dark:text-zinc-400 tabular-nums">
-                        {conv.messageCount} turns
+                        {Math.max(conv.messageCount, sceneCount || 0)} turns
                       </span>
-                      {isCompleted && (
-                        <>
-                          <span aria-hidden="true" className="text-zinc-400 dark:text-zinc-600">·</span>
-                          <span className="text-emerald-600 dark:text-emerald-400 font-medium">Completed</span>
-                        </>
-                      )}
                     </div>
                     <p className="text-xs text-zinc-600 dark:text-zinc-400 line-clamp-1">{conv.lastMessage}</p>
                   </div>
