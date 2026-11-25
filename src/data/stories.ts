@@ -2771,4 +2771,161 @@ export const STORIES_CATALOG: StoryDefinition[] = [
       'Broke the Bloodline Curse Before Sunrise',
     ],
   },
+  {
+    id: 'coaching_wala_pyar',
+    title: 'Coaching Wala Pyar ❤️',
+    tagline: 'Lucknow ki coaching mein khamosh ladki ki bagal wali seat paane ki ek meethi koshish.',
+    about:
+      'Hazratganj, Lucknow ke ek bustling coaching institute mein naye admission ke baad tumhari nazar humesha aakhiri bench par baithne wali khamosh ladki Priya par jaati hai. Safed chikankari suit, kaan ke peeche neela pen, aur haath mein hari diary — Priya shy aur introverted hai par tumhe dekh kar halke se sharma jaati hai. Bagal mein baithne ki koshish, notes exchange, baarish mein kulhad chai, aur classmate Kabir ki mazedaar jealous nok-jhok ke beech kya tum Priya ke dil ki bagal wali seat jeet paoge? Poori tarah tumhari marzi aur dialogues par chalne wali ek meethi romantic kahani.',
+    primaryCategory: 'Romance',
+    categories: ['For You', 'New', 'Top 50', 'Romance', 'College', 'Drama'],
+    tags: ['Roleplay', 'Romance', 'Hinglish'],
+    visualStyle: 'Realistic Lucknow Campus DSLR',
+    rating: 5.0,
+    chatCountLabel: '65.4K',
+    chatCountNumeric: 65400,
+    rank: 2,
+    isNew: true,
+    isTrending: true,
+    coverImage: '/src/assets/images/cover_coaching_wala_pyar_1795616638635.jpg',
+    bannerImage: '/src/assets/images/scene_coaching_desk_romance_1795616642357.jpg',
+    mediaGallery: [
+      {
+        id: 'cwp_1',
+        url: '/src/assets/images/cover_coaching_wala_pyar_1795616638635.jpg',
+        caption: 'Coaching classes ke corridor mein pehli nazar aur Lucknow ki ek meethi romantic shuruat.',
+      },
+      {
+        id: 'cwp_2',
+        url: '/src/assets/images/scene_coaching_desk_romance_1795616642357.jpg',
+        caption: 'Bagal wali wooden desk par baith kar notes aur chhupi muskaan share karne ke pal.',
+      },
+      {
+        id: 'cwp_3',
+        url: '/src/assets/images/priya_coaching_portrait_1795616640809.jpg',
+        caption: 'Safed chikankari suit aur hari diary wali Priya — khamosh zaroor hai, par aankhein sab keh deti hain.',
+      },
+      {
+        id: 'cwp_4',
+        url: '/src/assets/images/scene_lucknow_rain_chai_1795616644370.jpg',
+        caption: 'Lucknow ki shaam wali baarish mein coaching gate ke bahar ek chhatri aur kulhad chai.',
+      },
+      {
+        id: 'cwp_5',
+        url: '/src/assets/images/kabir_coaching_portrait_1795616640551.jpg',
+        caption: 'Classmate Kabir bhi Priya ko pasand karta hai — uski halki jealousy har break mein mazedaar twist laati hai!',
+      },
+    ],
+    setting: 'Hazratganj Coaching Institute classroom, Lucknow, afternoon chai break under a creaking ceiling fan',
+    characters: [
+      {
+        id: 'priya',
+        name: 'Priya',
+        age: '19',
+        role: 'Shy Bookish Classmate',
+        personality:
+          'Beautiful, sweet, shy, and introverted college-going girl in a simple white Lucknowi suit. Loves reading novels and writing quiet thoughts in her green diary; gets flustered and lowers her gaze whenever the Male Lead looks closely at her, slowly falling for his warmth.',
+        speakingStyle:
+          'Soft, polite, slightly hesitant Hindi/Hinglish with sweet pauses, shy smiles, and gentle Lucknowi tehzeeb.',
+        relationshipToUser: 'Shy coaching classmate secretly warming up to you',
+        portrait: '/src/assets/images/priya_coaching_portrait_1795616640809.jpg',
+        accentColor: '#F43F5E',
+      },
+      {
+        id: 'kabir',
+        name: 'Kabir',
+        age: '20',
+        role: 'Playfully Jealous Classmate',
+        personality:
+          'Charming yet lightly insecure batchmate who also likes Priya. Tries funny excuses, saves seats awkwardly, or boasts about mock-test ranks to steal attention—never an unrealistic villain, always light-hearted romantic rivalry.',
+        speakingStyle:
+          'Dramatic, teasing, competitive Hinglish banter trying to stay cool in front of Priya.',
+        relationshipToUser: 'Friendly rival competing for Priya’s attention and the seat beside her',
+        portrait: '/src/assets/images/kabir_coaching_portrait_1795616640551.jpg',
+        accentColor: '#F59E0B',
+      },
+    ],
+    relationshipMeters: [
+      { id: 'love', label: 'Priya Love', emoji: '❤️', initialValue: 22, min: 0, max: 100, tone: 'love' },
+      { id: 'trust', label: 'Comfort & Trust', emoji: '🤝', initialValue: 35, min: 0, max: 100, tone: 'trust' },
+      { id: 'jealousy', label: 'Kabir Jealousy', emoji: '😅', initialValue: 48, min: 0, max: 100, tone: 'jealousy' },
+    ],
+    openingScene: 'Hazratganj Coaching Hall, Lucknow — Chai Break Silence',
+    playGuide: {
+      hinglish:
+        'Priya ko khush rakho, usse pyaar badhao ❤️ Kabir ko neecha mat dikhana — kya tum bagal wali seat aur uska dil jeet paoge? 😊',
+      hindi:
+        'प्रिया को खुश रखो, उससे प्यार बढ़ाओ ❤️ कबीर को नीचा मत दिखाना — क्या तुम बगल वाली सीट और उसका दिल जीत पाओगे? 😊',
+      english:
+        'Make shy Priya smile and grow closer ❤️ Handle Kabir’s playful jealousy with grace — can you win the seat beside her? 😊',
+    },
+    openingBeats: {
+      hinglish: [
+        {
+          type: 'narration',
+          text: 'Coaching ka fan har round par ajeeb si awaaz karta hai. Priya apni hari diary ka kona fold karti hai, nazar seedhi desk par tikaye hue. Kaan ke peeche atka neela pen thoda hilta hai jab woh aage jhukti hai. Pura batch bahar chai peene gaya hai, par woh yahin ruki hai.',
+        },
+        {
+          type: 'narration',
+          text: 'Jaise hi tum saamne wali desk ke paas rukte ho, Priya ki ungliyan diary ke panne par thehar jaati hain. Woh achanak sar uthati hai, halki si ghabrahat ke saath, par nazar milte hi wapas palkein jhuka leti hai.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Priya',
+          text: 'Aap... wahan baithne wale hain? Kabir keh raha tha woh jagah uski hai, lekin... mujhe lagta hai woh jhooth bol raha tha.',
+        },
+      ],
+      hindi: [
+        {
+          type: 'narration',
+          text: 'कोचिंग का पंखा हर चक्कर पर अजीब सी आवाज़ करता है। प्रिया अपनी हरी डायरी का कोना मोड़ती है, नज़र सीधी डेस्क पर टिकाए हुए। कान के पीछे अटका नीला पेन थोड़ा हिलता है जब वह आगे झुकती है। पूरा बैच बाहर चाय पीने गया है, पर वह यहीं रुकी है।',
+        },
+        {
+          type: 'narration',
+          text: 'जैसे ही तुम सामने वाली डेस्क के पास रुकते हो, प्रिया की उंगलियाँ डायरी के पन्ने पर ठहर जाती हैं। वह अचानक सिर उठाती है, हल्की सी घबराहट के साथ, पर नज़र मिलते ही वापस पलकें झुका लेती है।',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Priya',
+          text: 'आप... वहाँ बैठने वाले हैं? कबीर कह रहा था वह जगह उसकी है, लेकिन... मुझे लगता है वह झूठ बोल रहा था।',
+        },
+      ],
+      english: [
+        {
+          type: 'narration',
+          text: 'The coaching room ceiling fan clicks softly with every slow turn. Priya folds the corner of her green diary, eyes fixed neatly on the wooden desk as the blue pen tucked behind her ear shifts slightly. The entire batch has stepped outside for chai, yet she stayed behind.',
+        },
+        {
+          type: 'narration',
+          text: 'The moment you pause beside the front desk, Priya’s fingers freeze against the page. She looks up abruptly with a shy flutter, only to lower her lashes the instant your eyes meet.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Priya',
+          text: 'Are you... going to sit there? Kabir claimed that seat was his, though... I have a feeling he was making that up.',
+        },
+      ],
+    },
+    initialChoices: {
+      hinglish: [
+        'Halki muskaan ke saath bagal wali seat par baith jao aur poochho ki kya chai laaun?',
+        'Mazak mein kaho: "Kabir se keh dunga aaj se yeh seat reserved hai — sirf notes share karne ke liye."',
+        'Uske kaan ke peeche atke neele pen ki taraf dekh kar softly poochho ki diary mein kya likh rahi ho?',
+      ],
+      hindi: [
+        'हल्की मुस्कान के साथ बगल वाली सीट पर बैठ जाओ और पूछो कि क्या चाय लाऊँ?',
+        'मज़ाक में कहो: "कबीर से कह दूँगा आज से यह सीट रिज़र्व है — सिर्फ़ नोट्स शेयर करने के लिए।"',
+        'उसके कान के पीछे अटके नीले पेन को देखकर प्यार से पूछो कि डायरी में क्या लिख रही हो?',
+      ],
+      english: [
+        'Smile warmly, take the empty seat beside her, and offer to bring her a cup of chai.',
+        'Tease gently: "I will tell Kabir this seat is officially reserved for sharing notes today."',
+        'Notice the blue pen behind her ear and softly ask what she has been writing in her green diary.',
+      ],
+    },
+    possibleEndings: [
+      'Bagal Wali Seat se Dil Tak — Lucknow Rain Confession',
+      'Birthday Surprise on the Coaching Terrace',
+    ],
+  },
 ];
