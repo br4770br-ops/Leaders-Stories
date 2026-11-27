@@ -55,7 +55,10 @@ async function fetchFirestoreDocWithToken(
     if (bearerToken) {
       headers.Authorization = `Bearer ${bearerToken}`;
     }
-    const resp = await fetch(`${base}/${docPath}`, { headers });
+    const resp = await fetch(`${base}/${docPath}`, {
+      headers,
+      signal: AbortSignal.timeout(2500),
+    });
     if (resp.status === 404) {
       return { exists: false };
     }
@@ -78,7 +81,8 @@ async function getFirebasePublicCerts(): Promise<Record<string, string>> {
     return cachedCerts;
   }
   const resp = await fetch(
-    'https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com'
+    'https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com',
+    { signal: AbortSignal.timeout(4000) }
   );
   if (!resp.ok) {
     throw new Error('Unable to fetch Firebase verification certificates');
@@ -564,19 +568,19 @@ function buildStoryPromptParts(body: StoryTurnBody) {
 
   const characters = Array.isArray(story?.characters) ? story.characters.slice(0, 6) : [];
   const meters = Array.isArray(body.relationshipMeters) ? body.relationshipMeters.slice(0, 6) : [];
-  const memories = Array.isArray(body.memories) ? body.memories.slice(-5) : [];
-  const recentMessages = Array.isArray(body.recentMessages) ? body.recentMessages.slice(-7) : [];
+  const memories = Array.isArray(body.memories) ? body.memories.slice(-4) : [];
+  const recentMessages = Array.isArray(body.recentMessages) ? body.recentMessages.slice(-5) : [];
 
   const historyBlock = recentMessages
     .map((m) => {
       if (m.role === 'user') {
-        return `USER: ${sanitizeText(m.userText, 400)}`;
+        return `USER: ${sanitizeText(m.userText, 320)}`;
       }
       return (m.beats || [])
         .map((b) =>
           b.type === 'narration'
-            ? `*${sanitizeText(b.text, 280)}*`
-            : `${sanitizeText(b.speakerName, 40)}: "${sanitizeText(b.text, 280)}"`
+            ? `*${sanitizeText(b.text, 240)}*`
+            : `${sanitizeText(b.speakerName, 40)}: "${sanitizeText(b.text, 240)}"`
         )
         .join('\n');
     })
@@ -585,30 +589,30 @@ function buildStoryPromptParts(body: StoryTurnBody) {
   const characterBlock = characters
     .map(
       (c) =>
-        `- ${c.name}${c.age ? ` (${c.age})` : ''} [${c.role}]: ${sanitizeText(c.personality, 140)} Style: ${sanitizeText(c.speakingStyle, 100)}. Relation: ${sanitizeText(c.relationshipToUser, 100)}.`
+        `- ${c.name}${c.age ? ` (${c.age})` : ''} [${c.role}]: ${sanitizeText(c.personality, 130)} Style: ${sanitizeText(c.speakingStyle, 90)}. Relation: ${sanitizeText(c.relationshipToUser, 90)}.`
     )
     .join('\n');
 
   const meterBlock = meters.map((m) => `${m.id}:${m.value}/${m.max}`).join(', ');
   const memoryBlock =
     memories.length > 0
-      ? memories.map((mem) => `- ${sanitizeText(mem.summary, 160)}`).join('\n')
+      ? memories.map((mem) => `- ${sanitizeText(mem.summary, 140)}`).join('\n')
       : 'None yet.';
 
   const castNames = characters.map((c) => sanitizeText(c.name, 60)).filter(Boolean);
   const turnNumber = Math.max(1, sceneIndex + 1);
 
   const systemInstruction = [
-    `Interactive multi-character roleplay director for "${story?.title}" (${(story?.tags || []).slice(0, 4).join(', ')}).`,
-    `Setting: ${sanitizeText(story?.setting, 240)}. Premise: ${sanitizeText(story?.about, 480)}`,
+    `Interactive roleplay director for "${story?.title}" (${(story?.tags || []).slice(0, 4).join(', ')}).`,
+    `Setting: ${sanitizeText(story?.setting, 220)}. Premise: ${sanitizeText(story?.about, 420)}`,
     `CAST:\n${characterBlock}`,
-    `RULES:\n1. Stay strictly in-character; never act like an AI assistant or repeat the opening.\n2. ONE SPEAKER BY DEFAULT: Normally ONLY ONE character speaks this turn (1 short 'narration' beat + 1 'dialogue' beat for that character). Only add a 2nd character's dialogue beat if another cast member genuinely MUST react too (separate card). NEVER let the same character have 2 dialogue beats in one turn!\n3. SPEAKER ACCURACY: On every 'dialogue' beat, "speakerName" MUST be the exact full name from CAST (${castNames.join(', ') || 'Character'}) of the person actually speaking that line (on 'narration' beats set speakerName to "Narrator"). NEVER put "Name:" inside dialogue "text".\n4. Let characters react to the user AND each other naturally without confusing who is speaking vs who is being addressed.\n5. Adjust meterChanges (-8..+8) gradually so feelings keep shifting naturally.\n6. Set newMemory.shouldSave=true only for major reveals/promises; return 2-3 storyChoices only at major turning points, else [].\n7. UNLIMITED ONGOING STORY (Turn ${turnNumber}): NEVER end, conclude, or wrap up the story. Keep the roleplay running endlessly with fresh twists, evolving locations, secrets, rivalries, and drama.`,
+    `RULES:\n1. Stay strictly in-character; never repeat the opening or speak for the user.\n2. CONCISE & FAST PACING: Normally 1 crisp 'narration' beat (1-2 vivid sentences) + 1 expressive 'dialogue' beat for ONE speaking character. Only add a 2nd character's dialogue beat when genuinely essential. NEVER let the same character have 2 dialogue beats in one turn!\n3. SPEAKER ACCURACY: On 'dialogue' beats, "speakerName" MUST be the exact name from CAST (${castNames.join(', ') || 'Character'}); on 'narration' beats set "speakerName" to "Narrator". NEVER put "Name:" inside dialogue "text".\n4. Adjust meterChanges (-8..+8) gradually; set newMemory.shouldSave=true only for major promises/reveals.\n5. Keep storyChoices=[] unless at a major turning point (max 2 short choices).\n6. UNLIMITED ONGOING STORY (Turn ${turnNumber}): NEVER end or conclude the story.`,
     getLanguageInstruction(language),
   ].join('\n\n');
 
   const actionPrompt =
     mode === 'continue'
-      ? `ACTION: Auto-advance (Fast-Forward). User stayed silent—continue immediately from the last beat with 1 natural character reaction (or 2 distinct characters only if urgently needed), without speaking for the user.`
+      ? `ACTION: Auto-advance (Fast-Forward). User stayed silent—continue immediately from the last beat with 1 vivid character reaction (2 distinct characters only if urgently needed), without speaking for the user.`
       : mode === 'regenerate'
         ? `${userMessage ? `USER: "${userMessage}"\n` : ''}ACTION: Regenerate a distinctly different reaction, dialogue twist, or dramatic angle for this moment.`
         : `USER: "${userMessage}"`;
@@ -649,6 +653,7 @@ function buildStoryTurnSchema(castNames: string[]) {
                 : { type: Type.STRING },
             text: { type: Type.STRING },
           },
+          propertyOrdering: ['type', 'speakerName', 'text'],
           required: ['type', 'speakerName', 'text'],
         },
       },
@@ -707,17 +712,40 @@ function extractJsonObject(rawText: string): Record<string, unknown> {
   }
 }
 
+function isDailyQuotaError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return /GenerateRequestsPerDay|PerDay|daily limit|retry in \d+h/i.test(msg);
+}
+
+function parseRetryDelayMs(err: unknown): number {
+  const msg = err instanceof Error ? err.message : String(err);
+  const secMatch = /"retryDelay"\s*:\s*"(\d+(?:\.\d+)?)s"/i.exec(msg);
+  if (secMatch) {
+    const secs = Number.parseFloat(secMatch[1]);
+    if (Number.isFinite(secs) && secs > 0) {
+      return Math.round(secs * 1000);
+    }
+  }
+  return 0;
+}
+
+function isAuthOrConfigFatalError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return /API_KEY_INVALID|PERMISSION_DENIED|GEMINI_API_KEY is not configured/i.test(msg);
+}
+
 function isTransientGeminiError(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : String(err);
-  return /429|500|502|503|504|RESOURCE_EXHAUSTED|UNAVAILABLE|INTERNAL|DEADLINE_EXCEEDED|ECONNRESET|ETIMEDOUT|fetch failed|high demand|overloaded/i.test(
+  return /429|500|502|503|504|RESOURCE_EXHAUSTED|UNAVAILABLE|INTERNAL|DEADLINE_EXCEEDED|ECONNRESET|ETIMEDOUT|fetch failed|high demand|overloaded|stalled|timeout|timed out|abort/i.test(
     msg
   );
 }
 
 function isRetryableStoryError(err: unknown): boolean {
+  if (isAuthOrConfigFatalError(err)) return false;
   if (isTransientGeminiError(err)) return true;
   const msg = err instanceof Error ? err.message : String(err);
-  return /empty story response|incomplete/i.test(msg);
+  return /empty story response|incomplete|no dialogue|400|404|INVALID_ARGUMENT|NOT_FOUND/i.test(msg);
 }
 
 function extractFriendlyGeminiError(err: unknown, fallbackMsg = 'Story generation failed.'): string {
@@ -746,6 +774,9 @@ function extractFriendlyGeminiError(err: unknown, fallbackMsg = 'Story generatio
     }
   }
   const lower = msg.toLowerCase();
+  if (isDailyQuotaError(msg)) {
+    return 'Free AI daily request quota exceeded for this key. Add a billing-enabled API key in Settings > Secrets or retry later.';
+  }
   if (
     lower.includes('high demand') ||
     lower.includes('unavailable') ||
@@ -754,8 +785,11 @@ function extractFriendlyGeminiError(err: unknown, fallbackMsg = 'Story generatio
   ) {
     return 'Story AI servers are busy right now. Please tap Retry in a second.';
   }
+  if (lower.includes('stalled') || lower.includes('timeout') || lower.includes('timed out')) {
+    return 'AI took too long to respond. Please tap Retry.';
+  }
   if (lower.includes('resource_exhausted') || lower.includes('429') || lower.includes('quota')) {
-    return 'Too many requests right now. Please wait a couple seconds and tap Retry.';
+    return 'AI rate limit reached right now. Please wait a few seconds and tap Retry.';
   }
   if (lower.includes('api_key_invalid') || lower.includes('permission_denied') || lower.includes('403')) {
     return 'AI service key error on server. Please contact the administrator.';
@@ -763,9 +797,18 @@ function extractFriendlyGeminiError(err: unknown, fallbackMsg = 'Story generatio
   return msg.trim().slice(0, 220) || fallbackMsg;
 }
 
-const STORY_MODEL_COOLDOWN_MS = 35_000;
+const STORY_MODEL_TRANSIENT_COOLDOWN_MS = 5_000;
+const STORY_MODEL_RATE_COOLDOWN_MS = 20_000;
+const MAX_DAILY_QUOTA_COOLDOWN_MS = 2 * 3600_000;
 let hydrogenCooldownUntil = 0;
 let liteCooldownUntil = 0;
+
+function isModelHot(model: string): boolean {
+  const now = Date.now();
+  if (model === 'gemini-4-hydrogen') return now >= hydrogenCooldownUntil;
+  if (model === 'gemini-3.1-flash-lite') return now >= liteCooldownUntil;
+  return true;
+}
 
 interface StoryModelAttempt {
   model: string;
@@ -775,53 +818,104 @@ interface StoryModelAttempt {
 }
 
 function getOrderedStoryStreamAttempts(): StoryModelAttempt[] {
-  const now = Date.now();
-  const hydrogenHot = now >= hydrogenCooldownUntil;
-  const liteHot = now >= liteCooldownUntil;
+  const liteHot = isModelHot('gemini-3.1-flash-lite');
+  const hydrogenHot = isModelHot('gemini-4-hydrogen');
+  const list: StoryModelAttempt[] = [];
 
-  if (!hydrogenHot && liteHot) {
+  if (liteHot && hydrogenHot) {
+    return [
+      { model: 'gemini-3.1-flash-lite', mode: 'stream', delayBeforeMs: 0 },
+      { model: 'gemini-4-hydrogen', thinkingLevel: ThinkingLevel.LOW, mode: 'stream', delayBeforeMs: 0 },
+      { model: 'gemini-3.1-flash-lite', mode: 'unary', delayBeforeMs: 300 },
+      { model: 'gemini-4-hydrogen', thinkingLevel: ThinkingLevel.LOW, mode: 'unary', delayBeforeMs: 250 },
+    ];
+  }
+
+  if (liteHot) {
     return [
       { model: 'gemini-3.1-flash-lite', mode: 'stream', delayBeforeMs: 0 },
       { model: 'gemini-3.1-flash-lite', mode: 'unary', delayBeforeMs: 350 },
-      { model: 'gemini-4-hydrogen', thinkingLevel: ThinkingLevel.LOW, mode: 'stream', delayBeforeMs: 750 },
-      { model: 'gemini-3.1-flash-lite', mode: 'unary', delayBeforeMs: 1200 },
-      { model: 'gemini-4-hydrogen', thinkingLevel: ThinkingLevel.LOW, mode: 'unary', delayBeforeMs: 1600 },
+      { model: 'gemini-3.1-flash-lite', mode: 'unary', delayBeforeMs: 900 },
+    ];
+  }
+
+  if (hydrogenHot) {
+    return [
+      { model: 'gemini-4-hydrogen', thinkingLevel: ThinkingLevel.LOW, mode: 'stream', delayBeforeMs: 0 },
+      { model: 'gemini-4-hydrogen', thinkingLevel: ThinkingLevel.LOW, mode: 'unary', delayBeforeMs: 350 },
     ];
   }
 
   return [
-    { model: 'gemini-4-hydrogen', thinkingLevel: ThinkingLevel.LOW, mode: 'stream', delayBeforeMs: 0 },
-    { model: 'gemini-3.1-flash-lite', mode: 'stream', delayBeforeMs: 300 },
-    { model: 'gemini-3.1-flash-lite', mode: 'unary', delayBeforeMs: 700 },
-    { model: 'gemini-4-hydrogen', thinkingLevel: ThinkingLevel.LOW, mode: 'unary', delayBeforeMs: 1200 },
-    { model: 'gemini-3.1-flash-lite', mode: 'unary', delayBeforeMs: 1700 },
+    { model: 'gemini-3.1-flash-lite', mode: 'stream', delayBeforeMs: 0 },
+    { model: 'gemini-3.1-flash-lite', mode: 'unary', delayBeforeMs: 450 },
   ];
 }
 
 function getOrderedStoryUnaryAttempts(): { model: string; thinkingLevel?: ThinkingLevel; delayBeforeMs: number }[] {
-  const now = Date.now();
-  if (now < hydrogenCooldownUntil && now >= liteCooldownUntil) {
+  const liteHot = isModelHot('gemini-3.1-flash-lite');
+  const hydrogenHot = isModelHot('gemini-4-hydrogen');
+
+  if (liteHot && hydrogenHot) {
     return [
       { model: 'gemini-3.1-flash-lite', delayBeforeMs: 0 },
-      { model: 'gemini-3.1-flash-lite', delayBeforeMs: 550 },
-      { model: 'gemini-4-hydrogen', thinkingLevel: ThinkingLevel.LOW, delayBeforeMs: 1000 },
-      { model: 'gemini-3.1-flash-lite', delayBeforeMs: 1500 },
+      { model: 'gemini-4-hydrogen', thinkingLevel: ThinkingLevel.LOW, delayBeforeMs: 120 },
+      { model: 'gemini-3.1-flash-lite', delayBeforeMs: 450 },
+    ];
+  }
+  if (liteHot) {
+    return [
+      { model: 'gemini-3.1-flash-lite', delayBeforeMs: 0 },
+      { model: 'gemini-3.1-flash-lite', delayBeforeMs: 450 },
+      { model: 'gemini-3.1-flash-lite', delayBeforeMs: 950 },
+    ];
+  }
+  if (hydrogenHot) {
+    return [
+      { model: 'gemini-4-hydrogen', thinkingLevel: ThinkingLevel.LOW, delayBeforeMs: 0 },
+      { model: 'gemini-4-hydrogen', thinkingLevel: ThinkingLevel.LOW, delayBeforeMs: 450 },
     ];
   }
   return [
-    { model: 'gemini-4-hydrogen', thinkingLevel: ThinkingLevel.LOW, delayBeforeMs: 0 },
-    { model: 'gemini-3.1-flash-lite', delayBeforeMs: 400 },
-    { model: 'gemini-3.1-flash-lite', delayBeforeMs: 950 },
-    { model: 'gemini-4-hydrogen', thinkingLevel: ThinkingLevel.LOW, delayBeforeMs: 1500 },
+    { model: 'gemini-3.1-flash-lite', delayBeforeMs: 0 },
+    { model: 'gemini-3.1-flash-lite', delayBeforeMs: 450 },
   ];
+}
+
+function getOrderedSuggestionAttempts(): { model: string; thinkingLevel?: ThinkingLevel; delayBeforeMs: number }[] {
+  const liteHot = isModelHot('gemini-3.1-flash-lite');
+  const hydrogenHot = isModelHot('gemini-4-hydrogen');
+  const list: { model: string; thinkingLevel?: ThinkingLevel; delayBeforeMs: number }[] = [];
+
+  if (liteHot) {
+    list.push({ model: 'gemini-3.1-flash-lite', delayBeforeMs: 0 });
+  }
+  if (hydrogenHot) {
+    list.push({ model: 'gemini-4-hydrogen', thinkingLevel: ThinkingLevel.LOW, delayBeforeMs: 120 });
+  }
+  if (liteHot) {
+    list.push({ model: 'gemini-3.1-flash-lite', delayBeforeMs: 450 });
+  }
+  if (list.length === 0) {
+    list.push({ model: 'gemini-3.1-flash-lite', delayBeforeMs: 0 });
+  }
+  return list;
 }
 
 function markModelCooldownIfTransient(model: string, err: unknown) {
   if (!isTransientGeminiError(err)) return;
+  const msg = err instanceof Error ? err.message : String(err);
+  const retryMs = parseRetryDelayMs(err);
+  let cooldownMs = STORY_MODEL_TRANSIENT_COOLDOWN_MS;
+  if (isDailyQuotaError(err) || retryMs >= 60_000) {
+    cooldownMs = Math.min(Math.max(retryMs || 300_000, 120_000), MAX_DAILY_QUOTA_COOLDOWN_MS);
+  } else if (/429|RESOURCE_EXHAUSTED|quota/i.test(msg)) {
+    cooldownMs = Math.min(Math.max(retryMs || STORY_MODEL_RATE_COOLDOWN_MS, STORY_MODEL_RATE_COOLDOWN_MS), MAX_DAILY_QUOTA_COOLDOWN_MS);
+  }
   if (model === 'gemini-4-hydrogen') {
-    hydrogenCooldownUntil = Date.now() + STORY_MODEL_COOLDOWN_MS;
+    hydrogenCooldownUntil = Math.max(hydrogenCooldownUntil, Date.now() + cooldownMs);
   } else if (model === 'gemini-3.1-flash-lite') {
-    liteCooldownUntil = Date.now() + STORY_MODEL_COOLDOWN_MS;
+    liteCooldownUntil = Math.max(liteCooldownUntil, Date.now() + cooldownMs);
   }
 }
 
@@ -845,8 +939,10 @@ function normalizeStoryTurnPayload(
   if (safeBeats.length === 0 && rawText) {
     const recoveryExtractor = new IncrementalBeatsExtractor(castNames);
     const extracted = recoveryExtractor.push(rawText);
-    if (extracted.length > 0) {
-      safeBeats = extracted;
+    if (extracted.completed.length > 0) {
+      safeBeats = extracted.completed.map((entry) => entry.beat);
+    } else if (extracted.partial) {
+      safeBeats = [extracted.partial.beat];
     }
   }
 
@@ -867,9 +963,60 @@ function normalizeStoryTurnPayload(
   };
 }
 
+function readPartialJsonStringField(
+  slice: string,
+  fieldName: string
+): { found: boolean; complete: boolean; value: string } {
+  const keyMatch = new RegExp(`"${escapeRegExp(fieldName)}"\\s*:\\s*"`).exec(slice);
+  if (!keyMatch) {
+    return { found: false, complete: false, value: '' };
+  }
+  let idx = keyMatch.index + keyMatch[0].length;
+  let value = '';
+  while (idx < slice.length) {
+    const ch = slice[idx];
+    if (ch === '"') {
+      return { found: true, complete: true, value };
+    }
+    if (ch === '\\') {
+      if (idx + 1 >= slice.length) {
+        return { found: true, complete: false, value };
+      }
+      const esc = slice[idx + 1];
+      if (esc === '"') value += '"';
+      else if (esc === '\\') value += '\\';
+      else if (esc === '/') value += '/';
+      else if (esc === 'b') value += '\b';
+      else if (esc === 'f') value += '\f';
+      else if (esc === 'n') value += '\n';
+      else if (esc === 'r') value += '\r';
+      else if (esc === 't') value += '\t';
+      else if (esc === 'u') {
+        if (idx + 5 >= slice.length) {
+          return { found: true, complete: false, value };
+        }
+        const hex = slice.slice(idx + 2, idx + 6);
+        const code = Number.parseInt(hex, 16);
+        if (!Number.isNaN(code)) {
+          value += String.fromCharCode(code);
+        }
+        idx += 6;
+        continue;
+      } else {
+        value += esc;
+      }
+      idx += 2;
+      continue;
+    }
+    value += ch;
+    idx += 1;
+  }
+  return { found: true, complete: false, value };
+}
+
 /**
- * Incrementally extracts completed JSON objects from the top-level "beats": [ ... ] array
- * while Gemini is still streaming the rest of the response.
+ * Incrementally extracts BOTH completed beat objects AND live partial "text" deltas
+ * inside the currently streaming beat so users see real-time character typing.
  */
 class IncrementalBeatsExtractor {
   private buffer = '';
@@ -883,23 +1030,27 @@ class IncrementalBeatsExtractor {
   private extractedBeats: CleanStoryBeat[] = [];
   private seenSpeakers = new Set<string>();
   private dialogueCount = 0;
+  private lastPartialKey = '';
   private readonly castNames: string[];
 
   constructor(castNames: string[] = []) {
     this.castNames = castNames;
   }
 
-  push(chunk: string): CleanStoryBeat[] {
+  push(chunk: string): {
+    completed: { index: number; beat: CleanStoryBeat }[];
+    partial: { index: number; beat: CleanStoryBeat } | null;
+  } {
     if (!chunk || this.arrayEnded) {
       this.buffer += chunk;
-      return [];
+      return { completed: [], partial: null };
     }
     this.buffer += chunk;
-    const extracted: CleanStoryBeat[] = [];
+    const completed: { index: number; beat: CleanStoryBeat }[] = [];
 
     if (!this.inBeatsArray) {
       const keyMatch = /"beats"\s*:\s*\[/.exec(this.buffer);
-      if (!keyMatch) return extracted;
+      if (!keyMatch) return { completed, partial: null };
       this.inBeatsArray = true;
       this.scanIndex = keyMatch.index + keyMatch[0].length;
     }
@@ -925,6 +1076,7 @@ class IncrementalBeatsExtractor {
       if (ch === '{') {
         if (this.braceDepth === 0) {
           this.objectStart = i;
+          this.lastPartialKey = '';
         }
         this.braceDepth += 1;
       } else if (ch === '}') {
@@ -933,6 +1085,7 @@ class IncrementalBeatsExtractor {
           if (this.braceDepth === 0 && this.objectStart !== -1) {
             const objSlice = this.buffer.slice(this.objectStart, i + 1);
             this.objectStart = -1;
+            this.lastPartialKey = '';
             try {
               const parsed = JSON.parse(objSlice);
               const beat = normalizeBeat(parsed, this.castNames);
@@ -954,11 +1107,13 @@ class IncrementalBeatsExtractor {
                     speakerName: speaker,
                     text: beat.text,
                   };
-                  extracted.push(cleanBeat);
+                  const beatIdx = this.extractedBeats.length;
                   this.extractedBeats.push(cleanBeat);
+                  completed.push({ index: beatIdx, beat: cleanBeat });
                 } else {
-                  extracted.push(beat);
+                  const beatIdx = this.extractedBeats.length;
                   this.extractedBeats.push(beat);
+                  completed.push({ index: beatIdx, beat });
                 }
               }
             } catch {
@@ -974,7 +1129,68 @@ class IncrementalBeatsExtractor {
       this.scanIndex = i + 1;
     }
 
-    return extracted;
+    let partial: { index: number; beat: CleanStoryBeat } | null = null;
+    if (!this.arrayEnded && this.braceDepth === 1 && this.objectStart !== -1) {
+      const openSlice = this.buffer.slice(this.objectStart);
+      const typeField = readPartialJsonStringField(openSlice, 'type');
+      const speakerField = readPartialJsonStringField(openSlice, 'speakerName');
+      const textField = readPartialJsonStringField(openSlice, 'text');
+
+      if (typeField.complete && textField.found) {
+        const beatType = typeField.value === 'narration' ? 'narration' : 'dialogue';
+        if (beatType === 'narration') {
+          const cleanText = textField.value.trimStart();
+          if (cleanText.length > 0) {
+            const sig = `n:${cleanText}`;
+            if (sig !== this.lastPartialKey) {
+              this.lastPartialKey = sig;
+              partial = {
+                index: this.extractedBeats.length,
+                beat: { type: 'narration', text: cleanText },
+              };
+            }
+          }
+        } else if (speakerField.complete) {
+          let resolvedSpeaker =
+            matchCastMember(speakerField.value, this.castNames) ||
+            this.castNames.find((c) => !this.seenSpeakers.has(c.toLowerCase())) ||
+            this.castNames[0] ||
+            'Character';
+
+          const detected = detectSpeakerPrefixInText(textField.value, this.castNames);
+          if (detected.speaker) {
+            resolvedSpeaker = detected.speaker;
+          }
+          const speakerKey = resolvedSpeaker.toLowerCase();
+          if (!this.seenSpeakers.has(speakerKey) && this.dialogueCount < 2) {
+            let liveText = (detected.speaker ? detected.strippedText : textField.value).replace(
+              /^["“]+/,
+              ''
+            );
+            // Strip partial trailing quote if complete, keep clean streaming text
+            if (textField.complete) {
+              liveText = cleanDialogueText(liveText, resolvedSpeaker, this.castNames);
+            }
+            if (liveText.trim().length > 0) {
+              const sig = `d:${resolvedSpeaker}:${liveText}`;
+              if (sig !== this.lastPartialKey) {
+                this.lastPartialKey = sig;
+                partial = {
+                  index: this.extractedBeats.length,
+                  beat: {
+                    type: 'dialogue',
+                    speakerName: resolvedSpeaker,
+                    text: liveText,
+                  },
+                };
+              }
+            }
+          }
+        }
+      }
+    }
+
+    return { completed, partial };
   }
 
   getFullText(): string {
@@ -1055,16 +1271,46 @@ async function startServer() {
       res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
     };
 
+    const writePing = () => {
+      if (res.writableEnded) return;
+      res.write(`: ping\n\n`);
+    };
+
     let clientClosed = false;
+    let activeAbortController: AbortController | null = null;
     req.on('close', () => {
       clientClosed = true;
+      activeAbortController?.abort();
     });
+
+    const pingInterval = setInterval(writePing, 3000);
+
+    const nextChunkWithTimeout = async <T,>(
+      iterator: AsyncIterator<T>,
+      timeoutMs: number,
+      abortCtrl: AbortController
+    ): Promise<IteratorResult<T>> => {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        return await Promise.race([
+          iterator.next(),
+          new Promise<never>((_resolve, reject) => {
+            timer = setTimeout(() => {
+              abortCtrl.abort();
+              reject(new Error(`AI response stalled after ${timeoutMs}ms`));
+            }, timeoutMs);
+          }),
+        ]);
+      } finally {
+        if (timer) clearTimeout(timer);
+      }
+    };
 
     try {
       const ai = getGeminiClient();
       const candidates = getOrderedStoryStreamAttempts();
       let lastError: unknown;
-      let emittedBeatsCount = 0;
+      let bestFallbackPayload: ReturnType<typeof normalizeStoryTurnPayload> | null = null;
 
       for (let idx = 0; idx < candidates.length; idx++) {
         if (clientClosed || res.writableEnded) return;
@@ -1074,32 +1320,60 @@ async function startServer() {
           if (clientClosed || res.writableEnded) return;
         }
 
+        const attemptAbort = new AbortController();
+        activeAbortController = attemptAbort;
         const extractor = new IncrementalBeatsExtractor(castNames);
+        let attemptEmittedPreview = false;
+
         try {
           const config: Record<string, unknown> = {
             systemInstruction,
             responseMimeType: 'application/json',
             responseSchema,
+            abortSignal: attemptAbort.signal,
           };
           if (candidate.thinkingLevel) {
             config.thinkingConfig = { thinkingLevel: candidate.thinkingLevel };
           }
 
           if (candidate.mode === 'stream') {
-            const stream = await ai.models.generateContentStream({
-              model: candidate.model,
-              contents: prompt,
-              config,
-            });
+            const connectTimer = setTimeout(() => attemptAbort.abort(), 8000);
+            let stream: AsyncIterable<{ text?: string }>;
+            try {
+              stream = await ai.models.generateContentStream({
+                model: candidate.model,
+                contents: prompt,
+                config,
+              });
+            } finally {
+              clearTimeout(connectTimer);
+            }
 
-            for await (const chunk of stream) {
-              if (clientClosed || res.writableEnded) return;
-              const chunkText = chunk.text || '';
+            const iterator = stream[Symbol.asyncIterator]();
+            let gotAnyChunk = false;
+            while (true) {
+              if (clientClosed || res.writableEnded) {
+                attemptAbort.abort();
+                return;
+              }
+              const step = await nextChunkWithTimeout(
+                iterator,
+                gotAnyChunk ? 7500 : 8000,
+                attemptAbort
+              );
+              if (step.done) break;
+              const chunkText = step.value?.text || '';
               if (!chunkText) continue;
-              const freshBeats = extractor.push(chunkText);
-              for (const beat of freshBeats) {
-                emittedBeatsCount += 1;
-                writeEvent('beat', beat);
+              gotAnyChunk = true;
+
+              const { completed, partial } = extractor.push(chunkText);
+              for (const item of completed) {
+                attemptEmittedPreview = true;
+                writeEvent('beat', item);
+              }
+              if (partial) {
+                attemptEmittedPreview = true;
+                writeEvent('partial', partial);
               }
             }
 
@@ -1112,17 +1386,28 @@ async function startServer() {
             if (payload.beats.length === 0) {
               throw new Error('Empty story response from model.');
             }
+            const hasDialogue = payload.beats.some((b) => b.type === 'dialogue');
+            if (!hasDialogue && idx < candidates.length - 1) {
+              bestFallbackPayload = payload;
+              throw new Error('Incomplete story response (no dialogue emitted).');
+            }
             writeEvent('done', payload);
             res.end();
             return;
           }
 
-          // Unary fallback attempt (hits non-streaming endpoint pool)
-          const response = await ai.models.generateContent({
-            model: candidate.model,
-            contents: prompt,
-            config,
-          });
+          // Unary fallback attempt (fast timeout so server never hangs)
+          const unaryTimer = setTimeout(() => attemptAbort.abort(), 14000);
+          let response: { text?: string };
+          try {
+            response = await ai.models.generateContent({
+              model: candidate.model,
+              contents: prompt,
+              config,
+            });
+          } finally {
+            clearTimeout(unaryTimer);
+          }
           const payload = normalizeStoryTurnPayload(response.text || '{}', currentScene, [], {
             allowEnding,
             castNames,
@@ -1130,19 +1415,21 @@ async function startServer() {
           if (payload.beats.length === 0) {
             throw new Error('Empty story response from model.');
           }
-          for (const beat of payload.beats) {
-            emittedBeatsCount += 1;
-            writeEvent('beat', beat);
-          }
+          payload.beats.forEach((beat, index) => {
+            attemptEmittedPreview = true;
+            writeEvent('beat', { index, beat });
+          });
           writeEvent('done', payload);
           res.end();
           return;
         } catch (err) {
           lastError = err;
+          if (clientClosed || res.writableEnded) return;
           markModelCooldownIfTransient(candidate.model, err);
-          // If beats already streamed before an interruption, finalize gracefully with extracted beats
+
           const salvaged = extractor.getExtractedBeats();
-          if (emittedBeatsCount > 0 || salvaged.length > 0) {
+          const hasCompletedDialogue = salvaged.some((b) => b.type === 'dialogue');
+          if (hasCompletedDialogue) {
             const partialPayload = normalizeStoryTurnPayload(
               extractor.getFullText(),
               currentScene,
@@ -1155,23 +1442,53 @@ async function startServer() {
               return;
             }
           }
-          // Retry / fall back if no beats were streamed yet and error is transient or empty output
-          if (emittedBeatsCount === 0 && idx < candidates.length - 1 && isRetryableStoryError(err)) {
+
+          if (idx < candidates.length - 1 && isRetryableStoryError(err)) {
+            if (attemptEmittedPreview) {
+              writeEvent('reset', {});
+            }
             continue;
           }
+          if (bestFallbackPayload && bestFallbackPayload.beats.length > 0) {
+            writeEvent('done', bestFallbackPayload);
+            res.end();
+            return;
+          }
           throw err;
+        } finally {
+          if (activeAbortController === attemptAbort) {
+            activeAbortController = null;
+          }
         }
+      }
+
+      if (bestFallbackPayload && bestFallbackPayload.beats.length > 0) {
+        writeEvent('done', bestFallbackPayload);
+        res.end();
+        return;
       }
 
       throw lastError || new Error('Story generation failed.');
     } catch (err) {
       console.error('Story stream error:', err);
-      writeEvent('error', { error: extractFriendlyGeminiError(err, 'Unable to continue story right now.') });
+      writeEvent('error', {
+        error: extractFriendlyGeminiError(err, 'Unable to continue story right now.'),
+        code: isDailyQuotaError(err) ? 'DAILY_QUOTA_EXHAUSTED' : undefined,
+      });
       res.end();
+    } finally {
+      clearInterval(pingInterval);
     }
   });
 
   app.post('/api/story/turn', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+    let clientClosed = false;
+    let activeAbort: AbortController | null = null;
+    req.on('close', () => {
+      clientClosed = true;
+      activeAbort?.abort();
+    });
+
     try {
       const body = req.body as StoryTurnBody;
       const { mode, userMessage, currentScene, castNames, allowEnding, systemInstruction, prompt } =
@@ -1188,15 +1505,21 @@ async function startServer() {
       let lastError: unknown;
 
       for (let idx = 0; idx < candidates.length; idx++) {
+        if (clientClosed) return;
         const candidate = candidates[idx];
         if (candidate.delayBeforeMs > 0) {
           await new Promise((r) => setTimeout(r, candidate.delayBeforeMs));
+          if (clientClosed) return;
         }
+        const attemptAbort = new AbortController();
+        activeAbort = attemptAbort;
+        const timeoutTimer = setTimeout(() => attemptAbort.abort(), 14000);
         try {
           const config: Record<string, unknown> = {
             systemInstruction,
             responseMimeType: 'application/json',
             responseSchema,
+            abortSignal: attemptAbort.signal,
           };
           if (candidate.thinkingLevel) {
             config.thinkingConfig = { thinkingLevel: candidate.thinkingLevel };
@@ -1217,16 +1540,23 @@ async function startServer() {
           return;
         } catch (err) {
           lastError = err;
+          if (clientClosed) return;
           markModelCooldownIfTransient(candidate.model, err);
           if (idx < candidates.length - 1 && isRetryableStoryError(err)) {
             continue;
           }
           throw err;
+        } finally {
+          clearTimeout(timeoutTimer);
+          if (activeAbort === attemptAbort) {
+            activeAbort = null;
+          }
         }
       }
 
       throw lastError || new Error('Story generation failed.');
     } catch (err) {
+      if (clientClosed) return;
       console.error('Story turn error:', err);
       const status = isTransientGeminiError(err) ? 503 : 500;
       res.status(status).json({ error: extractFriendlyGeminiError(err, 'Story generation failed.') });
@@ -1234,6 +1564,13 @@ async function startServer() {
   });
 
   app.post('/api/story/suggestions', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+    let clientClosed = false;
+    let activeAbort: AbortController | null = null;
+    req.on('close', () => {
+      clientClosed = true;
+      activeAbort?.abort();
+    });
+
     try {
       const body = req.body as StoryTurnBody;
       const story = body?.story;
@@ -1260,22 +1597,24 @@ async function startServer() {
         .join('\n');
 
       const ai = getGeminiClient();
-      const suggestionModels: { model: string; thinkingLevel?: ThinkingLevel; delayBeforeMs: number }[] = [
-        { model: 'gemini-3.1-flash-lite', delayBeforeMs: 0 },
-        { model: 'gemini-4-hydrogen', thinkingLevel: ThinkingLevel.LOW, delayBeforeMs: 450 },
-        { model: 'gemini-3.1-flash-lite', delayBeforeMs: 900 },
-      ];
+      const suggestionModels = getOrderedSuggestionAttempts();
       let lastError: unknown;
 
       for (let idx = 0; idx < suggestionModels.length; idx++) {
+        if (clientClosed) return;
         const candidate = suggestionModels[idx];
         if (candidate.delayBeforeMs > 0) {
           await new Promise((r) => setTimeout(r, candidate.delayBeforeMs));
+          if (clientClosed) return;
         }
+        const attemptAbort = new AbortController();
+        activeAbort = attemptAbort;
+        const timeoutTimer = setTimeout(() => attemptAbort.abort(), 8500);
         try {
           const config: Record<string, unknown> = {
             systemInstruction: `Generate 3-4 vivid, short roleplay reply options for the user. ${getLanguageInstruction(language)}`,
             responseMimeType: 'application/json',
+            abortSignal: attemptAbort.signal,
             responseSchema: {
               type: Type.OBJECT,
               properties: {
@@ -1307,16 +1646,23 @@ async function startServer() {
           return;
         } catch (err) {
           lastError = err;
+          if (clientClosed) return;
           markModelCooldownIfTransient(candidate.model, err);
-          if (idx < suggestionModels.length - 1 && isTransientGeminiError(err)) {
+          if (idx < suggestionModels.length - 1 && isRetryableStoryError(err)) {
             continue;
           }
           throw err;
+        } finally {
+          clearTimeout(timeoutTimer);
+          if (activeAbort === attemptAbort) {
+            activeAbort = null;
+          }
         }
       }
 
       throw lastError || new Error('Unable to generate reply suggestions.');
     } catch (err) {
+      if (clientClosed) return;
       console.error('Suggestions error:', err);
       const status = isTransientGeminiError(err) ? 503 : 500;
       res.status(status).json({ error: extractFriendlyGeminiError(err, 'Unable to generate reply suggestions.') });

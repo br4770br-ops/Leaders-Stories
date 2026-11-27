@@ -127,8 +127,25 @@ function isTransientStoryErrorText(text: string): boolean {
     lower.includes('overloaded') ||
     lower.includes('429') ||
     lower.includes('too many requests') ||
-    lower.includes('resource_exhausted')
+    lower.includes('resource_exhausted') ||
+    lower.includes('stalled') ||
+    lower.includes('timed out') ||
+    lower.includes('too long')
   );
+}
+
+async function getFreshIdToken(user: User, forceRefresh = false): Promise<string> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      user.getIdToken(forceRefresh),
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(() => reject(new Error('Session check timed out. Please try again.')), 7000);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 function isPlaceholderStoryMessage(msg: ChatTurnMessage): boolean {
@@ -355,6 +372,15 @@ function formatReadableError(err: unknown, fallback = 'Something went wrong. Ple
   const clean = (msg || '').trim();
   const lower = clean.toLowerCase();
   if (
+    lower.includes('daily') ||
+    lower.includes('perday') ||
+    lower.includes('generaterequestsperday') ||
+    lower.includes('billing-enabled') ||
+    lower.includes('quota exceeded for metric')
+  ) {
+    return 'Free AI daily request quota exceeded for this key. Add a billing-enabled API key in Settings > Secrets or retry later.';
+  }
+  if (
     lower.includes('503') ||
     lower.includes('unavailable') ||
     lower.includes('service unavailable') ||
@@ -363,8 +389,8 @@ function formatReadableError(err: unknown, fallback = 'Something went wrong. Ple
   ) {
     return 'Story AI servers are busy right now. Please tap Retry in a second.';
   }
-  if (lower.includes('429') || lower.includes('resource_exhausted') || lower.includes('quota')) {
-    return 'Too many requests right now. Please wait a couple seconds and tap Retry.';
+  if (lower.includes('429') || lower.includes('resource_exhausted') || lower.includes('quota') || lower.includes('rate limit')) {
+    return 'AI rate limit reached right now. Please wait a few seconds and tap Retry.';
   }
   if (lower.includes('offline') || lower.includes('failed to get document')) {
     return 'Connection interrupted. Your local story progress is safe.';
@@ -772,6 +798,15 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
     });
   };
 
+  const scrollDuringStreaming = () => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    if (distanceFromBottom < 260) {
+      el.scrollTop = el.scrollHeight;
+    }
+  };
+
   // Sync Turn-0 opening beats & starter choices cleanly if language is switched before user replies
   useEffect(() => {
     if (loadingInit) return;
@@ -950,156 +985,271 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
     return map;
   }, [story.characters]);
 
-  // Streams story beats live via SSE with automatic JSON endpoint fallback
+  // Streams story beats & live partial typing via SSE with automatic stall watchdog & JSON fallback
   const requestStoryTurnStream = async (
-    idToken: string,
+    initialIdToken: string,
     payloadBody: Record<string, unknown>,
-    onBeat: (beat: StoryBeat) => void
+    onLiveBeats: (beats: StoryBeat[]) => void
   ): Promise<StoryTurnApiResponse> => {
     streamAbortRef.current?.abort();
     const controller = new AbortController();
     streamAbortRef.current = controller;
 
+    let activeToken = initialIdToken;
+
     const requestJsonFallback = async (): Promise<StoryTurnApiResponse> => {
       let lastFallbackErr: Error = new Error('Failed to generate next story scene.');
+      let didRefreshToken = false;
+
       for (let attempt = 0; attempt < 2; attempt++) {
         if (controller.signal.aborted) {
           throw new DOMException('Aborted', 'AbortError');
         }
         if (attempt > 0) {
-          await new Promise((r) => setTimeout(r, 1200));
+          await new Promise((r) => setTimeout(r, 450));
           if (controller.signal.aborted) {
             throw new DOMException('Aborted', 'AbortError');
           }
         }
-        const fallbackResp = await fetch('/api/story/turn', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${idToken}`,
-          },
-          body: JSON.stringify(payloadBody),
-          signal: controller.signal,
-        });
-        const fallbackData = (await fallbackResp.json().catch(() => ({}))) as StoryTurnApiResponse;
-        const validBeats = extractValidStoryBeats(fallbackData.beats);
-        if (fallbackResp.ok && validBeats.length > 0) {
-          return { ...fallbackData, beats: validBeats };
-        }
-        const rawErr = fallbackData.error || (fallbackResp.ok ? 'Empty story response' : 'Failed to generate next story scene.');
-        lastFallbackErr = new Error(formatReadableError(rawErr, 'Failed to generate next story scene.'));
-        if (!isTransientStoryErrorText(rawErr) && !rawErr.toLowerCase().includes('empty')) {
-          throw lastFallbackErr;
+
+        const attemptCtrl = new AbortController();
+        const linkAbort = () => attemptCtrl.abort();
+        controller.signal.addEventListener('abort', linkAbort, { once: true });
+        const fallbackTimeout = setTimeout(() => attemptCtrl.abort(), 16000);
+
+        try {
+          const fallbackResp = await fetch('/api/story/turn', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${activeToken}`,
+            },
+            body: JSON.stringify(payloadBody),
+            signal: attemptCtrl.signal,
+          });
+
+          if (fallbackResp.status === 401 && !didRefreshToken) {
+            didRefreshToken = true;
+            activeToken = await getFreshIdToken(user, true);
+            continue;
+          }
+
+          const fallbackData = (await fallbackResp.json().catch(() => ({}))) as StoryTurnApiResponse;
+          const validBeats = extractValidStoryBeats(fallbackData.beats, story.characters);
+          if (fallbackResp.ok && validBeats.length > 0) {
+            return { ...fallbackData, beats: validBeats };
+          }
+          const rawErr =
+            fallbackData.error ||
+            (fallbackResp.ok ? 'Empty story response' : 'Failed to generate next story scene.');
+          lastFallbackErr = new Error(formatReadableError(rawErr, 'Failed to generate next story scene.'));
+          if (!isTransientStoryErrorText(rawErr) && !rawErr.toLowerCase().includes('empty')) {
+            throw lastFallbackErr;
+          }
+        } catch (err) {
+          if (controller.signal.aborted) {
+            throw new DOMException('Aborted', 'AbortError');
+          }
+          if ((err as { name?: string })?.name === 'AbortError') {
+            lastFallbackErr = new Error('AI took too long to respond. Please tap Retry.');
+          } else {
+            lastFallbackErr =
+              err instanceof Error
+                ? err
+                : new Error(formatReadableError(err, 'Failed to generate next story scene.'));
+          }
+        } finally {
+          clearTimeout(fallbackTimeout);
+          controller.signal.removeEventListener('abort', linkAbort);
         }
       }
       throw lastFallbackErr;
     };
 
-    const response = await fetch('/api/story/turn-stream', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${idToken}`,
-      },
-      body: JSON.stringify(payloadBody),
-      signal: controller.signal,
-    });
+    const streamCtrl = new AbortController();
+    const onParentAbort = () => streamCtrl.abort();
+    controller.signal.addEventListener('abort', onParentAbort, { once: true });
 
-    const contentType = response.headers.get('content-type') || '';
-    if (!response.ok || !contentType.includes('text/event-stream') || !response.body) {
-      // Clean fallback if SSE isn't active or non-stream JSON error was returned
-      if (!response.ok && !contentType.includes('text/event-stream')) {
-        const errJson = (await response.json().catch(() => ({}))) as { error?: string };
-        throw new Error(formatReadableError(errJson.error, 'Failed to generate next story scene.'));
-      }
-      return requestJsonFallback();
-    }
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-    let finalPayload: StoryTurnApiResponse | null = null;
-    let streamError: string | null = null;
-    let receivedBeats: StoryBeat[] = [];
-
-    const processEventBlock = (block: string) => {
-      if (!block.trim()) return;
-      let eventName = 'message';
-      const dataLines: string[] = [];
-      for (const line of block.split(/\r?\n/)) {
-        if (line.startsWith('event:')) {
-          eventName = line.slice(6).trim();
-        } else if (line.startsWith('data:')) {
-          dataLines.push(line.slice(5).trim());
-        }
-      }
-      if (dataLines.length === 0) return;
-      const rawData = dataLines.join('\n');
-      try {
-        const parsed = JSON.parse(rawData) as unknown;
-        if (eventName === 'beat' && parsed && typeof parsed === 'object') {
-          const beat = parsed as StoryBeat;
-          receivedBeats = [...receivedBeats, beat];
-          onBeat(beat);
-        } else if (eventName === 'done' && parsed && typeof parsed === 'object') {
-          finalPayload = parsed as StoryTurnApiResponse;
-        } else if (eventName === 'error' && parsed && typeof parsed === 'object') {
-          streamError = (parsed as { error?: string }).error || 'Story generation failed.';
-        }
-      } catch {
-        // Ignore partial non-JSON lines
-      }
+    let streamTimedOut = false;
+    let watchdogTimer: ReturnType<typeof setTimeout> | undefined;
+    const armWatchdog = (ms: number) => {
+      if (watchdogTimer) clearTimeout(watchdogTimer);
+      watchdogTimer = setTimeout(() => {
+        streamTimedOut = true;
+        streamCtrl.abort();
+      }, ms);
     };
 
     try {
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        let separatorIdx = buffer.indexOf('\n\n');
-        while (separatorIdx !== -1) {
-          const block = buffer.slice(0, separatorIdx);
-          buffer = buffer.slice(separatorIdx + 2);
-          processEventBlock(block);
-          separatorIdx = buffer.indexOf('\n\n');
-        }
-      }
-      if (buffer.trim()) {
-        processEventBlock(buffer);
-      }
-    } catch (readErr) {
-      if ((readErr as { name?: string })?.name === 'AbortError') {
-        throw readErr;
-      }
-      if (receivedBeats.length > 0) {
-        return { beats: receivedBeats };
-      }
-      return requestJsonFallback();
-    }
+      armWatchdog(12000);
+      let response = await fetch('/api/story/turn-stream', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${activeToken}`,
+        },
+        body: JSON.stringify(payloadBody),
+        signal: streamCtrl.signal,
+      });
 
-    if (finalPayload) {
-      const resolved = finalPayload as StoryTurnApiResponse;
-      return {
-        ...resolved,
-        beats: resolved.beats && resolved.beats.length > 0 ? resolved.beats : receivedBeats,
-      };
-    }
-    if (streamError) {
-      if (receivedBeats.length > 0) {
-        return { beats: receivedBeats };
+      if (response.status === 401) {
+        activeToken = await getFreshIdToken(user, true);
+        armWatchdog(12000);
+        response = await fetch('/api/story/turn-stream', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${activeToken}`,
+          },
+          body: JSON.stringify(payloadBody),
+          signal: streamCtrl.signal,
+        });
       }
-      if (isTransientStoryErrorText(streamError) && !controller.signal.aborted) {
-        await new Promise((r) => setTimeout(r, 1100));
-        if (!controller.signal.aborted) {
-          return requestJsonFallback();
+
+      const contentType = response.headers.get('content-type') || '';
+      if (!response.ok || !contentType.includes('text/event-stream') || !response.body) {
+        if (watchdogTimer) clearTimeout(watchdogTimer);
+        if (!response.ok && !contentType.includes('text/event-stream')) {
+          const errJson = (await response.json().catch(() => ({}))) as { error?: string };
+          throw new Error(formatReadableError(errJson.error, 'Failed to generate next story scene.'));
         }
+        return await requestJsonFallback();
       }
-      throw new Error(formatReadableError(streamError, 'Unable to continue story right now.'));
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let finalPayload: StoryTurnApiResponse | null = null;
+      let streamError: string | null = null;
+      const liveBeatMap = new Map<number, StoryBeat>();
+      const completedBeatMap = new Map<number, StoryBeat>();
+      let legacyIdx = 0;
+
+      const emitLiveSnapshot = () => {
+        const ordered = Array.from(liveBeatMap.entries())
+          .sort((a, b) => a[0] - b[0])
+          .map((entry) => entry[1]);
+        onLiveBeats(ordered);
+      };
+
+      const processEventBlock = (block: string) => {
+        if (!block.trim()) return;
+        let eventName = 'message';
+        const dataLines: string[] = [];
+        for (const line of block.split(/\r?\n/)) {
+          if (line.startsWith(':')) continue;
+          if (line.startsWith('event:')) {
+            eventName = line.slice(6).trim();
+          } else if (line.startsWith('data:')) {
+            dataLines.push(line.slice(5).trim());
+          }
+        }
+        if (dataLines.length === 0) return;
+        const rawData = dataLines.join('\n');
+        try {
+          const parsed = JSON.parse(rawData) as unknown;
+          if (eventName === 'partial' && parsed && typeof parsed === 'object') {
+            const p = parsed as { index?: number; beat?: StoryBeat };
+            if (typeof p.index === 'number' && p.beat) {
+              if (!completedBeatMap.has(p.index)) {
+                liveBeatMap.set(p.index, p.beat);
+                emitLiveSnapshot();
+              }
+            }
+          } else if (eventName === 'beat' && parsed && typeof parsed === 'object') {
+            const payload = parsed as { index?: number; beat?: StoryBeat } & Partial<StoryBeat>;
+            const idx = typeof payload.index === 'number' ? payload.index : legacyIdx++;
+            const beatObj = payload.beat || (payload.text ? (payload as StoryBeat) : null);
+            if (beatObj) {
+              completedBeatMap.set(idx, beatObj);
+              liveBeatMap.set(idx, beatObj);
+              emitLiveSnapshot();
+            }
+          } else if (eventName === 'reset') {
+            liveBeatMap.clear();
+            completedBeatMap.clear();
+            legacyIdx = 0;
+            onLiveBeats([]);
+          } else if (eventName === 'done' && parsed && typeof parsed === 'object') {
+            finalPayload = parsed as StoryTurnApiResponse;
+          } else if (eventName === 'error' && parsed && typeof parsed === 'object') {
+            streamError = (parsed as { error?: string }).error || 'Story generation failed.';
+          }
+        } catch {
+          // Ignore partial non-JSON lines
+        }
+      };
+
+      try {
+        while (true) {
+          armWatchdog(12500);
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          let separatorIdx = buffer.indexOf('\n\n');
+          while (separatorIdx !== -1) {
+            const block = buffer.slice(0, separatorIdx);
+            buffer = buffer.slice(separatorIdx + 2);
+            processEventBlock(block);
+            separatorIdx = buffer.indexOf('\n\n');
+          }
+        }
+        if (buffer.trim()) {
+          processEventBlock(buffer);
+        }
+      } catch (readErr) {
+        if (watchdogTimer) clearTimeout(watchdogTimer);
+        if (controller.signal.aborted && !streamTimedOut) {
+          throw readErr;
+        }
+        const completedList = Array.from(completedBeatMap.entries())
+          .sort((a, b) => a[0] - b[0])
+          .map((e) => e[1]);
+        if (completedList.some((b) => b.type === 'dialogue')) {
+          return { beats: completedList };
+        }
+        onLiveBeats([]);
+        return await requestJsonFallback();
+      } finally {
+        if (watchdogTimer) clearTimeout(watchdogTimer);
+      }
+
+      const completedList = Array.from(completedBeatMap.entries())
+        .sort((a, b) => a[0] - b[0])
+        .map((e) => e[1]);
+
+      if (finalPayload) {
+        const resolved = finalPayload as StoryTurnApiResponse;
+        return {
+          ...resolved,
+          beats: resolved.beats && resolved.beats.length > 0 ? resolved.beats : completedList,
+        };
+      }
+      if (streamError) {
+        if (completedList.some((b) => b.type === 'dialogue')) {
+          return { beats: completedList };
+        }
+        throw new Error(formatReadableError(streamError, 'Unable to continue story right now.'));
+      }
+      if (completedList.some((b) => b.type === 'dialogue')) {
+        return { beats: completedList };
+      }
+      onLiveBeats([]);
+      return await requestJsonFallback();
+    } catch (outerErr) {
+      if (watchdogTimer) clearTimeout(watchdogTimer);
+      if (controller.signal.aborted) {
+        throw outerErr;
+      }
+      if (streamTimedOut) {
+        onLiveBeats([]);
+        return await requestJsonFallback();
+      }
+      throw outerErr;
+    } finally {
+      if (watchdogTimer) clearTimeout(watchdogTimer);
+      controller.signal.removeEventListener('abort', onParentAbort);
     }
-    if (receivedBeats.length > 0) {
-      return { beats: receivedBeats };
-    }
-    return requestJsonFallback();
   };
 
   const handleSend = async (overrideText?: string, isChoiceSelection = false) => {
@@ -1141,7 +1291,7 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
     setTimeout(() => scrollToBottom(true), 25);
 
     try {
-      const idToken = await user.getIdToken();
+      const idToken = await getFreshIdToken(user);
       const data = await requestStoryTurnStream(
         idToken,
         {
@@ -1158,18 +1308,18 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
           language: preferredLanguage,
           currentScene,
           sceneIndex,
-          recentMessages: baseMessages.filter((m) => !isPlaceholderStoryMessage(m)).slice(-7).map((m) => ({
+          recentMessages: baseMessages.filter((m) => !isPlaceholderStoryMessage(m)).slice(-5).map((m) => ({
             role: m.role,
             userText: m.userText,
             beats: m.beats,
           })),
-          memories: memories.slice(-5).map((m) => ({ summary: m.summary, importance: m.importance })),
+          memories: memories.slice(-4).map((m) => ({ summary: m.summary, importance: m.importance })),
           relationshipMeters: meters,
           userMessage: textToSend,
         },
-        (beat) => {
-          setStreamingBeats((prev) => [...prev, beat]);
-          scrollToBottom(true);
+        (liveBeats) => {
+          setStreamingBeats(liveBeats);
+          scrollDuringStreaming();
         }
       );
 
@@ -1290,12 +1440,18 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
         });
       });
     } catch (err) {
-      if ((err as { name?: string })?.name !== 'AbortError') {
+      const isUnmountAbort = !mountedRef.current && (err as { name?: string })?.name === 'AbortError';
+      if (!isUnmountAbort) {
         setMessages((prev) => prev.filter((m) => m.id !== userMsgId));
         if (!overrideText) setInput(textToSend);
         setRetryAction({ type: 'send', text: textToSend, isChoice: isChoiceSelection });
         setErrorBanner(
-          formatReadableError(err, 'Network error. Your previous conversation is safe.')
+          formatReadableError(
+            (err as { name?: string })?.name === 'AbortError'
+              ? 'Connection timed out. Please tap Retry.'
+              : err,
+            'Network error. Your previous conversation is safe.'
+          )
         );
       }
     } finally {
@@ -1329,7 +1485,7 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
     maxSequenceRef.current = nextSeq;
 
     try {
-      const idToken = await user.getIdToken();
+      const idToken = await getFreshIdToken(user);
       const data = await requestStoryTurnStream(
         idToken,
         {
@@ -1347,17 +1503,17 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
           language: preferredLanguage,
           currentScene,
           sceneIndex,
-          recentMessages: baseMessages.filter((m) => !isPlaceholderStoryMessage(m)).slice(-7).map((m) => ({
+          recentMessages: baseMessages.filter((m) => !isPlaceholderStoryMessage(m)).slice(-5).map((m) => ({
             role: m.role,
             userText: m.userText,
             beats: m.beats,
           })),
-          memories: memories.slice(-5).map((m) => ({ summary: m.summary, importance: m.importance })),
+          memories: memories.slice(-4).map((m) => ({ summary: m.summary, importance: m.importance })),
           relationshipMeters: meters,
         },
-        (beat) => {
-          setStreamingBeats((prev) => [...prev, beat]);
-          scrollToBottom(true);
+        (liveBeats) => {
+          setStreamingBeats(liveBeats);
+          scrollDuringStreaming();
         }
       );
 
@@ -1464,10 +1620,16 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
         });
       });
     } catch (err) {
-      if ((err as { name?: string })?.name !== 'AbortError') {
+      const isUnmountAbort = !mountedRef.current && (err as { name?: string })?.name === 'AbortError';
+      if (!isUnmountAbort) {
         setRetryAction({ type: 'continue' });
         setErrorBanner(
-          formatReadableError(err, 'Unable to advance story right now.')
+          formatReadableError(
+            (err as { name?: string })?.name === 'AbortError'
+              ? 'Connection timed out. Please tap Retry.'
+              : err,
+            'Unable to advance story right now.'
+          )
         );
       }
     } finally {
@@ -1521,7 +1683,7 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
     const newMsgId = `msg_${targetStoryMsg.sequence}_${now}`;
 
     try {
-      const idToken = await user.getIdToken();
+      const idToken = await getFreshIdToken(user);
       const data = await requestStoryTurnStream(
         idToken,
         {
@@ -1541,19 +1703,19 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
           sceneIndex: Math.max(0, sceneIndex - 1),
           recentMessages: priorMessages
             .filter((m) => !isPlaceholderStoryMessage(m))
-            .slice(-7)
+            .slice(-5)
             .map((m) => ({
               role: m.role,
               userText: m.userText,
               beats: m.beats,
             })),
-          memories: memories.slice(-5).map((m) => ({ summary: m.summary, importance: m.importance })),
+          memories: memories.slice(-4).map((m) => ({ summary: m.summary, importance: m.importance })),
           relationshipMeters: baseMeters,
           userMessage: prevUserMsg || undefined,
         },
-        (beat) => {
-          setStreamingBeats((prev) => [...prev, beat]);
-          scrollToBottom(true);
+        (liveBeats) => {
+          setStreamingBeats(liveBeats);
+          scrollDuringStreaming();
         }
       );
 
@@ -1635,10 +1797,16 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
         });
       });
     } catch (err) {
-      if ((err as { name?: string })?.name !== 'AbortError') {
+      const isUnmountAbort = !mountedRef.current && (err as { name?: string })?.name === 'AbortError';
+      if (!isUnmountAbort) {
         setRetryAction({ type: 'regenerate' });
         setErrorBanner(
-          formatReadableError(err, 'Unable to regenerate response right now.')
+          formatReadableError(
+            (err as { name?: string })?.name === 'AbortError'
+              ? 'Connection timed out. Please tap Retry.'
+              : err,
+            'Unable to regenerate response right now.'
+          )
         );
       }
     } finally {
@@ -1771,13 +1939,18 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
     suggestionsAbortRef.current?.abort();
     const controller = new AbortController();
     suggestionsAbortRef.current = controller;
+    let timedOut = false;
+    const timeoutId = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, 10000);
 
     setSuggestionsOpen(true);
     setSuggestionsLoading(true);
     setErrorBanner(null);
 
     try {
-      const idToken = await user.getIdToken();
+      const idToken = await getFreshIdToken(user);
       const resp = await fetch('/api/story/suggestions', {
         method: 'POST',
         headers: {
@@ -1813,10 +1986,15 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
       }
       setSuggestions(list);
     } catch (err) {
-      if ((err as { name?: string })?.name === 'AbortError') return;
+      if ((err as { name?: string })?.name === 'AbortError' && !timedOut) return;
       setSuggestionsOpen(false);
-      setErrorBanner(formatReadableError(err, 'Unable to fetch AI reply ideas.'));
+      setErrorBanner(
+        timedOut
+          ? 'Suggestions took too long. Tap the lightbulb to try again.'
+          : formatReadableError(err, 'Unable to fetch AI reply ideas.')
+      );
     } finally {
+      clearTimeout(timeoutId);
       if (mountedRef.current && suggestionsAbortRef.current === controller) {
         setSuggestionsLoading(false);
       }
@@ -2208,6 +2386,8 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
                   >
                     <div className="space-y-3">
                       {cardBeats.map((beat, bIdx) => {
+                        const isLatestTypingBeat =
+                          cardIdx === allCards.length - 1 && bIdx === cardBeats.length - 1;
                         if (beat.type === 'narration') {
                           return (
                             <p
@@ -2215,6 +2395,9 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
                               className="text-[14.5px] italic text-[#A1A3AD] leading-relaxed"
                             >
                               *{beat.text}*
+                              {isLatestTypingBeat && (
+                                <span className="inline-block w-1.5 h-3.5 bg-[#E5233D] ml-1 align-middle animate-pulse" />
+                              )}
                             </p>
                           );
                         }
@@ -2239,18 +2422,18 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
                             )}
                             <p className="text-[15px] text-white leading-relaxed">
                               <span className="font-semibold text-zinc-100">{speaker}: </span>
-                              <span className="text-zinc-100">"{cleanSpeech}"</span>
+                              <span className="text-zinc-100">
+                                "{cleanSpeech}
+                                {!isLatestTypingBeat && '"'}
+                              </span>
+                              {isLatestTypingBeat && (
+                                <span className="inline-block w-1.5 h-3.5 bg-[#E5233D] ml-1 align-middle animate-pulse" />
+                              )}
                             </p>
                           </div>
                         );
                       })}
                     </div>
-                    {cardIdx === allCards.length - 1 && (
-                      <div className="flex items-center gap-1.5 pt-0.5 text-[11px] text-zinc-400">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#E5233D] animate-pulse" />
-                        <span>Scene unfolding...</span>
-                      </div>
-                    )}
                   </div>
                 )
               )}
