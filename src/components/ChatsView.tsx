@@ -55,10 +55,10 @@ export const ChatsView: React.FC<ChatsViewProps> = ({
 
       <main className="max-w-4xl mx-auto px-4 pt-5 space-y-4">
         {!isSignedIn ? (
-          <div className="rounded-3xl bg-white dark:bg-[#141419] border border-zinc-200 dark:border-white/10 p-7 text-center space-y-4">
+          <div className="rounded-3xl bg-white dark:bg-[#141419] border border-zinc-200/85 dark:border-white/[0.09] p-7 text-center space-y-4 shadow-sm dark:shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
             <div
-              className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto"
-              style={{ backgroundColor: 'rgba(229, 35, 61, 0.14)', color: 'var(--app-accent)' }}
+              className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto border border-zinc-200 dark:border-white/10"
+              style={{ backgroundColor: 'rgba(229, 35, 61, 0.12)', color: 'var(--app-accent)' }}
             >
               <MessageCircle className="w-6 h-6" />
             </div>
@@ -81,8 +81,8 @@ export const ChatsView: React.FC<ChatsViewProps> = ({
             </button>
           </div>
         ) : conversations.length === 0 ? (
-          <div className="rounded-3xl bg-white dark:bg-[#141419] border border-zinc-200 dark:border-white/10 p-7 text-center space-y-4">
-            <div className="w-12 h-12 rounded-2xl bg-zinc-100 dark:bg-white/5 text-[var(--app-accent)] flex items-center justify-center mx-auto">
+          <div className="rounded-3xl bg-white dark:bg-[#141419] border border-zinc-200/85 dark:border-white/[0.09] p-7 text-center space-y-4 shadow-sm dark:shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
+            <div className="w-12 h-12 rounded-2xl bg-zinc-100 dark:bg-white/5 border border-zinc-200 dark:border-white/10 text-[var(--app-accent)] flex items-center justify-center mx-auto">
               <Sparkles className="w-6 h-6" />
             </div>
             <div className="space-y-1.5">
@@ -111,7 +111,7 @@ export const ChatsView: React.FC<ChatsViewProps> = ({
                   key={conv.conversationId}
                   type="button"
                   onClick={() => onResumeStory(story)}
-                  className="w-full flex items-center gap-3.5 p-3 rounded-2xl bg-white dark:bg-[#141419] hover:bg-zinc-50 dark:hover:bg-[#1B1B22] border border-zinc-200 dark:border-white/[0.06] text-left transition shadow-sm dark:shadow-none"
+                  className="w-full flex items-center gap-3.5 p-3 rounded-2xl bg-white dark:bg-[#141419] hover:bg-zinc-50 dark:hover:bg-[#1B1B22] border border-zinc-200/85 dark:border-white/[0.09] hover:border-zinc-300 dark:hover:border-white/25 text-left transition shadow-sm dark:shadow-none"
                 >
                   <StoryImage
                     src={story.coverImage}

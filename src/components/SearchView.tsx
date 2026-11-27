@@ -67,7 +67,7 @@ export const SearchView: React.FC<SearchViewProps> = ({
                 value={queryText}
                 onChange={(e) => setQueryText(e.target.value)}
                 placeholder="Search titles, characters (Isha, Tara...), genres..."
-                className="w-full min-h-[46px] rounded-2xl bg-white dark:bg-[#16161C] border border-zinc-200 dark:border-white/10 pl-10 pr-10 text-sm text-zinc-950 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-[var(--app-accent)]"
+                className="w-full min-h-[46px] rounded-2xl bg-white dark:bg-[#16161C] border border-zinc-200/90 dark:border-white/[0.12] pl-10 pr-10 text-sm text-zinc-950 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-rose-400/60"
               />
               {queryText && (
                 <button
@@ -86,7 +86,7 @@ export const SearchView: React.FC<SearchViewProps> = ({
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as SortMode)}
                 aria-label="Sort stories"
-                className="min-h-[46px] rounded-2xl bg-white dark:bg-[#16161C] border border-zinc-200 dark:border-white/10 pl-3 pr-8 text-xs font-medium text-zinc-800 dark:text-zinc-200 focus:outline-none focus:border-[var(--app-accent)] appearance-none"
+                className="min-h-[46px] rounded-2xl bg-white dark:bg-[#16161C] border border-zinc-200/90 dark:border-white/[0.12] pl-3 pr-8 text-xs font-medium text-zinc-800 dark:text-zinc-200 focus:outline-none focus:border-rose-400/60 appearance-none"
               >
                 <option value="popular">Most Popular</option>
                 <option value="rating">Top Rated</option>
@@ -105,10 +105,10 @@ export const SearchView: React.FC<SearchViewProps> = ({
                     key={cat}
                     type="button"
                     onClick={() => setSelectedCategory(cat)}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition ${
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 border transition ${
                       active
-                        ? 'bg-[var(--app-accent)] text-white'
-                        : 'bg-white dark:bg-[#16161C] text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white border border-zinc-200 dark:border-white/[0.06]'
+                        ? 'bg-[var(--app-accent)] border-white/20 text-white'
+                        : 'bg-white dark:bg-[#16161C] text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white border-zinc-200/80 dark:border-white/[0.09] hover:border-zinc-300 dark:hover:border-white/25'
                     }`}
                   >
                     {cat}
@@ -129,7 +129,7 @@ export const SearchView: React.FC<SearchViewProps> = ({
         </div>
 
         {results.length === 0 ? (
-          <div className="rounded-2xl bg-white dark:bg-[#141419] border border-zinc-200 dark:border-white/[0.06] p-8 text-center space-y-3">
+          <div className="rounded-2xl bg-white dark:bg-[#141419] border border-zinc-200/85 dark:border-white/[0.09] p-8 text-center space-y-3">
             <p className="text-sm text-zinc-600 dark:text-zinc-300">No stories matched your filter.</p>
             <button
               type="button"

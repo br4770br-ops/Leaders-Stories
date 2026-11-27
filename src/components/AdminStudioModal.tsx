@@ -24,7 +24,7 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({
   const [about, setAbout] = useState('');
   const [category, setCategory] = useState('Drama');
   const [tagsText, setTagsText] = useState('Roleplay, Drama');
-  const [coverImage, setCoverImage] = useState('/src/assets/images/cover_she_hates_me_1795460761296.jpg');
+  const [coverImage, setCoverImage] = useState('/src/assets/images/scene_campus_corridor_1795460773005.jpg');
   const [openingScene, setOpeningScene] = useState('');
   const [charName, setCharName] = useState('');
   const [charRole, setCharRole] = useState('Lead Character');
@@ -97,7 +97,7 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="w-full max-w-2xl max-h-[90dvh] overflow-y-auto rounded-3xl bg-[#14141A] border border-white/10 p-6 space-y-5">
+      <div className="w-full max-w-2xl max-h-[90dvh] overflow-y-auto rounded-3xl bg-[#14141A] border border-white/[0.12] p-6 space-y-5">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="font-display text-lg font-bold text-white">Story Admin Studio</h2>

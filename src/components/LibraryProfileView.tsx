@@ -34,6 +34,7 @@ import type {
   StoryProgressRecord,
   UserProfileRecord,
 } from '../types/story';
+import { PortraitLightboxModal, type PortraitLightboxItem } from './PortraitLightboxModal';
 import { StoryCard } from './StoryCard';
 import { StoryImage } from './StoryImage';
 import { useToast } from './ToastProvider';
@@ -111,6 +112,7 @@ export const LibraryProfileView: React.FC<LibraryProfileViewProps> = ({
 }) => {
   const { notify } = useToast();
   const [libraryTab, setLibraryTab] = useState<LibraryTab>('favorites');
+  const [portraitIndex, setPortraitIndex] = useState<number | null>(null);
 
   // Edit profile state
   const [editingProfile, setEditingProfile] = useState(false);
@@ -181,6 +183,17 @@ export const LibraryProfileView: React.FC<LibraryProfileViewProps> = ({
     });
     return list;
   }, [progressMap, storyMap]);
+
+  const savedCharacterLightboxItems: PortraitLightboxItem[] = useMemo(
+    () =>
+      savedCharacters.map(({ character, story }) => ({
+        character,
+        subtitle: story.title,
+        ctaLabel: `Open ${story.title}`,
+        onCtaClick: () => onResumeStory(story),
+      })),
+    [savedCharacters, onResumeStory]
+  );
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -327,9 +340,9 @@ export const LibraryProfileView: React.FC<LibraryProfileViewProps> = ({
       <main className="max-w-5xl mx-auto px-4 pt-5 space-y-6">
         {/* Account Card */}
         {!user ? (
-          <section className="rounded-3xl bg-white dark:bg-[#141419] border border-zinc-200 dark:border-white/10 p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <section className="rounded-3xl bg-white dark:bg-[#141419] border border-zinc-200/85 dark:border-white/[0.09] p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm dark:shadow-[0_10px_28px_rgba(0,0,0,0.3)]">
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-full bg-zinc-100 dark:bg-white/5 flex items-center justify-center text-zinc-500 dark:text-zinc-400">
+              <div className="w-14 h-14 rounded-full bg-zinc-100 dark:bg-white/5 border border-zinc-200 dark:border-white/10 flex items-center justify-center text-zinc-500 dark:text-zinc-400">
                 <UserIcon className="w-6 h-6" />
               </div>
               <div className="space-y-0.5">
@@ -350,7 +363,7 @@ export const LibraryProfileView: React.FC<LibraryProfileViewProps> = ({
             </button>
           </section>
         ) : (
-          <section className="rounded-3xl bg-white dark:bg-[#141419] border border-zinc-200 dark:border-white/10 p-5 sm:p-6 space-y-5">
+          <section className="rounded-3xl bg-white dark:bg-[#141419] border border-zinc-200/85 dark:border-white/[0.09] p-5 sm:p-6 space-y-5 shadow-sm dark:shadow-[0_10px_28px_rgba(0,0,0,0.3)]">
             <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
               <div className="flex items-start gap-4 min-w-0">
                 {activeAvatarUrl ? (
@@ -559,7 +572,7 @@ export const LibraryProfileView: React.FC<LibraryProfileViewProps> = ({
 
           {libraryTab === 'favorites' &&
             (favoriteStories.length === 0 ? (
-              <div className="rounded-2xl bg-white dark:bg-[#141419] border border-zinc-200 dark:border-white/[0.06] p-8 text-center text-xs text-zinc-500">
+              <div className="rounded-2xl bg-white dark:bg-[#141419] border border-zinc-200/85 dark:border-white/[0.09] p-8 text-center text-xs text-zinc-500">
                 <Heart className="w-6 h-6 text-[#E5233D]/60 mx-auto mb-2" />
                 Tap the heart icon on any story cover to save it here.
               </div>
@@ -579,7 +592,7 @@ export const LibraryProfileView: React.FC<LibraryProfileViewProps> = ({
 
           {libraryTab === 'active' &&
             (activeStories.length === 0 ? (
-              <div className="rounded-2xl bg-white dark:bg-[#141419] border border-zinc-200 dark:border-white/[0.06] p-8 text-center text-xs text-zinc-500">
+              <div className="rounded-2xl bg-white dark:bg-[#141419] border border-zinc-200/85 dark:border-white/[0.09] p-8 text-center text-xs text-zinc-500">
                 No in-progress stories yet. Start chatting in any story!
               </div>
             ) : (
@@ -598,7 +611,7 @@ export const LibraryProfileView: React.FC<LibraryProfileViewProps> = ({
 
           {libraryTab === 'completed' &&
             (completedStories.length === 0 ? (
-              <div className="rounded-2xl bg-white dark:bg-[#141419] border border-zinc-200 dark:border-white/[0.06] p-8 text-center text-xs text-zinc-500">
+              <div className="rounded-2xl bg-white dark:bg-[#141419] border border-zinc-200/85 dark:border-white/[0.09] p-8 text-center text-xs text-zinc-500">
                 Reach a dramatic ending in any story to unlock it in Completed.
               </div>
             ) : (
@@ -617,38 +630,52 @@ export const LibraryProfileView: React.FC<LibraryProfileViewProps> = ({
 
           {libraryTab === 'characters' &&
             (savedCharacters.length === 0 ? (
-              <div className="rounded-2xl bg-white dark:bg-[#141419] border border-zinc-200 dark:border-white/[0.06] p-8 text-center text-xs text-zinc-500">
+              <div className="rounded-2xl bg-white dark:bg-[#141419] border border-zinc-200/85 dark:border-white/[0.09] p-8 text-center text-xs text-zinc-500">
                 Characters from stories you start will appear here with their roles.
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {savedCharacters.map(({ character, story }) => (
-                  <button
-                    key={`${story.id}-${character.id}`}
-                    type="button"
-                    onClick={() => onResumeStory(story)}
-                    className="flex items-center gap-3.5 p-3 rounded-2xl bg-white dark:bg-[#141419] hover:bg-zinc-100 dark:hover:bg-[#1C1C23] border border-zinc-200 dark:border-white/[0.06] text-left transition"
-                  >
-                    <StoryImage
-                      src={character.portrait}
-                      alt={character.name}
-                      className="w-14 h-16 rounded-xl object-cover object-top shrink-0"
-                    />
-                    <div className="min-w-0">
-                      <div className="font-display text-sm font-bold truncate">
-                        {character.name}
-                      </div>
-                      <div className="text-xs text-[#F43F5E] truncate">{character.role}</div>
-                      <div className="text-[11px] text-zinc-500 truncate">{story.title}</div>
+                {savedCharacters.map(({ character, story }, idx) => {
+                  const accent = character.accentColor || '#FDA4AF';
+                  return (
+                    <div
+                      key={`${story.id}-${character.id}`}
+                      className="flex items-center gap-3.5 p-3 rounded-2xl bg-white dark:bg-[#141419] hover:bg-zinc-50 dark:hover:bg-[#1C1C23] border border-zinc-200/85 dark:border-white/[0.09] hover:border-zinc-300 dark:hover:border-white/25 text-left transition shadow-sm dark:shadow-none"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setPortraitIndex(idx)}
+                        aria-label={`View ${character.name} portrait fullscreen`}
+                        className="shrink-0 rounded-xl overflow-hidden focus:outline-none hover:scale-105 transition-transform"
+                      >
+                        <StoryImage
+                          src={character.portrait}
+                          alt={character.name}
+                          className="w-14 h-16 rounded-xl object-cover object-top"
+                        />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onResumeStory(story)}
+                        className="min-w-0 flex-1 text-left focus:outline-none"
+                      >
+                        <div className="font-display text-sm font-bold truncate">
+                          {character.name}
+                        </div>
+                        <div className="text-xs font-medium truncate" style={{ color: accent }}>
+                          {character.role}
+                        </div>
+                        <div className="text-[11px] text-zinc-500 truncate">{story.title}</div>
+                      </button>
                     </div>
-                  </button>
-                ))}
+                  );
+                })}
               </div>
             ))}
         </section>
 
         {/* Help, Support & Platform Details */}
-        <section className="rounded-3xl bg-white dark:bg-[#141419] border border-zinc-200 dark:border-white/10 p-5 space-y-3">
+        <section className="rounded-3xl bg-white dark:bg-[#141419] border border-zinc-200/85 dark:border-white/[0.09] p-5 space-y-3">
           <div className="flex items-center gap-2 font-display text-sm font-bold">
             <HelpCircle className="w-4 h-4 text-[#E5233D]" />
             Help & Support
@@ -830,6 +857,12 @@ export const LibraryProfileView: React.FC<LibraryProfileViewProps> = ({
           </div>
         </div>
       )}
+      <PortraitLightboxModal
+        items={savedCharacterLightboxItems}
+        activeIndex={portraitIndex}
+        onClose={() => setPortraitIndex(null)}
+        onChangeIndex={(idx) => setPortraitIndex(idx)}
+      />
     </div>
   );
 };

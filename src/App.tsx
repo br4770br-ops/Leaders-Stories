@@ -3,6 +3,7 @@ import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
 import {
   Bookmark,
   Compass,
+  Heart,
   Home,
   LogIn,
   LogOut,
@@ -20,12 +21,22 @@ import { ChatsView } from './components/ChatsView';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { HomeView } from './components/HomeView';
 import { LibraryProfileView } from './components/LibraryProfileView';
+import { LoadingSplashScreen } from './components/LoadingSplashScreen';
 import { SearchView } from './components/SearchView';
 import { StoryChatScreen } from './components/StoryChatScreen';
 import { StoryDetailModal } from './components/StoryDetailModal';
 import { ToastProvider } from './components/ToastProvider';
+import { YoursModal } from './components/YoursModal';
 import { STORIES_CATALOG } from './data/stories';
+import { YOURS_COMPANIONS } from './data/yoursCompanions';
 import { useOnlineStatus, usePWAInstall } from './hooks/usePWAInstall';
+import {
+  addCustomCharacterToMap,
+  loadCustomCharactersMap,
+  mergeStoryWithCustomCharacters,
+  removeCustomCharacterFromMap,
+  type CustomCharactersMap,
+} from './lib/customCharacters';
 import { auth } from './lib/firebase';
 import {
   fetchAppConfig,
@@ -46,6 +57,7 @@ import type {
   FavoriteRecord,
   LanguageCode,
   RelationshipMeterValue,
+  StoryCharacter,
   StoryDefinition,
   StoryMemoryRecord,
   StoryProgressRecord,
@@ -75,6 +87,10 @@ function LeadersStoriesShell() {
   const [adminDashboardOpen, setAdminDashboardOpen] = useState(false);
 
   const [customStories, setCustomStories] = useState<StoryDefinition[]>([]);
+  const [customCharactersMap, setCustomCharactersMap] = useState<CustomCharactersMap>(() =>
+    loadCustomCharactersMap(null)
+  );
+  const [yoursOpen, setYoursOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<MainTab>('home');
   const [selectedStory, setSelectedStory] = useState<StoryDefinition | null>(null);
   const [activeChatStory, setActiveChatStory] = useState<StoryDefinition | null>(null);
@@ -90,6 +106,7 @@ function LeadersStoriesShell() {
     hasChat: false,
     hasDetail: false,
     hasAuth: false,
+    hasYours: false,
     pushedHistoryDepth: 0,
   });
 
@@ -98,7 +115,8 @@ function LeadersStoriesShell() {
     overlayStateRef.current.hasChat = Boolean(activeChatStory);
     overlayStateRef.current.hasDetail = Boolean(selectedStory);
     overlayStateRef.current.hasAuth = authModalOpen;
-  }, [adminDashboardOpen, activeChatStory, selectedStory, authModalOpen]);
+    overlayStateRef.current.hasYours = yoursOpen;
+  }, [adminDashboardOpen, activeChatStory, selectedStory, authModalOpen, yoursOpen]);
 
   useEffect(() => {
     if (import.meta.env.PROD) {
@@ -229,6 +247,10 @@ function LeadersStoriesShell() {
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (fbUser) => {
       setUser(fbUser);
+      setCustomCharactersMap(loadCustomCharactersMap(fbUser?.uid));
+      if (fbUser && fbUser.emailVerified) {
+        setRestoringCloud(true);
+      }
       setAuthReady(true);
       void loadCloudCatalogAndUserData(fbUser, { silent: false });
       void refreshAppConfig();
@@ -250,6 +272,8 @@ function LeadersStoriesShell() {
       } else if (st.hasAuth) {
         setAuthModalOpen(false);
         setPendingActionStory(null);
+      } else if (st.hasYours) {
+        setYoursOpen(false);
       } else if (st.hasAdminDashboard) {
         setAdminDashboardOpen(false);
       }
@@ -273,12 +297,56 @@ function LeadersStoriesShell() {
 
   const allStories = useMemo(() => {
     const mergedMap = new Map<string, StoryDefinition>();
-    STORIES_CATALOG.forEach((s) => mergedMap.set(s.id, s));
-    customStories.forEach((s) => mergedMap.set(s.id, s));
+    STORIES_CATALOG.forEach((s) =>
+      mergedMap.set(s.id, mergeStoryWithCustomCharacters(s, customCharactersMap))
+    );
+    customStories.forEach((s) =>
+      mergedMap.set(s.id, mergeStoryWithCustomCharacters(s, customCharactersMap))
+    );
     return Array.from(mergedMap.values());
-  }, [customStories]);
+  }, [customStories, customCharactersMap]);
+
+  const yoursStories = useMemo(() => YOURS_COMPANIONS, []);
+
+  const allPlayableStories = useMemo(
+    () => [...allStories, ...yoursStories],
+    [allStories, yoursStories]
+  );
+
+  const resolvedSelectedStory = useMemo(
+    () =>
+      selectedStory
+        ? allPlayableStories.find((s) => s.id === selectedStory.id) || selectedStory
+        : null,
+    [selectedStory, allPlayableStories]
+  );
+
+  const resolvedActiveChatStory = useMemo(
+    () =>
+      activeChatStory
+        ? allPlayableStories.find((s) => s.id === activeChatStory.id) || activeChatStory
+        : null,
+    [activeChatStory, allPlayableStories]
+  );
+
+  const handleAddCharacter = useCallback(
+    (storyId: string, character: Omit<StoryCharacter, 'id' | 'isCustom'>) => {
+      const updated = addCustomCharacterToMap(user?.uid, storyId, character);
+      setCustomCharactersMap(updated);
+    },
+    [user?.uid]
+  );
+
+  const handleRemoveCharacter = useCallback(
+    (storyId: string, characterId: string) => {
+      const updated = removeCustomCharacterFromMap(user?.uid, storyId, characterId);
+      setCustomCharactersMap(updated);
+    },
+    [user?.uid]
+  );
 
   const favoriteIds = useMemo(() => new Set(favorites.map((f) => f.storyId)), [favorites]);
+  const activeChatIds = useMemo(() => new Set(conversations.map((c) => c.storyId)), [conversations]);
 
   const handleToggleFavorite = useCallback(
     async (story: StoryDefinition) => {
@@ -411,23 +479,14 @@ function LeadersStoriesShell() {
     [user?.uid]
   );
 
-  // Loading state while auth boots or user's cloud data is restoring after login/reinstall
+  // Single unified Kavana-style loading screen only while restoring session/chats
   if (!authReady || restoringCloud) {
     return (
-      <div className="min-h-dvh bg-[var(--bg-canvas)] text-[var(--text-primary)] flex flex-col items-center justify-center p-6 text-center space-y-4">
-        <div className="font-editorial text-2xl font-bold tracking-tight">
-          {appSettings.appName}
-        </div>
-        <div
-          className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin"
-          style={{ borderColor: 'var(--app-accent)', borderTopColor: 'transparent' }}
-        />
-        <p className="text-xs text-zinc-500 dark:text-zinc-400">
-          {restoringCloud
-            ? 'Restoring your chats, story progress, and relationships...'
-            : 'Loading your story world...'}
-        </p>
-      </div>
+      <LoadingSplashScreen
+        appName={appSettings.appName}
+        logoUrl={appSettings.logoUrl}
+        statusMessage="Restoring your chats & stories..."
+      />
     );
   }
 
@@ -558,16 +617,16 @@ function LeadersStoriesShell() {
   }
 
   // Active Interactive Multi-Character Chat Screen
-  if (activeChatStory && user && user.emailVerified) {
+  if (resolvedActiveChatStory && user && user.emailVerified) {
     return (
       <StoryChatScreen
-        key={activeChatStory.id}
-        story={activeChatStory}
+        key={resolvedActiveChatStory.id}
+        story={resolvedActiveChatStory}
         user={user}
         preferredLanguage={preferredLanguage}
-        existingProgress={progressMap[activeChatStory.id]}
-        existingMeters={relationshipsMap[activeChatStory.id]}
-        existingMemories={memoriesMap[activeChatStory.id] || []}
+        existingProgress={progressMap[resolvedActiveChatStory.id]}
+        existingMeters={relationshipsMap[resolvedActiveChatStory.id]}
+        existingMemories={memoriesMap[resolvedActiveChatStory.id] || []}
         enableVoiceInput={appSettings.enableVoiceInput}
         enableAiSuggestions={appSettings.enableAiSuggestions}
         onBack={() => closeTopOverlay(() => setActiveChatStory(null))}
@@ -580,20 +639,41 @@ function LeadersStoriesShell() {
         }}
         onLocalTurnSync={handleLocalTurnSync}
         onDataUpdated={() => loadCloudCatalogAndUserData(user, { silent: true })}
+        onAddCharacter={handleAddCharacter}
+        onRemoveCharacter={handleRemoveCharacter}
       />
     );
   }
 
   // Story Detail Screen
-  if (selectedStory) {
+  if (resolvedSelectedStory) {
     return (
       <StoryDetailModal
-        story={selectedStory}
-        isFavorite={favoriteIds.has(selectedStory.id)}
-        hasExistingChat={conversations.some((c) => c.storyId === selectedStory.id)}
+        story={resolvedSelectedStory}
+        isFavorite={favoriteIds.has(resolvedSelectedStory.id)}
+        hasExistingChat={conversations.some((c) => c.storyId === resolvedSelectedStory.id)}
         onBack={() => closeTopOverlay(() => setSelectedStory(null))}
         onToggleFavorite={(st) => void handleToggleFavorite(st)}
         onStartChat={handleStartChat}
+        onAddCharacter={handleAddCharacter}
+        onRemoveCharacter={handleRemoveCharacter}
+      />
+    );
+  }
+
+  // Dedicated "Yours" Companions Overlay
+  if (yoursOpen) {
+    return (
+      <YoursModal
+        companions={yoursStories}
+        favoriteIds={favoriteIds}
+        activeChatIds={activeChatIds}
+        onClose={() => closeTopOverlay(() => setYoursOpen(false))}
+        onStartChat={(girl) => {
+          setYoursOpen(false);
+          handleStartChat(girl);
+        }}
+        onToggleFavorite={(girl) => void handleToggleFavorite(girl)}
       />
     );
   }
@@ -625,6 +705,7 @@ function LeadersStoriesShell() {
       {activeTab === 'home' && (
         <HomeView
           stories={allStories}
+          yoursCompanions={yoursStories}
           favoriteIds={favoriteIds}
           conversations={conversations}
           userDisplayName={profile?.username || user?.displayName || user?.email || undefined}
@@ -655,7 +736,7 @@ function LeadersStoriesShell() {
       {activeTab === 'chats' && (
         <ChatsView
           isSignedIn={Boolean(user && user.emailVerified)}
-          stories={allStories}
+          stories={allPlayableStories}
           conversations={conversations}
           progressMap={progressMap}
           appContent={appContent}
@@ -673,7 +754,7 @@ function LeadersStoriesShell() {
           user={user}
           profile={profile}
           preferredLanguage={preferredLanguage}
-          stories={allStories}
+          stories={allPlayableStories}
           favorites={favorites}
           conversations={conversations}
           progressMap={progressMap}
@@ -700,6 +781,20 @@ function LeadersStoriesShell() {
           }}
         />
       )}
+
+      {/* Floating Blue Heart CTA Button labeled "Yours" */}
+      <button
+        type="button"
+        onClick={() => {
+          pushOverlayHistory('yours');
+          setYoursOpen(true);
+        }}
+        aria-label="Open Yours personal companions"
+        className="fixed bottom-20 right-4 z-40 min-h-[46px] px-4 py-2 rounded-full bg-gradient-to-br from-[#1E40AF] via-[#2563EB] to-[#0284C7] hover:brightness-110 border border-sky-300/35 text-white shadow-[0_10px_24px_rgba(29,78,216,0.42)] flex items-center gap-2 transition-transform active:scale-95"
+      >
+        <Heart className="w-4 h-4 fill-white text-white shrink-0" />
+        <span className="font-display text-sm font-bold tracking-wide">Yours</span>
+      </button>
 
       {/* Fixed 4-Tab Bottom Navigation (Free Experience — No Store/Coins/VIP) */}
       <nav

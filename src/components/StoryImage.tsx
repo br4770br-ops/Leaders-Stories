@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { BookOpen } from 'lucide-react';
+import type { StoryMediaFraming } from '../types/story';
+
+const FRAMING_CLASSES: Record<StoryMediaFraming, string> = {
+  editorial: 'object-cover object-top contrast-[1.04] saturate-[1.06]',
+  closeup: 'object-cover object-top scale-[1.24] origin-top contrast-[1.07] saturate-[1.08]',
+  warm: 'object-cover object-[50%_12%] scale-[1.12] origin-top brightness-[1.04] contrast-[1.08] saturate-[1.18] sepia-[0.08]',
+  sapphire: 'object-cover object-[50%_18%] scale-[1.16] origin-[50%_15%] brightness-[0.95] contrast-[1.12] saturate-[1.03] hue-rotate-[-6deg]',
+};
 
 interface StoryImageProps {
   src?: string;
@@ -7,6 +15,7 @@ interface StoryImageProps {
   className?: string;
   fallbackTitle?: string;
   loading?: 'lazy' | 'eager';
+  framing?: StoryMediaFraming;
 }
 
 export const StoryImage: React.FC<StoryImageProps> = React.memo(({
@@ -15,6 +24,7 @@ export const StoryImage: React.FC<StoryImageProps> = React.memo(({
   className = '',
   fallbackTitle,
   loading = 'lazy',
+  framing,
 }) => {
   const [failed, setFailed] = useState(false);
 
@@ -39,6 +49,8 @@ export const StoryImage: React.FC<StoryImageProps> = React.memo(({
     );
   }
 
+  const framingClass = framing ? FRAMING_CLASSES[framing] : '';
+
   return (
     <img
       src={src}
@@ -47,7 +59,7 @@ export const StoryImage: React.FC<StoryImageProps> = React.memo(({
       decoding="async"
       referrerPolicy="no-referrer"
       onError={() => setFailed(true)}
-      className={className}
+      className={`${className} ${framingClass}`.trim()}
     />
   );
 });

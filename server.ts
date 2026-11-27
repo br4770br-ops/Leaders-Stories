@@ -376,9 +376,11 @@ interface StoryTurnBody {
     about?: string;
     setting?: string;
     tags?: string[];
+    isYoursCompanion?: boolean;
     characters?: {
       name: string;
       age?: string;
+      gender?: string;
       role: string;
       personality: string;
       speakingStyle: string;
@@ -432,7 +434,7 @@ function matchCastMember(rawName: string | undefined, castNames: string[]): stri
   if (firstToken && firstToken.length >= 2) {
     const partial = castNames.find((c) => {
       const cLower = c.toLowerCase();
-      return cLower === firstToken || cLower.startsWith(`${firstToken} `) || cLower.includes(lower);
+      return cLower === firstToken || cLower.startsWith(`${firstToken} `) || lower.startsWith(`${cLower} `);
     });
     if (partial) return partial;
   }
@@ -559,6 +561,7 @@ function enforceTurnSpeakerRules(beats: CleanStoryBeat[], castNames: string[]): 
 
 function buildStoryPromptParts(body: StoryTurnBody) {
   const story = body?.story;
+  const isYoursCompanion = Boolean(story?.isYoursCompanion);
   const mode: 'reply' | 'continue' | 'regenerate' =
     body?.mode === 'continue' || body?.mode === 'regenerate' ? body.mode : 'reply';
   const userMessage = sanitizeText(body?.userMessage, 2000);
@@ -566,7 +569,8 @@ function buildStoryPromptParts(body: StoryTurnBody) {
   const currentScene = sanitizeText(body?.currentScene, 300);
   const sceneIndex = Number.isFinite(body?.sceneIndex) ? Number(body.sceneIndex) : 0;
 
-  const characters = Array.isArray(story?.characters) ? story.characters.slice(0, 6) : [];
+  const rawCharacters = Array.isArray(story?.characters) ? story.characters.slice(0, 8) : [];
+  const characters = isYoursCompanion ? rawCharacters.slice(0, 1) : rawCharacters;
   const meters = Array.isArray(body.relationshipMeters) ? body.relationshipMeters.slice(0, 6) : [];
   const memories = Array.isArray(body.memories) ? body.memories.slice(-4) : [];
   const recentMessages = Array.isArray(body.recentMessages) ? body.recentMessages.slice(-5) : [];
@@ -589,7 +593,7 @@ function buildStoryPromptParts(body: StoryTurnBody) {
   const characterBlock = characters
     .map(
       (c) =>
-        `- ${c.name}${c.age ? ` (${c.age})` : ''} [${c.role}]: ${sanitizeText(c.personality, 130)} Style: ${sanitizeText(c.speakingStyle, 90)}. Relation: ${sanitizeText(c.relationshipToUser, 90)}.`
+        `- ${c.name}${c.age || c.gender ? ` (${[c.gender, c.age ? `Age ${c.age}` : ''].filter(Boolean).join(', ')})` : ''} [${c.role}]: ${sanitizeText(c.personality, 130)} Style: ${sanitizeText(c.speakingStyle, 90)}. Relation: ${sanitizeText(c.relationshipToUser, 90)}.`
     )
     .join('\n');
 
@@ -602,19 +606,29 @@ function buildStoryPromptParts(body: StoryTurnBody) {
   const castNames = characters.map((c) => sanitizeText(c.name, 60)).filter(Boolean);
   const turnNumber = Math.max(1, sceneIndex + 1);
 
-  const systemInstruction = [
-    `Interactive roleplay director for "${story?.title}" (${(story?.tags || []).slice(0, 4).join(', ')}).`,
-    `Setting: ${sanitizeText(story?.setting, 220)}. Premise: ${sanitizeText(story?.about, 420)}`,
-    `CAST:\n${characterBlock}`,
-    `RULES:\n1. Stay strictly in-character; never repeat the opening or speak for the user.\n2. CONCISE & FAST PACING: Normally 1 crisp 'narration' beat (1-2 vivid sentences) + 1 expressive 'dialogue' beat for ONE speaking character. Only add a 2nd character's dialogue beat when genuinely essential. NEVER let the same character have 2 dialogue beats in one turn!\n3. SPEAKER ACCURACY: On 'dialogue' beats, "speakerName" MUST be the exact name from CAST (${castNames.join(', ') || 'Character'}); on 'narration' beats set "speakerName" to "Narrator". NEVER put "Name:" inside dialogue "text".\n4. Adjust meterChanges (-8..+8) gradually; set newMemory.shouldSave=true only for major promises/reveals.\n5. Keep storyChoices=[] unless at a major turning point (max 2 short choices).\n6. UNLIMITED ONGOING STORY (Turn ${turnNumber}): NEVER end or conclude the story.`,
-    getLanguageInstruction(language),
-  ].join('\n\n');
+  const systemInstruction = isYoursCompanion
+    ? [
+        `Private 1-on-1 intimate companion roleplay as "${castNames[0] || story?.title}" ONLY.`,
+        `Setting: ${sanitizeText(story?.setting, 220)}. Persona: ${sanitizeText(story?.about, 420)}`,
+        `COMPANION:\n${characterBlock}`,
+        `RULES:\n1. STRICTLY ONE-ON-ONE: Only ${castNames[0] || story?.title} and the user exist in this private chat. NEVER introduce, name, or let any second character, friend, waiter, driver, or third person speak or interrupt.\n2. Respond naturally with 1 short sensory 'narration' beat + 1 deeply expressive 'dialogue' beat spoken ONLY by ${castNames[0] || story?.title}. Never speak for the user.\n3. Set "speakerName" to "${castNames[0] || story?.title}" on dialogue and "Narrator" on narration. NEVER put "Name:" inside dialogue "text".\n4. Adjust meterChanges (-8..+8) smoothly; save a memory only for meaningful personal moments.\n5. Keep storyChoices=[] unless offering 2 natural romantic/flirty next replies.\n6. ONGOING COMPANIONSHIP (Turn ${turnNumber}): Never end or cut off the relationship.`,
+        getLanguageInstruction(language),
+      ].join('\n\n')
+    : [
+        `Interactive roleplay director for "${story?.title}" (${(story?.tags || []).slice(0, 4).join(', ')}).`,
+        `Setting: ${sanitizeText(story?.setting, 220)}. Premise: ${sanitizeText(story?.about, 420)}`,
+        `CAST:\n${characterBlock}`,
+        `RULES:\n1. Stay strictly in-character; never repeat the opening or speak for the user.\n2. CONCISE & FAST PACING: Normally 1 crisp 'narration' beat (1-2 vivid sentences) + 1 expressive 'dialogue' beat (or 2 distinct character dialogue beats when introducing or interacting with a second character). NEVER let the same character have 2 dialogue beats in one turn!\n3. SPEAKER ACCURACY & AUTO-SPAWNING NEW CHARACTERS: For existing cast, "speakerName" MUST match CAST (${castNames.join(', ') || 'Character'}). Whenever the user mentions, greets, calls, or introduces someone NEW who is not yet in CAST (for example: "hi mom", "milo mere bhai Rohan se", "waiter", "papa", "boss"), IMMEDIATELY bring that new character into the scene! Return their profile in "newCharacters" (clear display name like "Mom" or "Rohan", age, gender 'Female'|'Male'|'Non-binary', role, personality, speakingStyle, relationshipToUser), use that exact same "name" as "speakerName" on their dialogue beat in this turn, and continue the story smoothly alongside existing cast.\n4. Set "speakerName" to "Narrator" on narration beats. NEVER put "Name:" inside dialogue "text".\n5. Adjust meterChanges (-8..+8) gradually; set newMemory.shouldSave=true only for major promises/reveals.\n6. Keep storyChoices=[] unless at a major turning point (max 2 short choices).\n7. UNLIMITED ONGOING STORY (Turn ${turnNumber}): NEVER end or conclude the story.`,
+        getLanguageInstruction(language),
+      ].join('\n\n');
 
   const actionPrompt =
     mode === 'continue'
-      ? `ACTION: Auto-advance (Fast-Forward). User stayed silent—continue immediately from the last beat with 1 vivid character reaction (2 distinct characters only if urgently needed), without speaking for the user.`
+      ? isYoursCompanion
+        ? `ACTION: Auto-advance gently. Continue the private 1-on-1 moment immediately as ${castNames[0] || story?.title} without speaking for the user or introducing anyone else.`
+        : `ACTION: Auto-advance (Fast-Forward). User stayed silent—continue immediately from the last beat with 1 vivid character reaction (2 distinct characters only if urgently needed), without speaking for the user.`
       : mode === 'regenerate'
-        ? `${userMessage ? `USER: "${userMessage}"\n` : ''}ACTION: Regenerate a distinctly different reaction, dialogue twist, or dramatic angle for this moment.`
+        ? `${userMessage ? `USER: "${userMessage}"\n` : ''}ACTION: Regenerate a distinctly different reaction, dialogue twist, or emotional angle for this moment.`
         : `USER: "${userMessage}"`;
 
   const prompt = [
@@ -629,66 +643,90 @@ function buildStoryPromptParts(body: StoryTurnBody) {
     userMessage,
     currentScene,
     castNames,
+    isYoursCompanion,
     allowEnding: false,
     systemInstruction,
     prompt,
   };
 }
 
-function buildStoryTurnSchema(castNames: string[]) {
+function buildStoryTurnSchema(castNames: string[], isYoursCompanion = false) {
   const speakerEnum = Array.from(new Set(['Narrator', ...castNames]));
-  return {
-    type: Type.OBJECT,
-    properties: {
-      beats: {
-        type: Type.ARRAY,
-        minItems: '1',
-        items: {
-          type: Type.OBJECT,
-          properties: {
-            type: { type: Type.STRING, format: 'enum', enum: ['narration', 'dialogue'] },
-            speakerName:
-              castNames.length > 0
-                ? { type: Type.STRING, format: 'enum', enum: speakerEnum }
-                : { type: Type.STRING },
-            text: { type: Type.STRING },
-          },
-          propertyOrdering: ['type', 'speakerName', 'text'],
-          required: ['type', 'speakerName', 'text'],
-        },
-      },
-      meterChanges: {
-        type: Type.ARRAY,
-        items: {
-          type: Type.OBJECT,
-          properties: {
-            id: { type: Type.STRING },
-            delta: { type: Type.INTEGER },
-            reason: { type: Type.STRING },
-          },
-          required: ['id', 'delta'],
-        },
-      },
-      newScene: { type: Type.STRING },
-      newMemory: {
+  const baseProperties: Record<string, unknown> = {
+    beats: {
+      type: Type.ARRAY,
+      minItems: '1',
+      items: {
         type: Type.OBJECT,
         properties: {
-          shouldSave: { type: Type.BOOLEAN },
-          summary: { type: Type.STRING },
-          importance: { type: Type.INTEGER },
-          charactersInvolved: {
-            type: Type.ARRAY,
-            items: { type: Type.STRING },
-          },
+          type: { type: Type.STRING, format: 'enum', enum: ['narration', 'dialogue'] },
+          speakerName:
+            isYoursCompanion && castNames.length > 0
+              ? { type: Type.STRING, format: 'enum', enum: speakerEnum }
+              : { type: Type.STRING },
+          text: { type: Type.STRING },
         },
-        required: ['shouldSave'],
-      },
-      storyChoices: {
-        type: Type.ARRAY,
-        items: { type: Type.STRING },
+        propertyOrdering: ['type', 'speakerName', 'text'],
+        required: ['type', 'speakerName', 'text'],
       },
     },
-    propertyOrdering: ['beats', 'meterChanges', 'newScene', 'newMemory', 'storyChoices'],
+    meterChanges: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          id: { type: Type.STRING },
+          delta: { type: Type.INTEGER },
+          reason: { type: Type.STRING },
+        },
+        required: ['id', 'delta'],
+      },
+    },
+    newScene: { type: Type.STRING },
+    newMemory: {
+      type: Type.OBJECT,
+      properties: {
+        shouldSave: { type: Type.BOOLEAN },
+        summary: { type: Type.STRING },
+        importance: { type: Type.INTEGER },
+        charactersInvolved: {
+          type: Type.ARRAY,
+          items: { type: Type.STRING },
+        },
+      },
+      required: ['shouldSave'],
+    },
+    storyChoices: {
+      type: Type.ARRAY,
+      items: { type: Type.STRING },
+    },
+  };
+
+  if (!isYoursCompanion) {
+    baseProperties.newCharacters = {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          name: { type: Type.STRING },
+          age: { type: Type.STRING },
+          gender: { type: Type.STRING, format: 'enum', enum: ['Female', 'Male', 'Non-binary'] },
+          role: { type: Type.STRING },
+          personality: { type: Type.STRING },
+          speakingStyle: { type: Type.STRING },
+          relationshipToUser: { type: Type.STRING },
+        },
+        required: ['name', 'gender', 'role', 'personality', 'speakingStyle', 'relationshipToUser'],
+      },
+    };
+  }
+
+  return {
+    type: Type.OBJECT,
+    properties: baseProperties,
+    propertyOrdering: isYoursCompanion
+      ? ['beats', 'meterChanges', 'newScene', 'newMemory', 'storyChoices']
+      : ['beats', 'newCharacters', 'meterChanges', 'newScene', 'newMemory', 'storyChoices'],
     required: ['beats', 'meterChanges', 'newScene', 'storyChoices'],
   };
 }
@@ -919,13 +957,54 @@ function markModelCooldownIfTransient(model: string, err: unknown) {
   }
 }
 
+interface AutoGeneratedServerCharacter {
+  name: string;
+  age: string;
+  gender: 'Female' | 'Male' | 'Non-binary';
+  role: string;
+  personality: string;
+  speakingStyle: string;
+  relationshipToUser: string;
+}
+
+function inferServerCharacterGender(rawGender: unknown, textHint: string): 'Female' | 'Male' | 'Non-binary' {
+  const g = typeof rawGender === 'string' ? rawGender.trim().toLowerCase() : '';
+  if (g === 'female' || g === 'f' || g === 'woman') return 'Female';
+  if (g === 'male' || g === 'm' || g === 'man') return 'Male';
+  if (g === 'non-binary' || g === 'nonbinary') return 'Non-binary';
+  const lower = textHint.toLowerCase();
+  if (/(?:^|[^a-z])(mom|mother|mummy|maa|ammi|sister|didi|behen|aunt|aunty|chachi|maasi|bua|dadi|nani|bhabhi|saas|girl|girlfriend|wife|bride|queen|princess|lady|madam)(?:$|[^a-z])/i.test(lower)) {
+    return 'Female';
+  }
+  if (/(?:^|[^a-z])(dad|papa|father|abbu|brother|bhaiya|bhai|chacha|mama|tau|dada|nana|uncle|sasur|boy|boyfriend|husband|groom|king|prince|sir|waiter|driver|watchman)(?:$|[^a-z])/i.test(lower)) {
+    return 'Male';
+  }
+  return 'Female';
+}
+
+function isCastMatchExactOrPrefix(name: string, castNames: string[]): boolean {
+  const lower = name.trim().toLowerCase();
+  if (!lower) return true;
+  const firstToken = lower.split(/\s+/)[0];
+  return castNames.some((c) => {
+    const cLower = c.toLowerCase();
+    return (
+      cLower === lower ||
+      cLower === firstToken ||
+      cLower.startsWith(`${firstToken} `) ||
+      lower.startsWith(`${cLower} `)
+    );
+  });
+}
+
 function normalizeStoryTurnPayload(
   rawText: string,
   fallbackScene: string,
   salvagedBeats: CleanStoryBeat[] = [],
-  options?: { allowEnding?: boolean; castNames?: string[] }
+  options?: { allowEnding?: boolean; castNames?: string[]; isYoursCompanion?: boolean }
 ) {
   const castNames = options?.castNames || [];
+  const isYoursCompanion = Boolean(options?.isYoursCompanion);
   const parsed = extractJsonObject(rawText);
   let safeBeats = Array.isArray(parsed.beats)
     ? parsed.beats
@@ -948,8 +1027,82 @@ function normalizeStoryTurnPayload(
 
   safeBeats = enforceTurnSpeakerRules(safeBeats, castNames);
 
+  const newCharacters: AutoGeneratedServerCharacter[] = [];
+  if (!isYoursCompanion) {
+    const seenNew = new Set<string>();
+    const rawNewChars = Array.isArray(parsed.newCharacters) ? parsed.newCharacters : [];
+    for (const entry of rawNewChars) {
+      if (!entry || typeof entry !== 'object') continue;
+      const item = entry as Record<string, unknown>;
+      const name = sanitizeText(item.name, 50);
+      const lower = name.toLowerCase();
+      if (
+        !name ||
+        lower === 'narrator' ||
+        lower === 'user' ||
+        lower === 'you' ||
+        lower === 'story' ||
+        lower === 'character' ||
+        seenNew.has(lower) ||
+        isCastMatchExactOrPrefix(name, castNames)
+      ) {
+        continue;
+      }
+      seenNew.add(lower);
+      const role = sanitizeText(item.role, 80) || 'Story Character';
+      const rel = sanitizeText(item.relationshipToUser, 90) || 'Entered the scene';
+      const gender = inferServerCharacterGender(item.gender, `${name} ${role} ${rel}`);
+      newCharacters.push({
+        name,
+        age: sanitizeText(item.age, 16) || (gender === 'Female' && /(mom|mother|mummy|maa|aunty|didi)/i.test(name) ? '42' : '24'),
+        gender,
+        role,
+        personality: sanitizeText(item.personality, 180) || 'Expressive, grounded, and reactive to the moment.',
+        speakingStyle: sanitizeText(item.speakingStyle, 140) || 'Natural, conversational dialogue fitting their role.',
+        relationshipToUser: rel,
+      });
+    }
+
+    // Guarantee portrait & character metadata if AI introduced a new speaker directly inside beats
+    for (const beat of safeBeats) {
+      if (beat.type !== 'dialogue' || !beat.speakerName) continue;
+      const speaker = beat.speakerName.trim();
+      const lower = speaker.toLowerCase();
+      if (
+        !speaker ||
+        lower === 'narrator' ||
+        lower === 'user' ||
+        lower === 'you' ||
+        lower === 'character' ||
+        seenNew.has(lower) ||
+        isCastMatchExactOrPrefix(speaker, castNames)
+      ) {
+        continue;
+      }
+      seenNew.add(lower);
+      const gender = inferServerCharacterGender(undefined, speaker);
+      const isElderMother = /(mom|mother|mummy|maa|ammi)/i.test(speaker);
+      const isElderFather = /(dad|papa|father|abbu)/i.test(speaker);
+      newCharacters.push({
+        name: speaker,
+        age: isElderMother || isElderFather ? '44' : '24',
+        gender,
+        role: isElderMother ? 'Protective Mother' : isElderFather ? 'Father' : 'Scene Companion',
+        personality: 'Warm, observant, and immediately responsive to the conversation.',
+        speakingStyle: 'Direct, emotionally expressive everyday speech.',
+        relationshipToUser: isElderMother ? 'Your Mother' : isElderFather ? 'Your Father' : 'Joined the scene',
+      });
+    }
+  } else if (castNames.length > 0) {
+    // Strictly lock dialogue speaker to companion in 1-on-1 Yours mode
+    safeBeats = safeBeats.map((b) =>
+      b.type === 'dialogue' ? { ...b, speakerName: castNames[0] } : b
+    );
+  }
+
   return {
     beats: safeBeats,
+    newCharacters,
     meterChanges: Array.isArray(parsed.meterChanges) ? parsed.meterChanges : [],
     newScene: sanitizeText(parsed.newScene, 160) || fallbackScene,
     newMemory:
@@ -1251,9 +1404,17 @@ async function startServer() {
 
   app.post('/api/story/turn-stream', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
     const body = req.body as StoryTurnBody;
-    const { mode, userMessage, currentScene, castNames, allowEnding, systemInstruction, prompt } =
-      buildStoryPromptParts(body);
-    const responseSchema = buildStoryTurnSchema(castNames);
+    const {
+      mode,
+      userMessage,
+      currentScene,
+      castNames,
+      isYoursCompanion,
+      allowEnding,
+      systemInstruction,
+      prompt,
+    } = buildStoryPromptParts(body);
+    const responseSchema = buildStoryTurnSchema(castNames, isYoursCompanion);
 
     if (!body?.story?.title || (mode === 'reply' && !userMessage)) {
       res.status(400).json({ error: 'Story context and user message are required.' });
@@ -1381,7 +1542,7 @@ async function startServer() {
               extractor.getFullText(),
               currentScene,
               extractor.getExtractedBeats(),
-              { allowEnding, castNames }
+              { allowEnding, castNames, isYoursCompanion }
             );
             if (payload.beats.length === 0) {
               throw new Error('Empty story response from model.');
@@ -1411,6 +1572,7 @@ async function startServer() {
           const payload = normalizeStoryTurnPayload(response.text || '{}', currentScene, [], {
             allowEnding,
             castNames,
+            isYoursCompanion,
           });
           if (payload.beats.length === 0) {
             throw new Error('Empty story response from model.');
@@ -1434,7 +1596,7 @@ async function startServer() {
               extractor.getFullText(),
               currentScene,
               salvaged,
-              { allowEnding, castNames }
+              { allowEnding, castNames, isYoursCompanion }
             );
             if (partialPayload.beats.length > 0) {
               writeEvent('done', partialPayload);
@@ -1491,9 +1653,17 @@ async function startServer() {
 
     try {
       const body = req.body as StoryTurnBody;
-      const { mode, userMessage, currentScene, castNames, allowEnding, systemInstruction, prompt } =
-        buildStoryPromptParts(body);
-      const responseSchema = buildStoryTurnSchema(castNames);
+      const {
+        mode,
+        userMessage,
+        currentScene,
+        castNames,
+        isYoursCompanion,
+        allowEnding,
+        systemInstruction,
+        prompt,
+      } = buildStoryPromptParts(body);
+      const responseSchema = buildStoryTurnSchema(castNames, isYoursCompanion);
 
       if (!body?.story?.title || (mode === 'reply' && !userMessage)) {
         res.status(400).json({ error: 'Story context and user message are required.' });
@@ -1532,6 +1702,7 @@ async function startServer() {
           const payload = normalizeStoryTurnPayload(response.text || '{}', currentScene, [], {
             allowEnding,
             castNames,
+            isYoursCompanion,
           });
           if (payload.beats.length === 0) {
             throw new Error('Empty story response from model.');

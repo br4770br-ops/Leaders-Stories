@@ -24,12 +24,14 @@ export interface StoryCharacter {
   id: string;
   name: string;
   age?: string;
+  gender?: string;
   role: string;
   personality: string;
   speakingStyle: string;
   relationshipToUser: string;
   portrait: string;
   accentColor?: string;
+  isCustom?: boolean;
 }
 
 export interface RelationshipMeterDef {
@@ -52,6 +54,15 @@ export interface StoryBeat {
   text: string;
 }
 
+export type StoryMediaFraming = 'editorial' | 'closeup' | 'warm' | 'sapphire';
+
+export interface StoryMediaItem {
+  id: string;
+  url: string;
+  caption: string;
+  framing?: StoryMediaFraming;
+}
+
 export interface StoryDefinition {
   id: string;
   title: string;
@@ -69,13 +80,12 @@ export interface StoryDefinition {
   isNew?: boolean;
   isByFans?: boolean;
   isTrending?: boolean;
+  isYoursCompanion?: boolean;
+  companionMood?: string;
+  companionTraits?: string[];
   coverImage: string;
   bannerImage?: string;
-  mediaGallery: {
-    id: string;
-    url: string;
-    caption: string;
-  }[];
+  mediaGallery: StoryMediaItem[];
   setting: string;
   characters: StoryCharacter[];
   relationshipMeters: RelationshipMeterDef[];

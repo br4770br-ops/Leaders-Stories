@@ -1,11 +1,13 @@
 import React, { useEffect } from 'react';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
+import type { StoryMediaFraming } from '../types/story';
 import { StoryImage } from './StoryImage';
 
 interface MediaItem {
   id: string;
   url: string;
   caption: string;
+  framing?: StoryMediaFraming;
 }
 
 interface FullscreenGalleryModalProps {
@@ -72,13 +74,26 @@ export const FullscreenGalleryModal: React.FC<FullscreenGalleryModalProps> = ({
         )}
 
         <div className="max-w-3xl max-h-[78dvh] w-full flex items-center justify-center">
-          <StoryImage
-            src={current.url}
-            alt={current.caption}
-            fallbackTitle={current.caption}
-            loading="eager"
-            className="max-h-[76dvh] w-auto max-w-full rounded-2xl object-contain shadow-2xl"
-          />
+          {current.framing ? (
+            <div className="aspect-[3/4] h-[72dvh] max-h-[76dvh] max-w-full rounded-2xl overflow-hidden shadow-2xl border border-white/10">
+              <StoryImage
+                src={current.url}
+                alt={current.caption}
+                fallbackTitle={current.caption}
+                loading="eager"
+                framing={current.framing}
+                className="w-full h-full"
+              />
+            </div>
+          ) : (
+            <StoryImage
+              src={current.url}
+              alt={current.caption}
+              fallbackTitle={current.caption}
+              loading="eager"
+              className="max-h-[76dvh] w-auto max-w-full rounded-2xl object-contain shadow-2xl"
+            />
+          )}
         </div>
 
         {safeIndex < items.length - 1 && (
@@ -109,7 +124,8 @@ export const FullscreenGalleryModal: React.FC<FullscreenGalleryModalProps> = ({
                 <StoryImage
                   src={item.url}
                   alt={item.caption}
-                  className="w-full h-full object-cover"
+                  framing={item.framing}
+                  className="w-full h-full object-cover object-top"
                 />
               </button>
             ))}
