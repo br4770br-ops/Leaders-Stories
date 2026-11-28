@@ -195,6 +195,222 @@ export const STORIES_CATALOG: StoryDefinition[] = [
     ],
   },
   {
+    id: 'professor_secret_wife',
+    title: "My New College's Professor Is My Secret Wife",
+    tagline: 'An arranged marriage, a secret wife, and a college full of surprises.',
+    about:
+      'An arranged marriage, a secret wife, and a college full of surprises. Your college counselling just finished while your parents struggle quietly under mounting debt. Tonight they propose a match with 23-year-old Professor Zara—unaware of the secret bond about to turn your campus life upside down.',
+    primaryCategory: 'Romance',
+    categories: ['For You', 'New', 'Top 50', 'Romance', 'College', 'Drama'],
+    tags: ['Roleplay', 'Romance', 'Slow Burn'],
+    visualStyle: 'Realistic College Cinema',
+    rating: 4.8,
+    chatCountLabel: '46.8K',
+    chatCountNumeric: 46800,
+    rank: 2,
+    isFeatured: true,
+    isTrending: true,
+    isNew: true,
+    coverImage: '/src/assets/images/professor_secret_wife/cover_card.jpg',
+    bannerImage: '/src/assets/images/professor_secret_wife/banner_card.jpg',
+    mediaGallery: [
+      {
+        id: 'psw_1',
+        url: '/src/assets/images/professor_secret_wife/scene_study_clean.jpg',
+        caption: 'Raat ke 9 baje tumhari college counselling complete ho chuki thi—par ghar ki khamoshi mein ek bada faisla tumhara intezaar kar raha tha.',
+      },
+      {
+        id: 'psw_2',
+        url: '/src/assets/images/professor_secret_wife/scene_parents_bills.jpg',
+        caption: 'Karz aur bills ke bojh ne Father aur Mother ko bechain kar rakha tha.',
+      },
+      {
+        id: 'psw_3',
+        url: '/src/assets/images/professor_secret_wife/scene_parents_talk.jpg',
+        caption: 'Father aur Mother tumse 23 saal ki educated professor Zara ke rishte par haan kehne ki guzaarish karte hain.',
+      },
+      {
+        id: 'psw_4',
+        url: '/src/assets/images/professor_secret_wife/scene_wedding.jpg',
+        caption: 'Shaadi ke mandap mein laal jode mein baithi Zara aur tumhari zindagi ek raaz se jud jaati hai.',
+      },
+      {
+        id: 'psw_5',
+        url: '/src/assets/images/professor_secret_wife/scene_campus.jpg',
+        caption: 'Naye college ke pehle din campus mein kadam rakhte hi har taraf naye chehre aur naye raaz.',
+      },
+      {
+        id: 'psw_6',
+        url: '/src/assets/images/professor_secret_wife/zara_portrait.jpg',
+        caption: 'Black saree aur faculty ID card pehne Professor Zara—ghar par biwi, college mein sabse strict lecturer.',
+      },
+      {
+        id: 'psw_7',
+        url: '/src/assets/images/professor_secret_wife/scene_zara_shush.jpg',
+        caption: 'Cabin ke andar Zara ungli honthon par rakh kar ishaara karti hai: "Shh! Yahan main sirf tumhari Professor hoon."',
+      },
+      {
+        id: 'psw_8',
+        url: '/src/assets/images/professor_secret_wife/scene_friends.jpg',
+        caption: 'College ke naye dost campus mein hassi-mazaak kar rahe hain—par unhe sach ka koi andaaza nahi.',
+      },
+      {
+        id: 'psw_9',
+        url: '/src/assets/images/professor_secret_wife/scene_classroom_paper.jpg',
+        caption: 'Poori class ke saamne Professor Zara bilkul anjaan ban kar tumhe test sheet pakdaati hai.',
+      },
+      {
+        id: 'psw_10',
+        url: '/src/assets/images/professor_secret_wife/scene_aplus.jpg',
+        caption: 'Zara ki secret guidance aur raat ki mehnat ka nateeja—paper par chamakta hua A+.',
+      },
+      {
+        id: 'psw_11',
+        url: '/src/assets/images/professor_secret_wife/scene_zara_close.jpg',
+        caption: 'Darwaza band hote hi Zara ki nazrein aur lehja dono badal jaate hain—campus aur ghar ke beech ki deewar pighalne lagti hai.',
+      },
+      {
+        id: 'psw_12',
+        url: '/src/assets/images/professor_secret_wife/scene_dinner.jpg',
+        caption: 'Raat ko dinner table par chai aur kitaabon ke beech Zara muskura kar tumhe dekhti hai.',
+      },
+    ],
+    setting: 'Quiet family home dining table at 9:00 PM, leading into college halls and Zara’s faculty cabin',
+    characters: [
+      {
+        id: 'zara',
+        name: 'Zara',
+        age: '23',
+        gender: 'Female',
+        role: 'College Professor & Secret Arranged Wife',
+        personality: 'Composed, razor-sharp, deeply educated, strictly professional inside classrooms while hiding fierce warmth, quiet vulnerability, and growing affection at home.',
+        speakingStyle: 'Graceful, articulate Hinglish—calm authority in public, soft teasing honesty behind closed doors.',
+        relationshipToUser: 'Your 23-year-old arranged wife who secretly teaches at your new college',
+        portrait: '/src/assets/images/professor_secret_wife/zara_portrait.jpg',
+        accentColor: '#E5233D',
+      },
+      {
+        id: 'father',
+        name: 'Father',
+        age: '50',
+        gender: 'Male',
+        role: 'Your Worried Father',
+        personality: 'Dignified, exhausted by mounting debts and household bills, deeply protective of family honor, hopeful that this match brings stability.',
+        speakingStyle: 'Earnest, grounded, emotional Hinglish laced with quiet parental weight.',
+        relationshipToUser: 'Your father who asks you to consider marrying Zara to steady the family',
+        portrait: '/src/assets/images/professor_secret_wife/father_portrait.jpg',
+        accentColor: '#F59E0B',
+      },
+      {
+        id: 'mother',
+        name: 'Mother',
+        age: '46',
+        gender: 'Female',
+        role: 'Your Gentle Mother',
+        personality: 'Soft-spoken, caring, emotionally torn between protecting your college dreams and rescuing the home from financial crisis.',
+        speakingStyle: 'Warm, pleading, affectionate Hinglish.',
+        relationshipToUser: 'Your mother who gently begs you to say yes once for the family',
+        portrait: '/src/assets/images/professor_secret_wife/mother_portrait.jpg',
+        accentColor: '#38BDF8',
+      },
+    ],
+    relationshipMeters: [
+      { id: 'love', label: 'Secret Love', emoji: '💍', initialValue: 18, min: 0, max: 100, tone: 'love' },
+      { id: 'trust', label: 'Family Relief', emoji: '🏠', initialValue: 55, min: 0, max: 100, tone: 'trust' },
+      { id: 'secrecy', label: 'Campus Secrecy', emoji: '🤫', initialValue: 90, min: 0, max: 100, tone: 'trust' },
+    ],
+    openingScene: '9:00 PM Family Home — The Arranged Marriage Proposal',
+    playGuide: {
+      hinglish: 'Parents ke bharose aur apni college life ke beech ek raaz chhupa hai — Zara se shaadi ka faisla lo aur campus mein yeh secret sambhalo 💍🤫',
+      hindi: 'माता-पिता की उम्मीद और तुम्हारी कॉलेज लाइफ के बीच एक गहरा राज़ छिपा है — ज़ारा के रिश्ते और कॉलेज के इस सफ़र को संभालो 💍🤫',
+      english: 'Between family debt and your fresh college chapter lies Zara—say yes to the proposal and guard your secret marriage on campus 💍🤫',
+    },
+    openingBeats: {
+      hinglish: [
+        {
+          type: 'narration',
+          text: 'Raat ke 9 baj rahe the. Ghar mein khamoshi thi. Tumhari college counselling complete ho chuki thi, lekin tumhare parents karz aur financial problems se pareshan the.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Father',
+          text: 'Beta, humein tumse ek zaroori baat karni hai. Ek achha rishta aaya hai. Ladki 23 saal ki hai aur ek achhe college mein professor hai.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Mother',
+          text: 'Beta, hum jaante hain tum apne career par focus karna chahte ho, lekin hamari majboori bhi samjho. Hum tumhari shaadi karwana chahte hain. Uska naam Zara hai. Woh samajhdaar aur educated hai. Beta, hum chahte hain tum ek baar is rishte ke baare mein socho.',
+        },
+        {
+          type: 'narration',
+          text: 'Tumhare parents umeed bhari nazron se tumhara jawab intezaar karne lage. Unhe kya pata tha ki Zara aur tumhari zindagi ke beech ek aisa raaz chhupa hai, jo tumhari college life badal dega. Ab tum kya faisla loge?',
+        },
+      ],
+      hindi: [
+        {
+          type: 'narration',
+          text: 'रात के 9 बज रहे थे। घर में गहरी खामोशी थी। तुम्हारी कॉलेज काउंसलिंग पूरी हो चुकी थी, लेकिन तुम्हारे माता-पिता कर्ज़ और आर्थिक परेशानियों से जूझ रहे थे।',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Father',
+          text: 'बेटा, हमें तुमसे एक ज़रूरी बात करनी है। एक बहुत अच्छा रिश्ता आया है। लड़की 23 साल की है और एक अच्छे कॉलेज में प्रोफेसर है।',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Mother',
+          text: 'बेटा, हम जानते हैं तुम अपने करियर पर ध्यान देना चाहते हो, लेकिन हमारी मजबूरी भी समझो। हम तुम्हारी शादी करवाना चाहते हैं। उसका नाम ज़ारा है। वह समझदार और पढ़ी-लिखी है। बस एक बार इस रिश्ते के बारे में सोचो।',
+        },
+        {
+          type: 'narration',
+          text: 'तुम्हारे माता-पिता उम्मीद भरी निगाहों से तुम्हारे जवाब का इंतज़ार करने लगे। उन्हें क्या पता था कि ज़ारा और तुम्हारी ज़िंदगी के बीच एक ऐसा राज़ छिपा है जो तुम्हारी पूरी कॉलेज लाइफ बदल देगा। अब तुम क्या फ़ैसला लोगे?',
+        },
+      ],
+      english: [
+        {
+          type: 'narration',
+          text: 'It was 9:00 PM, and a heavy silence hung over the house. Your college counselling had just wrapped up, yet your parents were quietly drowning under debt and unpaid bills.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Father',
+          text: 'Son, we need to talk to you about something urgent. A good proposal has come for you. She is 23 years old and a professor at a reputed college.',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Mother',
+          text: 'We know you want to focus on your career, beta, but please understand our helplessness too. Her name is Zara—she is wise, kind, and well-educated. Just think about this marriage once for us.',
+        },
+        {
+          type: 'narration',
+          text: 'Your parents watched you with hopeful, weary eyes—completely unaware of the secret about to collide with Zara inside your very own college halls. What will you decide tonight?',
+        },
+      ],
+    },
+    initialChoices: {
+      hinglish: [
+        'Gehri saans lekar haan kaho: "Agar isse ghar ki tension kam hoti hai, toh main Zara se milne ko taiyaar hoon."',
+        'Mother ka haath thamo: "Karz ka bojh ab main bhi uthaunga—pehle Zara se ek baar baat kara dijiye."',
+        'Thoda hichkichate hue puchho: "Woh kis college mein padhati hain? Kya meri padhai chalti rahegi?"',
+      ],
+      hindi: [
+        'गहरी साँस लेकर कहो: "अगर इससे घर की परेशानी कम होती है, तो मैं ज़ारा से मिलने को तैयार हूँ।"',
+        'माँ का हाथ थामो: "कर्ज़ की चिंता छोड़िए, पहले मेरी ज़ारा से बात करा दीजिए।"',
+        'हिचकिचाते हुए पूछो: "वो किस कॉलेज में पढ़ाती हैं? क्या मेरी पढ़ाई जारी रहेगी?"',
+      ],
+      english: [
+        'Take a steady breath: "If this relieves our family’s burden, I’m ready to meet Zara."',
+        'Hold Mother’s hand gently: "You don’t have to carry this debt alone—let me talk to Zara first."',
+        'Ask carefully: "Which college does she teach at, and will I still be able to finish my degree?"',
+      ],
+    },
+    possibleEndings: [
+      'Secret Revealed — Proudly Together',
+      'Topper & Professor After Graduation',
+      'Double Life Kept Safe Till Finals',
+    ],
+  },
+  {
     id: 'time_traveller_mahabharat',
     title: 'Time Traveller in Mahabharat',
     tagline: 'Ek yug-chakra jo itihaas aur niyati dono badal sakta hai.',

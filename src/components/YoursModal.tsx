@@ -61,14 +61,17 @@ export const YoursModal: React.FC<YoursModalProps> = ({
       />
 
       {/* Sticky Header */}
-      <header className="sticky top-0 z-20 bg-[#050812]/92 backdrop-blur-xl border-b border-sky-300/15 pt-safe">
+      <header className="sticky top-0 z-30 bg-[#050812]/92 backdrop-blur-xl border-b border-sky-300/15 pt-safe">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={onClose}
+              onClick={(e) => {
+                e.stopPropagation();
+                onClose();
+              }}
               aria-label="Back to stories"
-              className="min-w-[44px] min-h-[44px] rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-sky-300/25 flex items-center justify-center transition"
+              className="relative z-10 min-w-[44px] min-h-[44px] rounded-full bg-white/[0.08] hover:bg-white/[0.16] border border-sky-300/30 flex items-center justify-center text-white cursor-pointer active:scale-95 transition"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>

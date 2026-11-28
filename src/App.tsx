@@ -258,9 +258,15 @@ function LeadersStoriesShell() {
     return () => unsub();
   }, [loadCloudCatalogAndUserData, refreshAppConfig]);
 
+  const skipPopCountRef = useRef(0);
+
   // Handle Android hardware/browser back button smoothly across nested screens
   useEffect(() => {
     const handlePopState = () => {
+      if (skipPopCountRef.current > 0) {
+        skipPopCountRef.current -= 1;
+        return;
+      }
       const st = overlayStateRef.current;
       if (st.pushedHistoryDepth > 0) {
         st.pushedHistoryDepth -= 1;
@@ -283,15 +289,24 @@ function LeadersStoriesShell() {
   }, []);
 
   const pushOverlayHistory = useCallback((view: string) => {
-    window.history.pushState({ view }, '');
-    overlayStateRef.current.pushedHistoryDepth += 1;
+    try {
+      window.history.pushState({ view }, '');
+      overlayStateRef.current.pushedHistoryDepth += 1;
+    } catch {
+      // Ignore history restrictions inside embedded iframes
+    }
   }, []);
 
   const closeTopOverlay = useCallback((closeFn: () => void) => {
+    closeFn();
     if (overlayStateRef.current.pushedHistoryDepth > 0) {
-      window.history.back();
-    } else {
-      closeFn();
+      overlayStateRef.current.pushedHistoryDepth -= 1;
+      skipPopCountRef.current += 1;
+      try {
+        window.history.back();
+      } catch {
+        skipPopCountRef.current = Math.max(0, skipPopCountRef.current - 1);
+      }
     }
   }, []);
 
@@ -380,14 +395,20 @@ function LeadersStoriesShell() {
   );
 
   const handleStartChat = useCallback(
-    (story: StoryDefinition) => {
+    (story: StoryDefinition, replacingOverlay = false) => {
       if (!user || !user.emailVerified) {
         setPendingActionStory(story);
         pushOverlayHistory('auth');
         setAuthModalOpen(true);
         return;
       }
-      if (!selectedStory) {
+      if (selectedStory || replacingOverlay) {
+        try {
+          window.history.replaceState({ view: 'chat' }, '');
+        } catch {
+          // ignore
+        }
+      } else {
         pushOverlayHistory('chat');
       }
       setSelectedStory(null);
@@ -671,7 +692,7 @@ function LeadersStoriesShell() {
         onClose={() => closeTopOverlay(() => setYoursOpen(false))}
         onStartChat={(girl) => {
           setYoursOpen(false);
-          handleStartChat(girl);
+          handleStartChat(girl, true);
         }}
         onToggleFavorite={(girl) => void handleToggleFavorite(girl)}
       />
