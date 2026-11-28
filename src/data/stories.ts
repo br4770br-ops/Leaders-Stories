@@ -411,6 +411,131 @@ export const STORIES_CATALOG: StoryDefinition[] = [
     ],
   },
   {
+    id: 'ajnabi_raste_alag_soch',
+    title: 'Ajnabi Raste, Alag Soch',
+    tagline: 'Slow burn college romance of a conservative girl and a handsome boy.',
+    about:
+      'Slow Burn, College Romance of conservative girl and Handsome boy. University ke naye semester ke group project mein shant aur principled Zoya ke saath tumhari unplanned pairing do bilkul alag duniyaon ko ek table par le aati hai.',
+    primaryCategory: 'Romance',
+    categories: ['For You', 'New', 'Romance', 'College'],
+    tags: ['Roleplay', 'Romance'],
+    visualStyle: 'Warm Campus Cinema',
+    rating: 4.6,
+    chatCountLabel: '5.1K',
+    chatCountNumeric: 5100,
+    rank: 6,
+    isFeatured: true,
+    isTrending: true,
+    isNew: true,
+    coverImage: '/src/assets/images/ajnabi_raste/cover_poster.jpg',
+    bannerImage: '/src/assets/images/ajnabi_raste/scene_library_study.jpg',
+    mediaGallery: [
+      {
+        id: 'ar_1',
+        url: '/src/assets/images/ajnabi_raste/scene_library_study.jpg',
+        caption: 'Library ki table par project notes banate hue jab Zoya dhyan se padhti hai aur tum muskurakar dekhte ho.',
+      },
+      {
+        id: 'ar_2',
+        url: '/src/assets/images/ajnabi_raste/cover_poster.jpg',
+        caption: 'Ajnabi Raste, Alag Soch — college gate par do alag soch wale dilon ki pehli mulaqat.',
+      },
+      {
+        id: 'ar_3',
+        url: '/src/assets/images/ajnabi_raste/scene_campus_gate.jpg',
+        caption: 'Campus gate ke paas notebooks sambhalte hue Zoya ki nazron mein ek khamosh narmi aa jaati hai.',
+      },
+      {
+        id: 'ar_4',
+        url: '/src/assets/images/ajnabi_raste/zoya_portrait.jpg',
+        caption: 'Library ki khidki ke paas baithi Zoya—shant, principled, par dheere-dheere pighalti hui.',
+      },
+    ],
+    setting: 'University Lecture Hall, Sunlit Central Library Desk & Campus Gate',
+    characters: [
+      {
+        id: 'zoya_alag_soch',
+        name: 'Zoya',
+        age: '20',
+        gender: 'Female',
+        role: 'Conservative College Classmate & Project Partner',
+        personality: 'Reserved, principled, modest, and thoughtful—keeps firm boundaries around new classmates and values sincere respect over flashy charm.',
+        speakingStyle: 'Composed, polite Hinglish starting with formal greetings before softening gently as trust builds.',
+        relationshipToUser: 'Your randomly assigned college group project partner from a completely different world',
+        portrait: '/src/assets/images/ajnabi_raste/zoya_portrait.jpg',
+        accentColor: '#F472B6',
+      },
+    ],
+    relationshipMeters: [
+      { id: 'trust', label: 'Zoya’s Trust', emoji: '🤍', initialValue: 20, min: 0, max: 100, tone: 'trust' },
+      { id: 'love', label: 'Quiet Affection', emoji: '💖', initialValue: 10, min: 0, max: 100, tone: 'love' },
+      { id: 'courage', label: 'Against Odds', emoji: '🕊️', initialValue: 30, min: 0, max: 100, tone: 'trust' },
+    ],
+    openingScene: 'Day One Lecture Hall — Random Group Project Pairing',
+    playGuide: {
+      hinglish: 'Zoya ka dil jeeto, uske vishwas ko kayam rakho aur samaj ki nafrat ke bawajood apne pyaar ko dharm aur parivar ki deewaron se upar le jao 💖✨',
+      hindi: 'ज़ोया का दिल जीतो, उसका विश्वास बनाए रखो और समाज व परिवार की दीवारों से आगे बढ़कर अपने प्यार को मुक़म्मल करो 💖✨',
+      english: 'Win Zoya’s heart, keep her trust unbroken, and stand strong together beyond every social and family divide 💖✨',
+    },
+    openingBeats: {
+      hinglish: [
+        {
+          type: 'narration',
+          text: 'University ka naya semester shuru hua tha. Professor ne ek important group project announce kiya aur students ke naam randomly assign karne lage: "Zoya... and tum." Zoya ne bas ek pal ke liye nazar uthayi. Uske liye yeh sirf ek project tha—na naye logon se dosti karne ki zarurat, na unnecessary baat-cheet. Dusri taraf tumne halka sa smile kiya aur apna intro diya. Zoya ne apni book band ki aur seedhe lehze mein kaha:',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Zoya',
+          text: 'Assalam Walaikum, I am Zoya.',
+        },
+      ],
+      hindi: [
+        {
+          type: 'narration',
+          text: 'यूनिवर्सिटी का नया सेमेस्टर शुरू हुआ था। प्रोफेसर ने एक ज़रूरी ग्रुप प्रोजेक्ट घोषित किया और छात्रों के नाम रैंडमली जोड़ने लगे: "ज़ोया... और तुम।" ज़ोया ने बस एक पल के लिए नज़र उठाई। उसके लिए यह सिर्फ़ एक प्रोजेक्ट था—न नए लोगों से दोस्ती की ज़रूरत, न फ़ालतू बातचीत। दूसरी तरफ़ तुमने हल्का-सा मुस्कुराकर अपना परिचय दिया। ज़ोया ने अपनी किताब बंद की और सधे हुए लहजे में कहा:',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Zoya',
+          text: 'अस्सलाम वालेकुम, मैं ज़ोया हूँ।',
+        },
+      ],
+      english: [
+        {
+          type: 'narration',
+          text: 'A new university semester had just begun. The professor announced an important group project and paired students at random: "Zoya... and you." Zoya looked up for barely a second. To her, this was strictly coursework—no need for new friendships or needless chatter. Across the aisle, you offered a gentle smile and introduced yourself. Closing her book neatly, Zoya replied in a calm, direct tone:',
+        },
+        {
+          type: 'dialogue',
+          speakerName: 'Zoya',
+          text: 'Assalam Walaikum, I am Zoya.',
+        },
+      ],
+    },
+    initialChoices: {
+      hinglish: [
+        'Respect se muskurao: "Walaikum Assalam, Zoya. Project ke topics tum select kar lo, main baaki research sambhal lunga."',
+        'Notes aage badhao: "Main library mein books check kar leta hoon, kal 4 baje table par mil sakte hain?"',
+        'Shant lehze mein kaho: "Tension mat lo, hum sirf kaam par focus karenge—aur waqt par submit kar denge."',
+      ],
+      hindi: [
+        'सम्मान से मुस्कुराकर कहो: "वालेकुम अस्सलाम, ज़ोया। प्रोजेक्ट के टॉपिक्स तुम चुन लो, बाकी रिसर्च मैं संभाल लूँगा।"',
+        'नोट्स आगे बढ़ाकर पूछो: "मैं लाइब्रेरी से किताबें निकाल लेता हूँ, क्या हम कल चार बजे मिल सकते हैं?"',
+        'शांत लहजे में कहो: "फ़िक्र मत करो, हम सिर्फ़ काम पर ध्यान देंगे और समय पर पूरा कर लेंगे।"',
+      ],
+      english: [
+        'Smile respectfully: "Walaikum Assalam, Zoya. You can pick the sections you prefer, and I will handle the rest."',
+        'Offer the syllabus: "I can pull the library references first—shall we review notes tomorrow at four?"',
+        'Keep her at ease: "Don’t worry, I’ll keep everything focused on our project and deadlines."',
+      ],
+    },
+    possibleEndings: [
+      'Two Worlds United Against All Odds',
+      'Quiet Promise Beyond Family Walls',
+      'Partners From Campus Gate To Forever',
+    ],
+  },
+  {
     id: 'time_traveller_mahabharat',
     title: 'Time Traveller in Mahabharat',
     tagline: 'Ek yug-chakra jo itihaas aur niyati dono badal sakta hai.',
