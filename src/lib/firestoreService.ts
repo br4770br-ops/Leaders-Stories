@@ -758,6 +758,7 @@ export async function saveTurnToCloud(params: {
   sceneIndex: number;
   updatedMeters: RelationshipMeterValue[];
   choicesMade: string[];
+  totalMessageCount?: number;
   endingTriggered?: string;
   newMemory?: { summary: string; importance: number; charactersInvolved?: string[] } | null;
 }): Promise<{ userMessage: ChatTurnMessage; storyMessage: ChatTurnMessage }> {
@@ -832,6 +833,9 @@ export async function saveTurnToCloud(params: {
         ? `mem_${story.id}_${now}`.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 128)
         : '';
 
+    const resolvedCount =
+      typeof params.totalMessageCount === 'number' ? params.totalMessageCount : storySeq + 1;
+
     await commitStoryBatchWithRecovery(
       { convRef, progRef, relRef },
       {
@@ -845,7 +849,7 @@ export async function saveTurnToCloud(params: {
           batch.update(convRef, {
             lastMessage: lastPreview,
             lastSpeaker: lastSpeaker.slice(0, 100),
-            messageCount: storySeq + 1,
+            messageCount: resolvedCount,
             updatedAt: serverTimestamp(),
           });
         } else {
@@ -857,7 +861,7 @@ export async function saveTurnToCloud(params: {
             coverImage: story.coverImage.slice(0, 512),
             lastMessage: lastPreview,
             lastSpeaker: lastSpeaker.slice(0, 100),
-            messageCount: storySeq + 1,
+            messageCount: resolvedCount,
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
           });

@@ -485,11 +485,19 @@ function cleanDialogueText(text: string, speakerName?: string, castNames: string
   return cleaned;
 }
 
+function stripBeatMarkdown(raw: string): string {
+  return (raw || '')
+    .replace(/\*{1,3}([^*\n]+)\*{1,3}/g, '$1')
+    .replace(/(^|\s)\*+/g, '$1')
+    .replace(/\*+(?=\s|$|[.,!?;:"'”’])/g, '')
+    .trim();
+}
+
 function normalizeBeat(raw: unknown, castNames: string[] = []): CleanStoryBeat | null {
   if (!raw || typeof raw !== 'object') return null;
   const b = raw as { type?: unknown; speakerName?: unknown; text?: unknown };
   const type = b.type === 'narration' ? 'narration' : 'dialogue';
-  let text = sanitizeText(b.text, 800);
+  let text = stripBeatMarkdown(sanitizeText(b.text, 800));
   if (!text) return null;
 
   let resolvedSpeaker =
@@ -1250,19 +1258,18 @@ class IncrementalBeatsExtractor {
                     this.castNames[0] ||
                     'Character';
                   const key = speaker.toLowerCase();
-                  if (this.seenSpeakers.has(key) || this.dialogueCount >= 2) {
-                    continue;
+                  if (!this.seenSpeakers.has(key) && this.dialogueCount < 2) {
+                    this.seenSpeakers.add(key);
+                    this.dialogueCount += 1;
+                    const cleanBeat: CleanStoryBeat = {
+                      type: 'dialogue',
+                      speakerName: speaker,
+                      text: beat.text,
+                    };
+                    const beatIdx = this.extractedBeats.length;
+                    this.extractedBeats.push(cleanBeat);
+                    completed.push({ index: beatIdx, beat: cleanBeat });
                   }
-                  this.seenSpeakers.add(key);
-                  this.dialogueCount += 1;
-                  const cleanBeat: CleanStoryBeat = {
-                    type: 'dialogue',
-                    speakerName: speaker,
-                    text: beat.text,
-                  };
-                  const beatIdx = this.extractedBeats.length;
-                  this.extractedBeats.push(cleanBeat);
-                  completed.push({ index: beatIdx, beat: cleanBeat });
                 } else {
                   const beatIdx = this.extractedBeats.length;
                   this.extractedBeats.push(beat);

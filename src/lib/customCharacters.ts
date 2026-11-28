@@ -136,7 +136,7 @@ export const CHARACTER_PORTRAIT_PRESETS: PortraitPreset[] = [
   {
     id: 'lavanya_y',
     label: 'Glamorous Muse',
-    url: '/src/assets/images/yours_lavanya_oberoi_1795804146486.jpg',
+    url: '/src/assets/images/alaina_ceo_portrait_1795873567048.jpg',
     gender: 'Female',
     ageBand: 'adult',
     keywords: ['glam', 'rich', 'luxury', 'penthouse', 'hot', 'seductive', 'bold', 'model', 'confident', 'flirty'],
@@ -144,23 +144,23 @@ export const CHARACTER_PORTRAIT_PRESETS: PortraitPreset[] = [
   {
     id: 'alina_y',
     label: 'Velvet Siren',
-    url: '/src/assets/images/yours_alina_mirza_1795804206662.jpg',
+    url: '/src/assets/images/tara_indie_portrait_1795873527266.jpg',
     gender: 'Female',
     ageBand: 'adult',
     keywords: ['singer', 'night', 'lounge', 'romantic', 'deep', 'poetry', 'sensual', 'artistic'],
   },
   {
     id: 'tania_y',
-    label: 'Beach Fashionista',
-    url: '/src/assets/images/yours_tania_sen_1795804147514.jpg',
+    label: 'Festive Charm',
+    url: '/src/assets/images/diya_garba_portrait_1795873525637.jpg',
     gender: 'Female',
     ageBand: 'adult',
     keywords: ['designer', 'vacation', 'goa', 'sunny', 'charming', 'flirty', 'free-spirited'],
   },
   {
     id: 'zoya_y',
-    label: 'Street Racer',
-    url: '/src/assets/images/yours_zoya_glam_1795804144673.jpg',
+    label: 'Cyber Rebel',
+    url: '/src/assets/images/sora_cyber_portrait_1795873526448.jpg',
     gender: 'Female',
     ageBand: 'adult',
     keywords: ['racer', 'driver', 'bike', 'car', 'dj', 'edgy', 'jacket', 'rebel', 'nightlife'],
@@ -168,7 +168,7 @@ export const CHARACTER_PORTRAIT_PRESETS: PortraitPreset[] = [
   {
     id: 'samaira_y',
     label: 'Stage Star',
-    url: '/src/assets/images/yours_samaira_chauhan_1795804225638.jpg',
+    url: '/src/assets/images/haewon_kpop_portrait_1795873525293.jpg',
     gender: 'Female',
     ageBand: 'young',
     keywords: ['idol', 'celebrity', 'actress', 'singer', 'star', 'famous', 'stage', 'spotlight'],
@@ -350,7 +350,8 @@ export function getCharacterAccentColor(gender?: string, name = ''): string {
 
 export function matchCharacterPortraitUrl(
   input: CharacterPortraitMatchInput,
-  cycleOffset = 0
+  cycleOffset = 0,
+  excludedUrls: string[] = []
 ): string {
   const resolvedGender = input.gender
     ? inferGenderFromCharacterHints(input)
@@ -360,12 +361,16 @@ export function matchCharacterPortraitUrl(
         relationshipToUser: input.relationshipToUser,
       });
   const gLower = resolvedGender.toLowerCase();
-  const pool =
+  const basePool =
     gLower === 'male'
       ? CHARACTER_PORTRAIT_PRESETS.filter((p) => p.gender === 'Male')
       : gLower === 'female'
       ? CHARACTER_PORTRAIT_PRESETS.filter((p) => p.gender === 'Female')
       : CHARACTER_PORTRAIT_PRESETS;
+
+  const excludedSet = new Set(excludedUrls);
+  const filteredPool = basePool.filter((p) => !excludedSet.has(p.url));
+  const pool = filteredPool.length > 0 ? filteredPool : basePool;
 
   const parsedAge = Number.parseInt((input.age || '').replace(/\D+/g, ''), 10);
   const desiredAgeBand: 'young' | 'adult' | 'mature' | null = Number.isFinite(parsedAge)

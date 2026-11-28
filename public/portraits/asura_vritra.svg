@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 480" width="360" height="480">
+  <defs>
+    <linearGradient id="g7_bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#09050F"/>
+      <stop offset="55%" stop-color="#2E1065"/>
+      <stop offset="100%" stop-color="#EF4444" stop-opacity="0.72"/>
+    </linearGradient>
+    <radialGradient id="g7_rim" cx="50%" cy="32%" r="54%">
+      <stop offset="0%" stop-color="#F43F5E" stop-opacity="0.34"/>
+      <stop offset="100%" stop-color="#09050F" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="g7_vig" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="55%" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#05060A" stop-opacity="0.88"/>
+    </linearGradient>
+  </defs>
+  <rect width="360" height="480" fill="url(#g7_bg)"/>
+  <rect width="360" height="480" fill="url(#g7_rim)"/>
+  <circle cx="180" cy="186" r="142" fill="none" stroke="#F43F5E" stroke-opacity="0.16" stroke-width="1.5"/>
+  <circle cx="180" cy="186" r="108" fill="none" stroke="#FFFFFF" stroke-opacity="0.08" stroke-width="1"/>
+  
+        <path d="M48 480 C54 374 94 342 145 334 L215 334 C266 342 306 374 312 480 Z" fill="#18181B"/>
+        <path d="M62 394 Q112 344 146 356 L130 410 Z" fill="#18181B" stroke="#F43F5E" stroke-width="2.5"/>
+        <path d="M298 394 Q248 344 214 356 L230 410 Z" fill="#18181B" stroke="#F43F5E" stroke-width="2.5"/>
+        <path d="M146 336 L180 374 L214 336" fill="none" stroke="#F43F5E" stroke-width="3"/>
+  <rect x="156" y="268" width="48" height="72" rx="18" fill="#574B60"/>
+  <path d="M156 278 Q180 294 204 278 L204 294 Q180 306 156 294 Z" fill="#000000" opacity="0.14"/>
+  <ellipse cx="122" cy="212" rx="10" ry="16" fill="#574B60"/>
+  <ellipse cx="238" cy="212" rx="10" ry="16" fill="#574B60"/>
+  <path d="M124 196 C124 134 236 134 236 196 C236 248 208 282 180 282 C152 282 124 248 124 196 Z" fill="#574B60"/>
+  <path d="M142 192 Q156 186 168 192" fill="none" stroke="#18181B" stroke-width="3.2" stroke-linecap="round"/>
+  <path d="M192 192 Q204 186 218 192" fill="none" stroke="#18181B" stroke-width="3.2" stroke-linecap="round"/>
+  <ellipse cx="155" cy="206" rx="7" ry="4.8" fill="#FFFFFF"/>
+  <ellipse cx="205" cy="206" rx="7" ry="4.8" fill="#FFFFFF"/>
+  <circle cx="155" cy="206" r="3.6" fill="#18181B"/>
+  <circle cx="205" cy="206" r="3.6" fill="#18181B"/>
+  <path d="M180 206 L176 230 L185 232" fill="none" stroke="#000000" stroke-opacity="0.22" stroke-width="2.4" stroke-linecap="round"/>
+  <path d="M166 250 Q180 256 194 250" fill="none" stroke="#7F1D1D" stroke-opacity="0.68" stroke-width="2.6" stroke-linecap="round"/>
+  
+  
+      <path d="M112 198 C108 134 134 104 180 102 C226 104 252 134 248 198 L236 166 L216 148 L194 162 L180 140 L164 160 L144 146 L124 168 Z" fill="#0F172A"/>
+  
+      <path d="M126 142 Q102 96 122 66 Q134 104 144 132 Z" fill="#18181B" stroke="#F43F5E" stroke-width="2"/>
+      <path d="M234 142 Q258 96 238 66 Q226 104 216 132 Z" fill="#18181B" stroke="#F43F5E" stroke-width="2"/>
+  <rect width="360" height="480" fill="url(#g7_vig)"/>
+  <g transform="translate(20, 422)">
+    <rect x="0" y="0" width="320" height="40" rx="12" fill="#090A0F" fill-opacity="0.72" stroke="#F43F5E" stroke-opacity="0.38"/>
+    <text x="14" y="18" fill="#FFFFFF" font-family="system-ui, sans-serif" font-size="13.5" font-weight="700">Asura Vritra</text>
+    <text x="14" y="33" fill="#F43F5E" font-family="system-ui, sans-serif" font-size="10.5" font-weight="600">Shadow Asura</text>
+  </g>
+</svg>

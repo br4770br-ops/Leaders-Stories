@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 480" width="360" height="480">
+  <defs>
+    <linearGradient id="g20_bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0B101D"/>
+      <stop offset="55%" stop-color="#1E293B"/>
+      <stop offset="100%" stop-color="#06B6D4" stop-opacity="0.72"/>
+    </linearGradient>
+    <radialGradient id="g20_rim" cx="50%" cy="32%" r="54%">
+      <stop offset="0%" stop-color="#22D3EE" stop-opacity="0.34"/>
+      <stop offset="100%" stop-color="#0B101D" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="g20_vig" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="55%" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#05060A" stop-opacity="0.88"/>
+    </linearGradient>
+  </defs>
+  <rect width="360" height="480" fill="url(#g20_bg)"/>
+  <rect width="360" height="480" fill="url(#g20_rim)"/>
+  <circle cx="180" cy="186" r="142" fill="none" stroke="#22D3EE" stroke-opacity="0.16" stroke-width="1.5"/>
+  <circle cx="180" cy="186" r="108" fill="none" stroke="#FFFFFF" stroke-opacity="0.08" stroke-width="1"/>
+  
+        <path d="M54 480 C60 378 96 346 146 336 L214 336 C264 346 300 378 306 480 Z" fill="#1D4ED8"/>
+        <path d="M142 336 L166 410 L180 390 L194 410 L218 336" fill="none" stroke="#22D3EE" stroke-width="2.5" opacity="0.75"/>
+  <rect x="156" y="268" width="48" height="72" rx="18" fill="#D0936C"/>
+  <path d="M156 278 Q180 294 204 278 L204 294 Q180 306 156 294 Z" fill="#000000" opacity="0.14"/>
+  <ellipse cx="122" cy="212" rx="10" ry="16" fill="#D0936C"/>
+  <ellipse cx="238" cy="212" rx="10" ry="16" fill="#D0936C"/>
+  <path d="M124 196 C124 134 236 134 236 196 C236 248 208 282 180 282 C152 282 124 248 124 196 Z" fill="#D0936C"/>
+  <path d="M142 192 Q156 186 168 192" fill="none" stroke="#18181B" stroke-width="3.2" stroke-linecap="round"/>
+  <path d="M192 192 Q204 186 218 192" fill="none" stroke="#18181B" stroke-width="3.2" stroke-linecap="round"/>
+  <ellipse cx="155" cy="206" rx="7" ry="4.8" fill="#FFFFFF"/>
+  <ellipse cx="205" cy="206" rx="7" ry="4.8" fill="#FFFFFF"/>
+  <circle cx="155" cy="206" r="3.6" fill="#18181B"/>
+  <circle cx="205" cy="206" r="3.6" fill="#18181B"/>
+  <path d="M180 206 L176 230 L185 232" fill="none" stroke="#000000" stroke-opacity="0.22" stroke-width="2.4" stroke-linecap="round"/>
+  <path d="M166 250 Q180 256 194 250" fill="none" stroke="#7F1D1D" stroke-opacity="0.68" stroke-width="2.6" stroke-linecap="round"/>
+  <path d="M126 226 C128 272 156 292 180 292 C204 292 232 272 234 226 C224 254 204 270 180 270 C156 270 136 254 126 226 Z" fill="#18181B" opacity="0.38"/>
+  
+    <path d="M112 202 C110 126 142 100 180 100 C218 100 250 126 248 202 C236 164 206 142 180 142 C154 142 124 164 112 202 Z" fill="#18181B"/>
+  
+  <rect width="360" height="480" fill="url(#g20_vig)"/>
+  <g transform="translate(20, 422)">
+    <rect x="0" y="0" width="320" height="40" rx="12" fill="#090A0F" fill-opacity="0.72" stroke="#22D3EE" stroke-opacity="0.38"/>
+    <text x="14" y="18" fill="#FFFFFF" font-family="system-ui, sans-serif" font-size="13.5" font-weight="700">Rohan Turbo</text>
+    <text x="14" y="33" fill="#22D3EE" font-family="system-ui, sans-serif" font-size="10.5" font-weight="600">Street Tuner</text>
+  </g>
+</svg>

@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 480" width="360" height="480">
+  <defs>
+    <linearGradient id="g27_bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#141926"/>
+      <stop offset="55%" stop-color="#273043"/>
+      <stop offset="100%" stop-color="#F59E0B" stop-opacity="0.72"/>
+    </linearGradient>
+    <radialGradient id="g27_rim" cx="50%" cy="32%" r="54%">
+      <stop offset="0%" stop-color="#F59E0B" stop-opacity="0.34"/>
+      <stop offset="100%" stop-color="#141926" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="g27_vig" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="55%" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#05060A" stop-opacity="0.88"/>
+    </linearGradient>
+  </defs>
+  <rect width="360" height="480" fill="url(#g27_bg)"/>
+  <rect width="360" height="480" fill="url(#g27_rim)"/>
+  <circle cx="180" cy="186" r="142" fill="none" stroke="#F59E0B" stroke-opacity="0.16" stroke-width="1.5"/>
+  <circle cx="180" cy="186" r="108" fill="none" stroke="#FFFFFF" stroke-opacity="0.08" stroke-width="1"/>
+  
+        <path d="M54 480 C58 378 96 346 145 336 L180 398 L215 336 C264 346 302 378 306 480 Z" fill="#1E293B"/>
+        <polygon points="154,336 180,418 206,336" fill="#F8FAFC" opacity="0.94"/>
+        <polygon points="174,352 186,352 189,432 180,444 171,432" fill="#F59E0B"/>
+        <path d="M138 338 L166 408 L148 416 L124 352 Z" fill="#0F172A" opacity="0.35"/>
+        <path d="M222 338 L194 408 L212 416 L236 352 Z" fill="#0F172A" opacity="0.35"/>
+  <rect x="156" y="268" width="48" height="72" rx="18" fill="#D29872"/>
+  <path d="M156 278 Q180 294 204 278 L204 294 Q180 306 156 294 Z" fill="#000000" opacity="0.14"/>
+  <ellipse cx="122" cy="212" rx="10" ry="16" fill="#D29872"/>
+  <ellipse cx="238" cy="212" rx="10" ry="16" fill="#D29872"/>
+  <path d="M124 196 C124 134 236 134 236 196 C236 248 208 282 180 282 C152 282 124 248 124 196 Z" fill="#D29872"/>
+  <path d="M142 192 Q156 186 168 192" fill="none" stroke="#18181B" stroke-width="3.2" stroke-linecap="round"/>
+  <path d="M192 192 Q204 186 218 192" fill="none" stroke="#18181B" stroke-width="3.2" stroke-linecap="round"/>
+  <ellipse cx="155" cy="206" rx="7" ry="4.8" fill="#FFFFFF"/>
+  <ellipse cx="205" cy="206" rx="7" ry="4.8" fill="#FFFFFF"/>
+  <circle cx="155" cy="206" r="3.6" fill="#18181B"/>
+  <circle cx="205" cy="206" r="3.6" fill="#18181B"/>
+  <path d="M180 206 L176 230 L185 232" fill="none" stroke="#000000" stroke-opacity="0.22" stroke-width="2.4" stroke-linecap="round"/>
+  <path d="M166 250 Q180 256 194 250" fill="none" stroke="#7F1D1D" stroke-opacity="0.68" stroke-width="2.6" stroke-linecap="round"/>
+  <path d="M156 244 Q180 236 204 244 Q192 250 180 245 Q168 250 156 244 Z" fill="#64748B"/>
+  
+    <path d="M112 202 C110 126 142 100 180 100 C218 100 250 126 248 202 C236 164 206 142 180 142 C154 142 124 164 112 202 Z" fill="#64748B"/>
+  
+      <rect x="136" y="196" width="36" height="22" rx="6" fill="none" stroke="#E2E8F0" stroke-width="2.6"/>
+      <rect x="188" y="196" width="36" height="22" rx="6" fill="none" stroke="#E2E8F0" stroke-width="2.6"/>
+      <line x1="172" y1="205" x2="188" y2="205" stroke="#E2E8F0" stroke-width="2.4"/>
+  <rect width="360" height="480" fill="url(#g27_vig)"/>
+  <g transform="translate(20, 422)">
+    <rect x="0" y="0" width="320" height="40" rx="12" fill="#090A0F" fill-opacity="0.72" stroke="#F59E0B" stroke-opacity="0.38"/>
+    <text x="14" y="18" fill="#FFFFFF" font-family="system-ui, sans-serif" font-size="13.5" font-weight="700">Principal Verma</text>
+    <text x="14" y="33" fill="#F59E0B" font-family="system-ui, sans-serif" font-size="10.5" font-weight="600">School Principal</text>
+  </g>
+</svg>

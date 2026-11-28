@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Expand, Loader2, Plus, RefreshCw, Sparkles, UserPlus, X } from 'lucide-react';
 import { matchCharacterPortraitUrl } from '../lib/customCharacters';
 import type { StoryCharacter } from '../types/story';
@@ -38,6 +38,14 @@ export const AddCharacterModal: React.FC<AddCharacterModalProps> = ({
   const [cycleCount, setCycleCount] = useState(0);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   const generateMatchedPortrait = async (nextCycle = cycleCount): Promise<string> => {
     setGeneratingPortrait(true);
@@ -55,9 +63,11 @@ export const AddCharacterModal: React.FC<AddCharacterModalProps> = ({
       },
       nextCycle
     );
-    setGeneratedPortraitUrl(url);
-    setCycleCount(nextCycle + 1);
-    setGeneratingPortrait(false);
+    if (mountedRef.current) {
+      setGeneratedPortraitUrl(url);
+      setCycleCount(nextCycle + 1);
+      setGeneratingPortrait(false);
+    }
     return url;
   };
 

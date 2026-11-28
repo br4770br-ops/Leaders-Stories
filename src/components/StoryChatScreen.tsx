@@ -238,12 +238,20 @@ function detectSpeakerFromPrefix(
   return { strippedText: trimmed };
 }
 
+function cleanBeatMarkdown(raw: string): string {
+  return (raw || '')
+    .replace(/\*{1,3}([^*\n]+)\*{1,3}/g, '$1')
+    .replace(/(^|\s)\*+/g, '$1')
+    .replace(/\*+(?=\s|$|[.,!?;:"'”’])/g, '')
+    .trim();
+}
+
 function cleanDialogueBeatText(
   text: string,
   speakerName?: string,
   cast: StoryDefinition['characters'] = []
 ): string {
-  let cleaned = (text || '').trim();
+  let cleaned = cleanBeatMarkdown(text);
   const namesToStrip = Array.from(
     new Set([...(speakerName ? [speakerName] : []), ...cast.map((c) => c.name)])
   );
@@ -260,7 +268,7 @@ function cleanDialogueBeatText(
   ) {
     cleaned = cleaned.slice(1, -1).trim();
   }
-  return cleaned;
+  return cleanBeatMarkdown(cleaned);
 }
 
 function groupBeatsIntoCharacterCards(
@@ -273,7 +281,7 @@ function groupBeatsIntoCharacterCards(
 
   for (const raw of rawBeats) {
     if (!raw || typeof raw !== 'object') continue;
-    const rawText = (raw.text || '').trim();
+    const rawText = cleanBeatMarkdown(raw.text || '');
     if (!rawText || rawText === '...') continue;
 
     if (raw.type === 'narration') {
@@ -336,7 +344,7 @@ function extractValidStoryBeats(
       if (!b || typeof b !== 'object') return null;
       const item = b as { type?: unknown; speakerName?: unknown; text?: unknown };
       const type: StoryBeat['type'] = item.type === 'narration' ? 'narration' : 'dialogue';
-      const rawText = typeof item.text === 'string' ? item.text.trim() : '';
+      const rawText = typeof item.text === 'string' ? cleanBeatMarkdown(item.text) : '';
       if (!rawText || rawText === '...') return null;
 
       if (type === 'narration') {
@@ -569,7 +577,7 @@ const ChatMessageList: React.FC<ChatMessageListProps> = React.memo(
                                 isYours ? 'text-sky-100/75' : 'text-zinc-300/85'
                               }`}
                             >
-                              {beat.text}
+                              {cleanBeatMarkdown(beat.text)}
                             </p>
                           );
                         }
@@ -1246,7 +1254,8 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
           relationshipToUser: candidate.relationshipToUser,
           storySetting: story.setting,
         },
-        merged.length + addedChars.length
+        merged.length + addedChars.length,
+        merged.map((c) => c.portrait)
       );
       const newCharPayload: Omit<StoryCharacter, 'id' | 'isCustom'> = {
         name: cleanName,
@@ -1713,7 +1722,10 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
       setChoicesMade(updatedChoicesMade);
       setActiveChoices(Array.isArray(data.storyChoices) ? data.storyChoices.slice(0, 3) : []);
 
-      if (endingReached) {
+      const triggeredEnding = data.endingTriggered?.trim() || '';
+      if (triggeredEnding) {
+        setEndingReached(triggeredEnding);
+      } else if (endingReached) {
         setEndingReached('');
       }
 
@@ -1732,17 +1744,18 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
         setMemories((prev) => [...prev, newMemRecord]);
       }
 
+      const totalCountAfterSend = baseMessages.length + 2;
       const lastBeat = storyBeats[storyBeats.length - 1];
       onLocalTurnSync?.({
         story,
         lastMessage: (lastBeat?.text || nextSceneStr).slice(0, 1000),
         lastSpeaker: lastBeat?.speakerName || story.characters[0]?.name || 'Story',
-        messageCount: storySeq + 1,
+        messageCount: totalCountAfterSend,
         currentScene: nextSceneStr,
         sceneIndex: nextSceneIdx,
         meters: updatedMeters,
         choicesMade: updatedChoicesMade,
-        endingReached: data.endingTriggered?.trim() || undefined,
+        endingReached: triggeredEnding || undefined,
         newMemory: newMemRecord,
       });
 
@@ -1758,12 +1771,13 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
           userSequence: nextUserSeq,
           userMessageId: userMsgId,
           storyMessageId: storyMsgId,
+          totalMessageCount: totalCountAfterSend,
           storyBeats,
           newScene: nextSceneStr,
           sceneIndex: nextSceneIdx,
           updatedMeters,
           choicesMade: updatedChoicesMade,
-          endingTriggered: data.endingTriggered?.trim() || undefined,
+          endingTriggered: triggeredEnding || undefined,
           newMemory: memoryToSave,
         });
       });
@@ -1900,7 +1914,10 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
       setSceneIndex(nextSceneIdx);
       setActiveChoices(Array.isArray(data.storyChoices) ? data.storyChoices.slice(0, 3) : []);
 
-      if (endingReached) {
+      const triggeredEnding = data.endingTriggered?.trim() || '';
+      if (triggeredEnding) {
+        setEndingReached(triggeredEnding);
+      } else if (endingReached) {
         setEndingReached('');
       }
 
@@ -1928,7 +1945,7 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
         currentScene: nextSceneStr,
         sceneIndex: nextSceneIdx,
         meters: updatedMeters,
-        endingReached: data.endingTriggered?.trim() || undefined,
+        endingReached: triggeredEnding || undefined,
         newMemory: newMemRecord,
       });
 
@@ -1945,7 +1962,7 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
           newScene: nextSceneStr,
           sceneIndex: nextSceneIdx,
           updatedMeters,
-          endingTriggered: data.endingTriggered?.trim() || undefined,
+          endingTriggered: triggeredEnding || undefined,
           newMemory: memoryToSave,
         });
       });
@@ -1993,8 +2010,12 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
         : '';
 
     let baseMeters = meters;
+    const prevStory =
+      priorMessages.length > 0
+        ? [...priorMessages].reverse().find((m) => m.role === 'story')
+        : undefined;
+    const priorScene = prevStory?.sceneSummary || story.openingScene || currentScene;
     if (priorMessages.length > 0) {
-      const prevStory = [...priorMessages].reverse().find((m) => m.role === 'story');
       if (prevStory?.metersSnapshot && prevStory.metersSnapshot.length > 0) {
         baseMeters = meters.map((m) => {
           const snap = prevStory.metersSnapshot?.find((s) => s.id === m.id);
@@ -2030,7 +2051,7 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
           },
           mode: 'regenerate',
           language: preferredLanguage,
-          currentScene,
+          currentScene: priorScene,
           sceneIndex: Math.max(0, sceneIndex - 1),
           recentMessages: priorMessages
             .filter((m) => !isPlaceholderStoryMessage(m))
@@ -2095,7 +2116,10 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
       if (Array.isArray(data.storyChoices)) {
         setActiveChoices(data.storyChoices.slice(0, 3));
       }
-      if (endingReached) {
+      const triggeredEnding = data.endingTriggered?.trim() || '';
+      if (triggeredEnding) {
+        setEndingReached(triggeredEnding);
+      } else if (endingReached) {
         setEndingReached('');
       }
 
@@ -2108,7 +2132,7 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
         currentScene: nextSceneStr,
         sceneIndex,
         meters: updatedMeters,
-        endingReached: data.endingTriggered?.trim() || undefined,
+        endingReached: triggeredEnding || undefined,
       });
 
       setTimeout(() => scrollToBottom(true), 30);
@@ -2125,7 +2149,7 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
           newScene: nextSceneStr,
           sceneIndex,
           updatedMeters,
-          endingTriggered: data.endingTriggered?.trim() || undefined,
+          endingTriggered: triggeredEnding || undefined,
         });
       });
     } catch (err) {
@@ -2197,6 +2221,8 @@ export const StoryChatScreen: React.FC<StoryChatScreenProps> = ({
     setEndingReached('');
     if (remaining.length === 1) {
       setActiveChoices(story.initialChoices[preferredLanguage] || story.initialChoices.hinglish);
+    } else {
+      setActiveChoices([]);
     }
 
     const lastBeat = prevLast.beats?.[prevLast.beats.length - 1];

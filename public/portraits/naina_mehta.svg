@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 480" width="360" height="480">
+  <defs>
+    <linearGradient id="g15_bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1F1024"/>
+      <stop offset="55%" stop-color="#4A1D4D"/>
+      <stop offset="100%" stop-color="#FB7185" stop-opacity="0.72"/>
+    </linearGradient>
+    <radialGradient id="g15_rim" cx="50%" cy="32%" r="54%">
+      <stop offset="0%" stop-color="#FDA4AF" stop-opacity="0.34"/>
+      <stop offset="100%" stop-color="#1F1024" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="g15_vig" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="55%" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#05060A" stop-opacity="0.88"/>
+    </linearGradient>
+  </defs>
+  <rect width="360" height="480" fill="url(#g15_bg)"/>
+  <rect width="360" height="480" fill="url(#g15_rim)"/>
+  <circle cx="180" cy="186" r="142" fill="none" stroke="#FDA4AF" stroke-opacity="0.16" stroke-width="1.5"/>
+  <circle cx="180" cy="186" r="108" fill="none" stroke="#FFFFFF" stroke-opacity="0.08" stroke-width="1"/>
+  
+        <path d="M54 480 C58 378 96 346 145 336 L180 398 L215 336 C264 346 302 378 306 480 Z" fill="#F43F5E"/>
+        <polygon points="154,336 180,418 206,336" fill="#F8FAFC" opacity="0.94"/>
+        <polygon points="174,352 186,352 189,432 180,444 171,432" fill="#FDA4AF"/>
+        <path d="M138 338 L166 408 L148 416 L124 352 Z" fill="#0F172A" opacity="0.35"/>
+        <path d="M222 338 L194 408 L212 416 L236 352 Z" fill="#0F172A" opacity="0.35"/>
+  <rect x="156" y="268" width="48" height="72" rx="18" fill="#E3AF8C"/>
+  <path d="M156 278 Q180 294 204 278 L204 294 Q180 306 156 294 Z" fill="#000000" opacity="0.14"/>
+  <ellipse cx="122" cy="212" rx="10" ry="16" fill="#E3AF8C"/>
+  <ellipse cx="238" cy="212" rx="10" ry="16" fill="#E3AF8C"/>
+  <path d="M124 196 C124 134 236 134 236 196 C236 248 208 282 180 282 C152 282 124 248 124 196 Z" fill="#E3AF8C"/>
+  <path d="M142 192 Q156 186 168 192" fill="none" stroke="#18181B" stroke-width="3.2" stroke-linecap="round"/>
+  <path d="M192 192 Q204 186 218 192" fill="none" stroke="#18181B" stroke-width="3.2" stroke-linecap="round"/>
+  <ellipse cx="155" cy="206" rx="7" ry="4.8" fill="#FFFFFF"/>
+  <ellipse cx="205" cy="206" rx="7" ry="4.8" fill="#FFFFFF"/>
+  <circle cx="155" cy="206" r="3.6" fill="#18181B"/>
+  <circle cx="205" cy="206" r="3.6" fill="#18181B"/>
+  <path d="M180 206 L176 230 L185 232" fill="none" stroke="#000000" stroke-opacity="0.22" stroke-width="2.4" stroke-linecap="round"/>
+  <path d="M166 250 Q180 256 194 250" fill="none" stroke="#7F1D1D" stroke-opacity="0.68" stroke-width="2.6" stroke-linecap="round"/>
+  
+  
+        <path d="M106 232 C102 128 142 98 180 98 C218 98 258 128 254 232 C244 252 232 256 228 232 L226 168 Q180 144 134 168 L132 232 C128 256 116 252 106 232 Z" fill="#271C19"/>
+  <path d="M150 320 Q180 344 210 320" fill="none" stroke="#FEF3C7" stroke-width="4" stroke-dasharray="2 6" stroke-linecap="round"/>
+  <rect width="360" height="480" fill="url(#g15_vig)"/>
+  <g transform="translate(20, 422)">
+    <rect x="0" y="0" width="320" height="40" rx="12" fill="#090A0F" fill-opacity="0.72" stroke="#FDA4AF" stroke-opacity="0.38"/>
+    <text x="14" y="18" fill="#FFFFFF" font-family="system-ui, sans-serif" font-size="13.5" font-weight="700">Naina Mehta</text>
+    <text x="14" y="33" fill="#FDA4AF" font-family="system-ui, sans-serif" font-size="10.5" font-weight="600">PR Executive</text>
+  </g>
+</svg>

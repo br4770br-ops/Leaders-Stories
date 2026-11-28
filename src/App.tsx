@@ -41,6 +41,7 @@ import { auth } from './lib/firebase';
 import {
   fetchAppConfig,
   fetchPublishedAdminStories,
+  isMainAdminEmail,
   isUserAdmin,
   restoreAllUserCloudData,
   toggleFavoriteStory,
@@ -244,15 +245,22 @@ function LeadersStoriesShell() {
     []
   );
 
+  const lastRestoredUidRef = useRef<string | null>(null);
+
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (fbUser) => {
       setUser(fbUser);
       setCustomCharactersMap(loadCustomCharactersMap(fbUser?.uid));
-      if (fbUser && fbUser.emailVerified) {
+      const isVerified = Boolean(fbUser && fbUser.emailVerified);
+      const needsInitialRestore = isVerified && lastRestoredUidRef.current !== fbUser!.uid;
+      if (!isVerified) {
+        lastRestoredUidRef.current = null;
+      } else if (needsInitialRestore) {
+        lastRestoredUidRef.current = fbUser!.uid;
         setRestoringCloud(true);
       }
       setAuthReady(true);
-      void loadCloudCatalogAndUserData(fbUser, { silent: false });
+      void loadCloudCatalogAndUserData(fbUser, { silent: !needsInitialRestore && isVerified });
       void refreshAppConfig();
     });
     return () => unsub();
@@ -411,6 +419,7 @@ function LeadersStoriesShell() {
       } else {
         pushOverlayHistory('chat');
       }
+      setYoursOpen(false);
       setSelectedStory(null);
       setActiveChatStory(story);
     },
@@ -549,15 +558,36 @@ function LeadersStoriesShell() {
           })
         }
         onVerifiedSuccess={() => {
-          setAuthModalOpen(false);
-          if (pendingActionStory && (!appSettings.maintenanceMode || isAdmin)) {
+          const canEnterChat =
+            !appSettings.maintenanceMode ||
+            isAdmin ||
+            isMainAdminEmail(auth.currentUser?.email);
+          if (pendingActionStory && canEnterChat) {
             const st = pendingActionStory;
+            setAuthModalOpen(false);
             setPendingActionStory(null);
+            if ((selectedStory || yoursOpen) && overlayStateRef.current.pushedHistoryDepth > 1) {
+              overlayStateRef.current.pushedHistoryDepth -= 1;
+              skipPopCountRef.current += 1;
+              try {
+                window.history.back();
+              } catch {
+                skipPopCountRef.current = Math.max(0, skipPopCountRef.current - 1);
+              }
+            }
+            try {
+              window.history.replaceState({ view: 'chat' }, '');
+            } catch {
+              // ignore
+            }
+            setYoursOpen(false);
             setSelectedStory(null);
-            pushOverlayHistory('chat');
             setActiveChatStory(st);
           } else {
-            setPendingActionStory(null);
+            closeTopOverlay(() => {
+              setAuthModalOpen(false);
+              setPendingActionStory(null);
+            });
           }
         }}
       />
@@ -652,6 +682,11 @@ function LeadersStoriesShell() {
         enableAiSuggestions={appSettings.enableAiSuggestions}
         onBack={() => closeTopOverlay(() => setActiveChatStory(null))}
         onOpenStoryInfo={(st) => {
+          try {
+            window.history.replaceState({ view: 'detail' }, '');
+          } catch {
+            // ignore
+          }
           setActiveChatStory(null);
           setSelectedStory(st);
         }}
@@ -690,10 +725,7 @@ function LeadersStoriesShell() {
         favoriteIds={favoriteIds}
         activeChatIds={activeChatIds}
         onClose={() => closeTopOverlay(() => setYoursOpen(false))}
-        onStartChat={(girl) => {
-          setYoursOpen(false);
-          handleStartChat(girl, true);
-        }}
+        onStartChat={(girl) => handleStartChat(girl, true)}
         onToggleFavorite={(girl) => void handleToggleFavorite(girl)}
       />
     );

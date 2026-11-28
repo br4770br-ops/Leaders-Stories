@@ -138,12 +138,20 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
   const spotlightCharacters = useMemo(() => {
     const list: { character: StoryDefinition['characters'][0]; story: StoryDefinition }[] = [];
+    const seenPortraits = new Set<string>();
     for (const story of stories) {
-      if (story.characters[0]) {
-        list.push({ character: story.characters[0], story });
+      const lead = story.characters[0];
+      if (lead && !seenPortraits.has(lead.portrait)) {
+        seenPortraits.add(lead.portrait);
+        list.push({ character: lead, story });
       }
-      if (list.length < 28 && story.characters[2]) {
-        list.push({ character: story.characters[2], story });
+    }
+    for (const story of stories) {
+      if (list.length >= 26) break;
+      const support = story.characters[2];
+      if (support && !seenPortraits.has(support.portrait)) {
+        seenPortraits.add(support.portrait);
+        list.push({ character: support, story });
       }
     }
     return list.slice(0, 26);
